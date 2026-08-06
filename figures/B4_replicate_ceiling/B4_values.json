@@ -1,0 +1,12 @@
+{
+  "ceiling": {
+    "pc_whole": 0.9520508629226636,
+    "lncRNA_whole": 0.8900837394395953,
+    "pc_cds_codon": 0.9501043768414998
+  },
+  "model": {
+    "pc_whole": 0.638,
+    "lncRNA_whole": 0.364,
+    "pc_cds_codon": 0.526
+  }
+}

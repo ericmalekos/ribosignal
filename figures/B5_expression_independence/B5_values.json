@@ -1,0 +1,14 @@
+{
+  "all": {
+    "auroc_pred_frame0_lengthctrl": 0.8906881448847389,
+    "auroc_pred_density_lengthctrl": 0.7705986841274076,
+    "auroc_obs_density_ceiling": 0.7513515689045558,
+    "shape_minus_best_magnitude": 0.12008946075733129
+  },
+  "noncanonical": {
+    "auroc_pred_frame0_lengthctrl": 0.8315992533051046,
+    "auroc_pred_density_lengthctrl": 0.7430440945822722,
+    "auroc_obs_density_ceiling": 0.7446757749548174,
+    "shape_minus_best_magnitude": 0.08692347835028724
+  }
+}

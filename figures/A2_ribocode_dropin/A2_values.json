@@ -1,0 +1,44 @@
+{
+  "fully_predicted": {
+    "precision": 0.9253070878156711,
+    "recall": 0.9202519159268533,
+    "f1": 0.9227725785589288
+  },
+  "recall_per_type": {
+    "annotated": {
+      "recovered": 10903,
+      "n_real": 10947,
+      "recall": 0.995980633963643
+    },
+    "uORF": {
+      "recovered": 598,
+      "n_real": 968,
+      "recall": 0.6177685950413223
+    },
+    "Overlap_uORF": {
+      "recovered": 288,
+      "n_real": 474,
+      "recall": 0.6075949367088608
+    },
+    "dORF": {
+      "recovered": 15,
+      "n_real": 149,
+      "recall": 0.10067114093959731
+    },
+    "Overlap_dORF": {
+      "recovered": 13,
+      "n_real": 51,
+      "recall": 0.2549019607843137
+    },
+    "internal": {
+      "recovered": 15,
+      "n_real": 213,
+      "recall": 0.07042253521126761
+    },
+    "novel": {
+      "recovered": 296,
+      "n_real": 377,
+      "recall": 0.7851458885941645
+    }
+  }
+}
