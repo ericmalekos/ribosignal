@@ -1,0 +1,61 @@
+# riboseq_signal_model -- what git tracks is the CODE and the WRITE-UP (~20 MB).
+# The 3.5 TB of data, packs, checkpoints and search output stays on the group filesystem.
+#
+# Override for a specific file with `git add -f <path>` (e.g. a small test fixture).
+
+# ---- bulk data: 3.5 TB, never in git ----
+# Leading slash ANCHORS these to the repo root. Without it, `data/` also matches
+# tutorial/source/data (tutorial prose, 5.5 KB) and any other nested dir of that name.
+/data/
+/results/
+/proteogenomics/data/
+
+# ---- SLURM stdout/stderr ----
+# 2,255 files / 17 MB that churn on every run. They REMAIN ON DISK as the project's run
+# record (the logs/ rule in CLAUDE.md is about keeping them, not about tracking them);
+# tracking them would make `git status` and every diff unreadable.
+# To include them instead, delete these two lines.
+*.out
+*.err
+
+# ---- Sphinx build artifacts (regenerate: cd tutorial && make html) ----
+tutorial/build/
+tutorial/index.html
+**/.doctrees/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# ---- large/regenerable binaries (belt-and-braces; the dirs above already cover these) ----
+*.pt
+*.pth
+*.npy
+*.npz
+*.hd5
+*.h5
+*.bam
+*.bai
+*.bed
+*.fastq
+*.fq
+*.mzML
+*.mzBIN*
+*.pepXML
+*.pin
+*.gz
+*.sif
+
+# ---- editor / OS ----
+.DS_Store
+*.swp
+
+# One-off junk: a PRICE invocation with an unexpanded ${prefix} shell variable wrote these
+# two files literally named "${prefix}.*" (2026-07-18). Left on disk, not tracked.
+${prefix}.*
+
+# EXCEPTIONS force-added with `git add -f` (git cannot re-include a file whose parent dir is
+# excluded, so these are tracked explicitly rather than via a negation pattern):
+#   data/packed_union/NAMING_WARNING.md      -- the bare-name/nokozak-content hazard
+#   data/packed_union/orf_track_v2_meta.json -- authoritative kozak setting for the released models

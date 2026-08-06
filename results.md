@@ -1,0 +1,2219 @@
+# Results: Ribo-seq signal prediction model
+
+Status (updated 2026-07-16): model TRAINED + FULLY EVALUATED across Tasks 1-20. Deployment
+recommendation = one-hot `orf_v2_attn` (~5M params, CPU-runnable; FM embeddings give no lift over
+one-hot per Task 15). Landed: fold-0 + multi-fold held-out-chromosome baselines (Tasks 6, 9);
+RiNALMo-vs-Orthrus and input/architecture ablations (Tasks 7, 8, 15, 17); uORF/dORF-aware eval
+(Task 9c); 9-fold leave-one-tissue-out cross-tissue transfer (Task 12); localization + RiboCode
+drop-in ORF-calling (Tasks 13, 14); cross-study human Ruiz-Orera + cross-species mouse Wang transfer
+(Task 16); depth crossover, predict-vs-measure (Task 18); non-AUG ATG+CTG drop-in (Task 19); and the
+Kozak start-context ablation (Task 20), whose finding -- the hand-picked Kozak factor is redundant
+with what the sequence backbone learns -- was acted on by flipping the ORF-track default to
+`--kozak none`. In progress: posture-B multimap sensitivity check (Task 21). See methods.md for the
+per-task methodology and the auto-memory `project_riboseq_signal_model.md` for the running state.
+
+## Task 1: Ribo-seq per-sample BAM cleaning posture (verified)
+
+Verdict: the correct base for the per-nt P-site target is the 32 RiboCode
+`*_psites.hd5`, which were built from the CLEANED `Aligned.toTranscriptome.out.bam`.
+The three per-sample BAM flavors are in different states:
+
+| per-sample file | posture | use for target? |
+|---|---|---|
+| `{SRR}.Aligned.sortedByCoord.out.bam` (genomic) | CLEANED (NH==1 + rRNA/tRNA/miRNA loci dropped) | genomic, not the transcript axis |
+| `{SRR}.Aligned.toTranscriptome.out.bam` (transcriptome) | CLEANED (ncRNA-tx + cross-gene multimappers dropped; within-gene isoform multimappers retained) | YES (source of the hd5) |
+| `{SRR}.toTranscriptome.sorted.bam` (transcriptome) | RAW / dirty (120M+ records, NH up to 1000+) | NO, do not use |
+
+Provenance: Fibroblast hd5 timestamped Jun 28 00:13+, after the in-place clean of
+`Aligned.toTranscriptome.out.bam` at Jun 27 17:42. STAR aligned with
+`--outFilterMultimapNmax 20`; NH==1 filtering was a separate Phase-30 step on the
+genomic BAMs. Target multimapper posture = A (reuse hd5 as-is, user-confirmed).
+
+### Empirical verification (`scripts/verify_target_inputs.py`, logs/verify_target_inputs.txt)
+
+```
+input hd5 files            : 32
+axis transcripts           : 509,650
+per-sample P-site depth    : min 2,144,083  max 7,676,156  total 121,618,960
+
+-- ncRNA drop-list posture --
+drop-list transcripts      : 7,587
+  present on axis          : 7,587   (present-but-zero, as expected)
+  absent from axis         : 0
+present ncRNA by gene_type : misc_RNA=2207, snRNA=1901, miRNA=1879, snoRNA=942,
+                             rRNA_pseudogene=497, scaRNA=49, rRNA=47, unknown=24,
+                             Mt_tRNA=22, ribozyme=8, sRNA=5, vault_RNA=4, Mt_rRNA=2
+pooled P-sites over present ncRNA : sum=0  max_single_tx=0  nonzero_tx=0/7587
+
+-- positive controls (housekeeping) --
+ACTB  : isoforms=43  pooled_total=38,724,541  top=ENST00000462494.5 (1,234,486)  len_match=43/43
+GAPDH : isoforms=40  pooled_total= 4,947,235  top=ENST00000229239.10 (162,424)    len_match=40/40
+```
+
+Interpretation: all 7,587 rRNA/tRNA/miRNA/sno/sn drop-list transcripts present on the
+axis pool to exactly 0 P-sites (reads over them were removed upstream), while ACTB and
+GAPDH pool to millions (the reader sees real signal, so the 0 is real, not an all-zero
+bug), and every control transcript's hd5 per-nt array length equals its GENCODE mature
+length (the per-nt axis is the transcript-nt axis the embeddings and RNAseq align to).
+
+## Task 2: Fibroblast per-nt P-site target (transcriptome coords) -- BUILT
+
+Build: `scripts/build_fibroblast_psite_target.py`, SLURM job 35119831 on phoenix-21,
+18:10:16 to 18:17:08 (about 7 min), pooling the 32 Fibroblast `*_psites.hd5`
+element-wise (posture A).
+
+Outputs (`data/target/`):
+
+| file | size | contents |
+|---|---|---|
+| `Fibroblast_psites_pooled.hd5` | 3.75 GB | `transcript_ids` (vlen-str) + `p_sites` (vlen-int32, per-nt pooled, gzip-4); attrs tissue, n_samples=32, n_transcripts=509650, psites_number_total=121,618,960, psites_number_per_sample (JSON), multimapper_posture=A |
+| `Fibroblast_psites_summary.tsv` | 39.7 MB | one row/tx: tx_id, length, total_psites, n_nonzero_nt, max_psite, gene_id, gene_name, chrom, transcript_type |
+
+Headline numbers:
+
+- grand total pooled P-sites = 2,205,261,175 ; max single pooled nucleotide = 191,722
+  (int32-safe).
+- transcripts with nonzero signal = 343,360 / 509,650 (67.4%).
+- signal-bearing transcripts by transcript_type: protein_coding 193,953 ; lncRNA
+  71,362 ; retained_intron 30,429 ; protein_coding_CDS_not_defined 21,944 ;
+  nonsense_mediated_decay 19,676 ; processed_pseudogene 4,360 ; (others smaller).
+- top transcripts by pooled P-sites: THBS1 (2.80M) and FN1 (2.25M), both
+  protein_coding, which are the canonical fibroblast-secreted ECM genes
+  (thrombospondin-1, fibronectin-1) -- a biological sanity check that the deepest Ribo-seq
+  signal is the genes a fibroblast translates most.
+
+### Multimapping multiplicity (a property of posture A, documented)
+
+The pooled per-nt total (2,205,261,175) is 18.1x the pooled distinct footprint count
+(121,618,960). That factor is the mean within-gene isoform multiplicity: each footprint
+is counted on every compatible isoform (posture A). It inflates absolute magnitude and,
+because a read over a shared exon maps to more isoforms than a read over an
+isoform-unique exon, can also distort the relative per-nt shape between shared and unique
+regions. This is expected and acceptable for the first target: the model is scored with
+scale-invariant per-transcript Pearson/Spearman + 3-nt periodicity, and per-transcript
+normalization removes the magnitude inflation. It motivates (a) per-transcript
+normalization at train/eval time and (b) the pre-registered posture-B (primary-only)
+sensitivity check.
+
+### Validations
+
+- Build correctness: `pooled[tx] == sum over the 32 sources[tx]` element-wise
+  (`np.array_equal` True) for FN1 (ENST00000354785.11), ACTB (ENST00000462494.5),
+  GAPDH (ENST00000229239.10), and a drop-list ncRNA (ENST00000290239.7, 0==0). No
+  double-counting.
+- Axis cross-check: for all 443 RiNALMo per-token pilot transcripts, the pooled hd5
+  per-nt array length equals the embedding row count L (443/443 match, 0 mismatch,
+  0 off-axis). The target aligns 1:1 with the FM embeddings, position-for-position.
+
+## Task 3: Fibroblast RNAseq per-nt coverage (input feature) -- DONE
+
+Second model input: per-nt RNAseq read coverage on the same transcriptome axis as the
+target. Strandedness ISR (reverse), posture A to match the target, sense filter
+`is_read2 != is_reverse`.
+
+Smoke (SRR15513233): STAR 55.4M read pairs, 91.79% uniquely mapped + 3.08% multi
+(~95% mapped, adapter-free as expected). The per-nt counter walked 1,406,801,328
+alignment records and counted 1,387,087,336 sense records (mean within-gene isoform
+multiplicity ~12.7x per mate under posture A; the ~1.4% dropped are antisense mates,
+confirming the strand filter), covering 341,305/509,650 transcripts (matches the
+target's 343,360). Output hd5 3.75 GB.
+
+Counter decision: pysam single-threaded (`scripts/rnaseq_coverage.py`), ~81 min/sample.
+deepTools bamCoverage was benchmarked and rejected (>3.5 h/sample: 509,650-contig
+`--binSize 1` coverage over a 1.4B-record BAM is pathological; see methods.md section 4).
+
+Fleet: SLURM array 35123909 (`align_rnaseq_array.sbatch`, samples 234-264; 233 reused
+from the smoke), raised to 32-wide. All 32 per-sample coverage hd5 produced (uniform
+3.5 GB each; validated one: SRR15513236 counted 719.7M sense of 722.9M records, ACTB
+total 17.9M over its 2,554-nt length matching the target length). SLURM packed 26 of the
+32 tasks onto one node (phoenix-20), so the tail ran longer under I/O contention -- a
+lesson to spread with a lower throttle or `--nodes`/`--spread-job` next time. The last
+task (SRR15513256) ran 3 h 22 m: it is the deepest sample (1.92B sense records vs the
+~0.47-1.67B range across the 32) counted single-threaded on the contended node, i.e.
+genuine workload, not a hang. All 32 completed cleanly (0 failed); per-sample sense counts
+range 468M-1,925M, every file covering all 509,650 transcripts.
+
+Pooled (`pool_rnaseq_coverage.py`, job 35124893, 6 m 32 s): element-wise sum of the 32
+per-sample coverage hd5 -> `Fibroblast_rnaseq_coverage_pooled.hd5` (3.5 GB) +
+`Fibroblast_rnaseq_coverage_summary.tsv`. Grand total pooled coverage = 757,573,677,538
+per-nt read-depth counts (posture A).
+
+Axis note: the per-sample coverage `transcript_ids` follow the STAR `@SQ` order, which is
+the SAME SET as the target's RiboCode order but a DIFFERENT permutation (160,133/509,650
+positions differ; 0 set difference). All 32 coverage files share one axis (so positional
+pooling is valid among them), but coverage-to-target and coverage-to-embedding joins must
+be BY transcript id, never by position. All 36,668 universe transcripts are present in
+both axes.
+
+Validation (`scripts/validate_coverage.py`, `logs/validate_pooled_coverage.txt`): pooled
+coverage and target share the same 509,650-transcript set; ACTB and GAPDH per-nt lengths
+match the target (2,554 and 1,285) with large pooled coverage totals (714M, 488M).
+Coupling total-coverage vs total-P-sites (log1p Pearson over the 36,668 universe) = 0.703,
+in the expected 0.7-0.8 band -- coverage is a good transcript-level magnitude prior.
+Mean-per-nt coverage vs salmon mean TPM = 0.490: the gap from a higher value is the
+posture difference (raw multimap-counted coverage under posture A vs salmon's EM-resolved,
+decoy-aware TPM), consistent and expected, not a defect.
+
+## Task 4: expressed universe, per-token RiNALMo embeddings, held-out-chrom split -- DONE
+
+Expressed universe (`scripts/define_universe_and_fasta.py`): protein_coding + lncRNA with
+Fibroblast salmon meanTPM >= 1 and mature length <= 10,000 nt (RiNALMo cap) = 36,668
+transcripts (34,248 pc + 2,420 lncRNA) -> `data/fibroblast_universe.tsv` + `.fa`.
+
+Per-token RiNALMo embeddings (`scripts/extract_rinalmo_universe_array.sbatch`, GPU array
+of 8 length-balanced chunks on A5500, ~1 h 05 m per chunk): 36,668/36,668 transcripts
+embedded, one `{tx}_tokens.npy` per transcript of shape (L, 1280) float16 with L ==
+transcript length, ~234 GB total under `data/rinalmo_token_emb/chunk_{1..8}/`. Indexed by
+`scripts/build_embedding_index.py` -> `data/rinalmo_token_emb/tx_index.tsv` (36,668 rows,
+0 missing). Axis validation: for 6/6 sampled transcripts the embedding row count L equals
+the GENCODE length exactly (1:1 with the target and coverage per-nt axes).
+
+Held-out-chromosome split (`scripts/build_chrom_split.py`): transcripts grouped by
+chromosome (gene-disjoint by construction) into 5 count-balanced folds ->
+`data/splits/fibroblast_chrom_kfold.json`. Fold 0 (chr1/7/8/22, ~7,473 test tx) is the
+canonical first held-out-chromosome test.
+
+## Task 5 (design): data-driven model decisions
+
+From `scripts/inspect_distributions.py` (`logs/inspect_distributions.txt`; 1,500
+expressed+translated tx sampled, whole-universe per-tx summaries):
+
+| measurement | value | design consequence |
+|---|---|---|
+| per-nt zero fraction (target) | 74.2% | sparse count profile |
+| per-nt var/mean (target) | ~2,355 | overdispersed -> NB / multinomial, NOT Poisson |
+| 3-nt periodicity (autocorr lag 3/6/9/12 vs off-frame) | 0.32/0.24/0.23/0.21 vs ~0.02-0.05 | strong; reproduce it + use as eval metric |
+| per-tx P-sites range | median 3,463, max 2.8M | huge -> per-transcript normalization essential |
+| coverage per-nt zero fraction | 5.0% (mean 147, max 20k) | dense conditioning input; feed as log1p |
+| within-tx coverage-vs-P-site Spearman | median 0.17 | coverage does NOT localize; embedding must |
+| across-tx total coverage-vs-P-site (log1p Pearson) | 0.78 | coverage IS a good magnitude prior |
+
+Decision: a BPNet-style dual head over `[emb ; log1p(coverage)]` -- residual dilated 1-D
+convolutions (O(L), the FM embedding already carries long-range context) feeding a
+**profile head** (log-softmax over positions + multinomial NLL; scale-free, transferable,
+captures periodicity + CDS localization) and a **count head** (log-count / NB regression;
+magnitude, dataset-depth-dependent). Evaluated by per-transcript Pearson/Spearman +
+periodicity recovery on the held-out chromosome, split by biotype. Rationale in
+methods.md section 5B.
+
+### Task 5 (implementation): code complete, pipeline chained
+
+Implemented (methods.md section 5C; all `ruff`-clean, py310):
+
+- `scripts/model.py` -- `RiboSignalModel` dual-head dilated CNN + `profile_multinomial_nll`
+  + `count_mse`.
+- `scripts/dataset.py` -- numpy-only loader over ragged packed target/coverage +
+  per-tx embedding `.npy`, token-budget batching, chrom-fold splits.
+- `scripts/pack_target_coverage.py` -- ragged 1-D pack of target + coverage for the
+  universe (numpy-only reads at train time).
+- `scripts/train.py` -- training loop, cosine schedule, early stop, scale-invariant
+  per-transcript eval split by biotype.
+- `scripts/validate_coverage.py`, `scripts/plot_predictions.py` -- pooled-coverage
+  validation and post-training figures.
+
+End-to-end validation on a 1,500-transcript dry-run pack (per-sample coverage stand-in,
+tiny model, CPU): loss fell 12.46 -> 7.75, val profile Pearson rose across epochs, and the
+model already produced 3-nt periodicity in its predicted profile (period metric ~0.77 vs
+observed ~0.21) -- the profile head captures frame structure. Checkpointing, early stopping,
+and metric export all verified.
+
+Pipeline chained with SLURM `afterok` dependencies (auto-runs unattended): pool
+(35124893) -> post-pool validate+pack (35125105) -> fold-0 GPU training (35125106,
+one A5500 in the CUDA SIF). Results land in `results/fold0_rinalmo/`
+(`history.json`, `best.pt`, `test_metrics.json`).
+
+## Task 6: fold-0 held-out-chromosome result (RiNALMo) -- FIRST BASELINE
+
+Training (job 35125106, one A5500, 2 h 31 m): early-stopped at epoch 11, best val at
+epoch 5 (val profile Pearson 0.595). The whole afterok chain ran unattended after the
+coverage fleet finished. Test = fold 0 (chr1/7/8/22), gene-disjoint from train (folds 2-4)
+and val (fold 1); 6,962 test transcripts scored (>= 50 total P-sites).
+
+| biotype | n | profile Pearson (median) | Spearman (median) | periodicity pred / obs |
+|---|---|---|---|---|
+| all | 6,962 | 0.599 | 0.225 | 0.521 / 0.219 |
+| protein_coding | 6,698 | **0.604** | 0.241 | 0.526 / 0.223 |
+| lncRNA | 264 | 0.343 | -0.171 | 0.144 / 0.041 |
+
+Reading of the numbers:
+
+- The approach works: median per-transcript profile Pearson **0.60 for protein_coding on
+  held-out chromosomes**. From (RiNALMo per-token embedding + per-nt RNAseq coverage) the
+  model predicts where ribosomes sit along a transcript it has never seen, and the
+  prediction generalizes across chromosomes.
+- The model learned reading frame: the predicted profiles carry stronger 3-nt periodicity
+  than the noisy observed P-site profiles (pc 0.526 predicted vs 0.223 observed) -- it
+  effectively denoises toward the ideal periodic footprint pattern rather than copying the
+  experimental noise, which is exactly the behaviour a signal/denoising model should show.
+- Spearman (0.24) is far below Pearson (0.60) by construction: 74% of nt are zero, so the
+  rank correlation is dominated by ranking the huge tie-block of near-zero positions
+  (noise), while Pearson is dominated by placing the mass on the real peaks (which the
+  model gets right). Pearson is the meaningful profile-shape metric here.
+- lncRNA is appropriately weak (Pearson 0.34, observed periodicity only 0.04): most
+  lncRNAs are not genuinely translated, so their measured "P-site" signal is largely
+  non-periodic noise that no model can predict a coherent profile for. The gap between pc
+  and lncRNA is itself a signal that the model captures real translation structure, not a
+  generic coverage-shape artefact.
+
+Figure `results/fold0_rinalmo/figures/fold0_predictions.png` (`scripts/plot_predictions.py`)
+shows observed vs predicted per-nt profiles with periodicity zooms and the per-transcript
+Pearson distribution by biotype.
+
+### 5-fold cross-validation (RiNALMo, both inputs)
+
+All 5 gene-disjoint chromosome folds (`train_allfolds.sbatch` folds 1-4 as array 35126435 +
+fold 0 above), same config. The result is tight across folds.
+
+| fold | pc profile Pearson | pc periodicity pred / obs | lncRNA Pearson |
+|---|---|---|---|
+| 0 | 0.604 | 0.526 / 0.223 | 0.343 |
+| 1 | 0.597 | 0.502 / 0.218 | 0.382 |
+| 2 | 0.589 | 0.505 / 0.219 | 0.370 |
+| 3 | 0.596 | 0.458 / 0.225 | 0.378 |
+| 4 | 0.597 | 0.487 / 0.224 | 0.402 |
+| **mean +/- sd** | **0.597 +/- 0.005** | 0.496 / 0.222 | 0.375 +/- 0.021 |
+
+The protein_coding profile Pearson is 0.597 +/- 0.005 across five held-out-chromosome folds:
+the fold-0 number was not a lucky split. Predicted periodicity (~0.50) consistently exceeds
+observed (~0.22), so the denoising-toward-frame behaviour holds fold to fold.
+
+### Input ablations (fold 0)
+
+`--input_mode` zeros one input (array 35126496). Tests whether the FM embedding adds value
+beyond RNAseq coverage.
+
+| inputs | pc profile Pearson | reading |
+|---|---|---|
+| both | 0.604 | baseline |
+| embedding-only | 0.593 | embedding carries almost all profile shape (coverage adds +0.011) |
+| coverage-only | 0.171 | coverage alone barely localizes; periodicity ~0 (no frame) |
+
+The embedding-only result (0.593, matching the full 0.604) confirms the design: profile
+shape -- where ribosomes sit -- is sequence-determined, so the embedding does the
+localization. Coverage-only collapses to 0.171 with predicted periodicity -0.013 (no
+reading frame at all), so RNAseq coverage carries none of the frame/localization signal.
+Coverage's real contribution is magnitude (the count head), which the scale-free profile
+Pearson does not measure -- hence coverage barely moves this metric (+0.011). The magnitude
+(count-head) accuracy that credits coverage is reported below.
+
+### Magnitude (count-head) accuracy -- a clean double dissociation
+
+`scripts/eval_extra.py` (jobs 35128965 / 35129022) adds the metric the profile Pearson
+misses: the per-transcript Pearson between the count head's predicted log-count and the
+observed `log1p(total P-sites)` (protein_coding test transcripts). Coverage feeds the count
+head, so this is where coverage should earn its keep.
+
+| inputs | profile Pearson (shape) | count Pearson (magnitude) |
+|---|---|---|
+| both | 0.604 | 0.783 |
+| embedding-only | 0.593 | 0.399 |
+| coverage-only | 0.171 | 0.789 |
+
+All three rows are fold 0 (n=6698 pc test transcripts) so the input configurations compare on
+the same split; the count metric is stable across the 5 folds (0.785 +/- 0.025).
+
+This is a clean double dissociation: each input dominates exactly one axis. **Embedding owns
+shape** (embedding-only 0.593 ~= both 0.604, coverage-only collapses to 0.171), **coverage
+owns magnitude** (coverage-only 0.789 ~= both 0.783, embedding-only drops to 0.399). The
+two-input design is justified on both axes with numbers, not assertion: sequence sets where
+and in what frame ribosomes sit, RNAseq abundance sets how much.
+
+### Posture-B sensitivity (single-isoform-gene proxy)
+
+Rather than rebuild the target primary-only, `eval_extra.py` reports profile Pearson split by
+whether a test transcript's gene has a single annotated isoform (posture A == posture B by
+definition, no multimap ambiguity) vs multiple isoforms (which bear the ~18x multimapping).
+
+| subset | pc profile Pearson (5-fold) | n (per fold) |
+|---|---|---|
+| single-isoform gene | ~0.55 (0.51-0.58) | 35-64 |
+| multi-isoform gene | ~0.597 (0.59-0.60) | 6.2k-6.8k |
+
+The multi-isoform transcripts -- the ones actually affected by posture-A multimapping -- are
+not worse than the clean single-isoform transcripts (if anything slightly better, being more
+expressed). So the multimap inflation is not distorting the shape prediction, and a full
+primary-only (posture-B) target rebuild is not warranted by this evidence (it remains
+available as the pre-registered heavy check). Caveat: the single-isoform subset is small
+(n=35-64/fold), so this is suggestive, not definitive.
+
+A full code-first writeup of the whole experiment is at `tutorial/index.html`
+(self-contained; motivation, all decisions, inputs/outputs, results, reproduce commands).
+
+## Task 7: Orthrus vs RiNALMo embedding comparison (fold 0) -- DONE
+
+Question: does the choice of foundation model matter for the per-nt profile? The same
+Fibroblast universe was embedded per-token with Orthrus 4-track (a Mamba mRNA model, 512-d,
+sequence-only; see methods.md section 4C) alongside RiNALMo (1280-d), and the identical
+dual-head model was trained on RiNALMo alone, Orthrus alone, and the two concatenated
+(1792-d) on the same gene-disjoint fold-0 split, seed, and hyperparameters
+(`scripts/train_backends.sbatch`, aggregated by `scripts/aggregate_backends.py`;
+results/backend_cmp/). `usable()` intersects the per-backend indices so all three train and
+test on the identical 6698 pc + 264 lncRNA test transcripts.
+
+| backend | d_emb | pc profile P | pc period_pred | count P | lncRNA profile P |
+|---|---|---|---|---|---|
+| rinalmo | 1280 | 0.612 | 0.485 | 0.780 | 0.346 |
+| orthrus | 512  | 0.617 | 0.498 | 0.810 | 0.369 |
+| concat  | 1792 | 0.614 | 0.449 | 0.763 | 0.341 |
+
+(period_obs 0.223 for all; pc profile Spearman ~0.24 for all, the 74%-zeros effect.)
+
+- Orthrus (mRNA-specialized Mamba, 512-d) matches and marginally beats RiNALMo (general RNA
+  LM, 1280-d) on every axis -- pc profile, periodicity recovery, count magnitude, and lncRNA
+  profile -- at 40% the embedding dimension. The pc gap (+0.005) is within run-to-run noise,
+  but the edge is consistent across all four metrics and largest on the depth-relevant count
+  head (0.810 vs 0.780) and on lncRNA (0.369 vs 0.346).
+- Concatenating the two does NOT help: concat lands between the singles on pc (0.614) and is
+  worst on lncRNA (0.341) and count (0.763). The two embeddings are largely redundant for
+  this task, so stacking them adds parameters without information and mildly hurts the small
+  lncRNA set.
+- Practical read: a single Orthrus 4-track embedding is the efficient default (best signal at
+  the lowest dimension); RiNALMo is an equivalent alternative; the concatenation is not worth
+  its cost. One fold only, so a multi-fold confirmation is the natural follow-up.
+
+## Task 8: input and architecture improvements (fold 0) -- DONE
+
+Two goal-driven additions were tested against the RiNALMo fold-0 baseline (0.612 pc / 0.346
+lncRNA), same split/seed/hyperparameters, only the input track and/or architecture changing
+(`scripts/train_improve*.sbatch`, aggregated by `scripts/aggregate_improve.py`;
+results/improve/):
+
+- ORF-candidate track (`scripts/build_orf_track.py`): a sequence-derived, annotation-free
+  per-nt track marking ATG..in-frame-stop occupancy in all 3 frames + start + stop. Two
+  start-channel variants -- ATG-only (v1) and non-AUG-aware (v2: graded start_ext over AUG +
+  the 9 near-cognate starts 1 nt from AUG, Kozak-weighted). Built annotation-free so it works
+  for uORFs, dORFs, and lncRNA ORFs, not just canonical CDS.
+- Attention: 2 self-attention layers after the dilated-conv body, giving full-transcript
+  context past the CNN's ~4 kb receptive field (`--n_attn_layers`).
+
+| config | ORF track | attn | pc profile P | lncRNA profile P |
+|---|---|---|---|---|
+| baseline    | none   | 0 | 0.612 | 0.346 |
+| orf         | ATG    | 0 | 0.619 | 0.384 |
+| orf_v2      | nonAUG | 0 | 0.618 | 0.334 |
+| attn        | none   | 2 | 0.617 | 0.321 |
+| orf_attn    | ATG    | 2 | 0.608 | 0.405 |
+| orf_v2_attn | nonAUG | 2 | 0.614 | 0.362 |
+
+- The ATG ORF track is the best single change: pc 0.619 (+0.007) and lncRNA 0.384 (+0.038). It
+  supplies candidate ORF structure the FM embedding only approximates, and helps the small
+  lncRNA set most.
+- Non-AUG start information does NOT help and actively hurts lncRNA: orf_v2 lncRNA 0.334 (below
+  even baseline 0.346) vs orf-ATG 0.384; with attention 0.362 vs 0.405. The graded near-cognate
+  start channel adds noise rather than signal on this metric, worst on the class it was meant to
+  help. Caveat: profile Pearson is a whole-transcript shape metric dominated by the main ORF, so
+  it is not the right probe for non-AUG ORF detection -- the proper test is localization to a
+  held-out non-canonical ORF truth set (not yet built), and the near-cognate weights are a
+  first-pass ordinal.
+- Attention is a pc-vs-lncRNA trade-off: attention-only nudges pc (0.617) but hurts lncRNA
+  (0.321); attention + the ATG ORF track gives the best lncRNA of all (0.405, +0.059 over
+  baseline) at a small pc cost (0.608). The ORF track and attention synergize for lncRNA --
+  attention has useful transcript-wide ORF structure to attend to.
+- Recommendation for the non-canonical-ORF goal (lncRNA-weighted): ATG ORF track + attention
+  (best lncRNA 0.405), and drop the non-AUG channel. For pc-weighted profile, the ATG ORF track
+  alone (0.619) is best. One fold only; multi-fold confirmation is the follow-up.
+
+Count-head magnitude (P) is stable across all six configs (baseline 0.780, orf 0.791, orf_v2
+0.787, attn 0.793, orf_attn 0.772, orf_v2_attn 0.761): it is driven by the RNA-seq coverage
+input, not the ORF track or attention, so those changes move profile shape and lncRNA but not
+magnitude. This matches the Task 6 double dissociation (coverage owns magnitude). The attention
+rows' count was backfilled by `scripts/eval_extra_attn.sbatch` after the in-job eval_extra OOMed
+at the old default budget 24000; eval_extra now caps its batch budget at the run's training
+budget (16000 for attention runs).
+
+## Task 9: multi-fold confirmation of the improvement matrix -- DONE
+
+The Task 8 matrix was fold 0 only (lncRNA n=264). All 6 configs were extended to the 5
+gene-disjoint chromosome folds so the lncRNA deltas rest on the pooled ~1,239 transcripts (each
+scorable transcript held out once). `scripts/train_multifold.sbatch` (SLURM array 35137714, 25
+new cells: baseline folds 0-4 fresh in the improve lineage + the other 5 configs folds 1-4, fold
+0 reused; per-tx `pertx.tsv` backfill for the reused fold-0 runs was job 35137713). All 30 cells
+COMPLETED, none failed. Settings match `backend_cmp/rinalmo_f0` exactly; `baseline_f0` reproduced
+it (pc 0.611 vs 0.612), confirming the harness. Aggregated by `scripts/aggregate_multifold.py`
+(`results/improve/summary_multifold.{tsv,json}`).
+
+Pooled = median over the concatenated per-transcript profile Pearson from all 5 folds (each
+scorable transcript held out once). The three ORF classes are tracked TOGETHER (deltas vs baseline
+in parentheses): pc whole-transcript n=33,257; lncRNA whole-transcript n=1,239; uORF (pc 5'UTR,
+translated-uORF tx) n=22,495; dORF (pc 3'UTR) n=12,286. The uORF/dORF metric and its rationale are
+in Task 9c; all 8 configs including the CTG track (Task 9b) are shown.
+
+| config | pc | lncRNA | uORF | dORF |
+|---|---|---|---|---|
+| baseline | 0.600 | 0.349 | 0.559 | 0.291 |
+| orf (ATG) | 0.603 (+0.003) | 0.405 (+0.056) | 0.584 (+0.024) | 0.329 (+0.038) |
+| orf_v2 (nonAUG) | 0.607 (+0.008) | 0.382 (+0.033) | 0.593 (+0.033) | 0.329 (+0.038) |
+| orf_ctg (ATG+CTG) | 0.603 (+0.003) | 0.384 (+0.035) | 0.577 (+0.018) | 0.320 (+0.030) |
+| attn | 0.607 (+0.008) | 0.378 (+0.029) | 0.581 (+0.022) | 0.307 (+0.016) |
+| orf_attn (ATG+attn) | 0.612 (+0.012) | **0.409** (+0.060) | 0.604 (+0.045) | 0.340 (+0.049) |
+| **orf_v2_attn (nonAUG+attn)** | **0.618** (+0.018) | 0.404 (+0.055) | **0.618** (+0.059) | 0.348 (+0.057) |
+| orf_ctg_attn (ATG+CTG+attn) | 0.615 (+0.015) | 0.392 (+0.043) | 0.610 (+0.051) | **0.350** (+0.059) |
+
+lncRNA periodicity (frame), whole-tx: baseline 0.072, orf 0.083, orf_attn 0.112 (best), orf_v2_attn
+0.081 -- attention on the ATG track most improves lncRNA frame prediction.
+
+**Best all-around config: `orf_v2_attn` (non-AUG start channel + attention).** Tracking the three
+regions together resolves the earlier region-by-region picks into one. `orf_v2_attn` is best on pc
+(0.618) and uORF (0.618), essentially best on dORF (0.348, tied with orf_ctg_attn 0.350), and
+statistically tied for best lncRNA (0.404 vs orf_attn 0.409 -- a +0.005 gap on the noisy n=1,239
+lncRNA set against a +0.014 uORF advantage on the tight n=22,495 set). Head to head it beats
+`orf_attn` on pc (+0.006), uORF (+0.014), and dORF (+0.008), losing only within-noise lncRNA
+(+0.006).
+
+Findings, and how they revise the fold-0 (Task 8) conclusions:
+
+- **The ATG ORF track's lncRNA benefit is confirmed and larger than fold 0 said: +0.056 pooled**
+  (fold 0 reported +0.038). This is the single most robust effect. pc is essentially flat across
+  all configs (0.600 to 0.618, within the +/-0.005 to 0.009 fold std).
+- **`orf_attn` is the best lncRNA config, 0.409 (+0.060), unchanged recommendation** -- but the
+  decomposition is corrected. The lift is ORF-track-dominated (+0.056); attention adds only a
+  marginal +0.004 on top of the ORF track for lncRNA *shape* (fold 0 had inflated this to +0.021).
+  Attention's real value is elsewhere: it lifts pc (orf 0.603 -> orf_attn 0.612) and, most
+  clearly, lncRNA **periodicity/frame** (0.083 -> 0.112, the best of any config).
+- **RETRACTED: "non-AUG hurts lncRNA."** Fold 0 put `orf_v2` at 0.334, *below* baseline (0.346),
+  reading as harm. Pooled, `orf_v2` is 0.382, **+0.033 above baseline** -- non-AUG *helps*, just
+  less than ATG-only (0.405). The near-cognate channel dilutes rather than reverses the benefit.
+- **RETRACTED: "attention alone hurts lncRNA."** Fold 0 had `attn` at 0.321 (below baseline);
+  pooled it is 0.378, **+0.029**. Another fold-0 artefact.
+- **Attention compensates for the non-AUG dilution:** attention lifts `orf_v2` more (+0.022,
+  0.382 -> 0.404) than it lifts `orf` (+0.004), so `orf_v2_attn` (0.404) nearly catches
+  `orf_attn` (0.409), and has the best pc of all (0.618).
+
+Root cause of the fold-0 errors: baseline lncRNA swings 0.306 / 0.379 / 0.307 / 0.376 / 0.422
+across folds (fold 0 was the joint-lowest), so a single-fold delta on n=264 was an unreliable
+reference. **Standing lesson: never quote a single-fold lncRNA delta as a finding here.**
+
+Recommendation (per-region; the consolidated all-around pick is above and in Task 9c): for lncRNA
+shape alone, `orf_attn` is marginally best (0.409, best frame 0.112); but once uORFs are scored
+(Task 9c), the non-AUG channel earns its place and `orf_v2_attn` becomes the best all-around config.
+The remaining check for alternative-start localization is the non-canonical-ORF truth-set eval
+(not yet built).
+
+### Task 9b: ATG+CTG ORF track (v3) -- DONE (see Task 9c uORF result)
+
+Follow-up motivated by the multifold correction: the non-AUG track (`orf_v2`) does not hurt
+lncRNA as fold 0 suggested (+0.033 pooled), but it is weaker than ATG-only (+0.056), consistent
+with its 10-codon near-cognate channel diluting the signal. CTG is by far the dominant
+alternative start biologically, so this tests a *selective* ATG+CTG track. Unlike `orf_v2` (which
+kept ATG-only occupancy and only added a graded start channel), the v3 track (`build_orf_track.py
+--mode atgctg` -> `orf_track_v3.npy`) EXTENDS the ORF occupancy to CTG-initiated ORFs, with a
+2-level start channel (ATG=1.0, CTG=0.5). Occupancy density is 0.555/frame (vs ATG-only 0.377),
+informative and far from the ~0.9 that opening all 10 near-cognates would give. Two configs
+(`orf_ctg`, `orf_ctg_attn`) trained at all 5 folds (`scripts/train_ctg_multifold.sbatch`, array
+35174489 gated `afterok` on the v3 build 35174488), directly comparable to `orf` and `orf_v2` on
+the pooled basis. `aggregate_multifold.py` includes both. Question: does ATG+CTG beat ATG-only
+(0.405) by capturing real CTG-initiated translation, or does CTG mostly add noise like the full
+near-cognate set.
+
+## Task 9c: uORF-aware evaluation -- DONE
+
+uORFs are the most common alternative ORF, but the whole-transcript pc metric is CDS-dominated
+and barely reflects them. Added a 5'UTR (uORF) and 3'UTR (dORF) profile-Pearson metric
+(`build_tx2cds.py` -> `data/tx2cds.tsv`; `eval_extra.py` scores the window `[0, cds_start)`;
+`aggregate_multifold.py` pools it). Training stays annotation-free -- CDS coords define the eval
+window only. Scored set: pc tx with 5'-complete CDS, 5'UTR >= 30 nt, >= 20 5'UTR P-sites
+(translated uORF); ~22,000 pooled (~4,400/fold, ~18x the lncRNA n, so tightly powered). Applied to
+the already-trained models by re-eval (`reeval_uorf.sbatch` job 35176144 for the 6 core configs;
+`reeval_ctg_uorf.sbatch` job 35176193, afterok the CTG array, for the 2 CTG configs). The pooled
+uORF matrix (does the ORF track / CTG / attention improve uORF prediction, not just whole-tx
+shape) lands here on completion. Note: `orf_ctg` (ATG+CTG) completed its 5 folds -- on
+whole-transcript lncRNA it is 0.384 (+0.035), below ATG-only (0.405) and level with the diluted
+non-AUG track (0.382); the uORF metric is the more relevant test for CTG (re-eval DONE in the uORF
+result below -- all 8 configs).
+
+### uORF result (all 8 configs, DONE)
+
+Pooled 5'UTR (uORF) profile Pearson, n=22,495, baseline 0.559 (per-fold std 0.005 to 0.018 --
+tightly powered):
+
+| config | uORF pooled | Δ uORF | dORF pooled | (whole-tx lncRNA Δ) |
+|---|---|---|---|---|
+| baseline | 0.559 | -- | 0.291 | -- |
+| orf (ATG) | 0.584 | +0.025 | 0.329 | (+0.056) |
+| orf_v2 (nonAUG) | 0.593 | +0.034 | 0.329 | (+0.033) |
+| orf_ctg (ATG+CTG) | 0.577 | +0.018 | 0.320 | (+0.035) |
+| attn | 0.581 | +0.022 | 0.307 | (+0.029) |
+| orf_attn (ATG+attn) | 0.604 | +0.045 | 0.340 | (+0.060) |
+| **orf_v2_attn (nonAUG+attn)** | **0.618** | **+0.059** | 0.348 | (+0.055) |
+| orf_ctg_attn (ATG+CTG+attn) | 0.610 | +0.051 | 0.350 | (+0.043) |
+
+**The uORF metric reverses the non-AUG verdict.** On whole-transcript lncRNA the non-AUG track was
+weaker than ATG-only (0.382 < 0.405). On the uORF metric it is **stronger**: orf_v2 0.593 > orf
+0.584, and orf_v2_attn 0.618 > orf_attn 0.604. This is biologically expected -- uORFs are enriched
+for non-AUG (especially CUG) initiation, so the non-AUG start channel helps precisely where uORFs
+live (the 5'UTR), even though it diluted the whole-transcript signal. The whole-transcript metric
+was simply the wrong probe for uORFs, which is exactly why this metric was needed.
+
+- **Best uORF config: `orf_v2_attn` (non-AUG track + attention), 0.618 (+0.059)** -- also the best
+  pc (0.618). For the uORF/non-canonical-start goal this beats the ATG-only `orf_attn` (0.604).
+- **Attention adds more to uORF than to lncRNA:** on top of the ORF track it gives +0.020 (ATG) to
+  +0.025 (non-AUG) for uORF, vs only +0.004 for whole-tx lncRNA. Attention helps uORF prediction.
+- **dORF (3'UTR)** follows the same ordering at lower absolute values (baseline 0.291 to
+  orf_v2_attn 0.348), consistent with rarer/weaker 3'UTR translation.
+
+**CTG (ATG+CTG track) does not beat the full non-AUG channel on uORF, and the occupancy extension
+slightly hurts.** `orf_ctg` (0.577) is *below* ATG-only (0.584) and well below the non-AUG channel
+`orf_v2` (0.593); with attention `orf_ctg_attn` (0.610) sits between `orf_attn` (0.604) and
+`orf_v2_attn` (0.618). The lesson is about *encoding*: the v3 track both extended the hard ORF
+occupancy to CTG and shrank the start channel to 2 codons (ATG=1.0, CTG=0.5), whereas `orf_v2` keeps
+ATG-only occupancy and adds a graded start-propensity channel over all 10 near-cognates. The non-AUG
+benefit for uORFs comes through the soft graded start channel, not through extending the hard
+occupancy to CTG (which adds density and slightly hurts). Caveat: this conflates the two changes; a
+clean isolation (ATG occupancy + graded start channel restricted to {ATG,CTG}) was not run, so "CTG
+alone vs all near-cognates" is not fully separated -- but extending occupancy to CTG is clearly not
+the win.
+
+Implication: the recommendation is use-case-dependent. For lncRNA-ORF shape, ATG track + attention
+(`orf_attn`) is best; for uORFs (the most common alternative ORF), **non-AUG start channel +
+attention (`orf_v2_attn`) is best (uORF 0.618)**, delivered as a graded near-cognate start channel
+over ATG-only occupancy, not by extending the ORF occupancy to CTG.
+
+### Task 9d: concentration (spikiness) robustness -- DONE
+
+Profile Pearson is inflated by spiky transcripts: if one nucleotide holds most of the P-sites (a
+strong initiation pause), matching that single spike gives r ~ 0.99 for free (e.g. CKS1B, 71% of
+P-sites on one nt, scores 0.99). `scripts/robustness_concentration.py` measures each transcript's
+max single-nt fraction on the SAME window as each metric (whole tx for pc/lncRNA, 5'UTR for uORF,
+3'UTR for dORF, from the packed target counts) and re-computes the per-config pooled medians on the
+distributed subset (top nt < 10%).
+
+Composition (what fraction of scored transcripts are spiky): pc is 86.9% distributed / 1.8% spiky
+(median top-nt 3.6%) -- pc scores are honest, not spike-driven. **uORF is the concentrated one:
+only 10.4% distributed, 33.1% spiky, median top-nt 22.7%** -- the ~0.56 to 0.62 headline uORF
+numbers are inflated by these. lncRNA 41% / 9%; dORF 24% / 21%.
+
+Verdict: **the config rankings survive the distributed-only restriction.** On distributed uORFs
+(top nt < 10%, n=2,331): baseline 0.493, orf 0.511, orf_v2 0.519, orf_ctg 0.504, attn 0.510,
+orf_attn 0.525, orf_v2_attn 0.543 (best), orf_ctg_attn 0.530. `orf_v2_attn` is still best, non-AUG
+still beats ATG (0.519 > 0.511; 0.543 > 0.525, delta if anything larger than on the full set), and
+the CTG occupancy extension still slightly hurts (0.504 < 0.511). So the non-AUG-for-uORF result is
+NOT a spike artefact. Distributed pc rankings hold (pc is 87% distributed already); distributed
+lncRNA keeps ATG (orf 0.433 / orf_attn 0.431) ahead of non-AUG (orf_v2_attn 0.418). The one honest
+correction is the ABSOLUTE level: distributed-only uORF performance is ~0.49 to 0.54, meaningfully
+below the spike-inflated ~0.56 to 0.62 headline, so real 5'UTR profile prediction on non-trivial
+transcripts is ~0.5, not ~0.6. `results/improve/robustness_concentration.{tsv,json}`.
+
+## Task 10: RNA-seq input depth normalization (transferability) -- DONE
+
+The RNA-seq coverage input was raw pooled per-nt read depth with only a `log1p` transform (no depth
+normalization), so it carried the dataset's absolute sequencing depth: fine within Fibroblast
+(train/test same depth) but not transferable across datasets of different depth (the stated
+cross-dataset objective). Confirmed by inspection: `rnaseq_coverage.py` adds 1 per mate per position
+(raw depth), pooling is an element-wise sum, packing stores raw int32, and `dataset.py` did
+`feats[:,-1]=log1p(cov)`. ACTB per-nt coverage mean ~8,733 (raw); a 10x-shallower library shifts the
+whole `log1p` channel by ~log(10)=2.3.
+
+Fix: `train.py --cov_norm global_mean` (recorded in `args.json`; default for new runs). Coverage is
+divided by the dataset global mean per-nt depth (7,733 for Fibroblast; `data/packed/
+coverage_norm.json`) before `log1p` -- a CPM-like depth normalization; a new dataset computes its OWN
+global mean over its packed coverage. `cov_norm=raw` is kept as the legacy path so the existing runs
+(Tasks 6 to 9d, all raw) still evaluate correctly (`eval_extra` defaults to raw when `args.json` lacks
+the key). Backward-compatible; no model change (the count head sums the now-normalized channel).
+
+Depth-invariance proven by construction (CPU check): feeding a 10x-deeper library and recomputing the
+mean, the `global_mean` input is IDENTICAL (max |diff| 1.2e-7), while the raw input shifts by +2.285
+(~log 10). So the normalized model is invariant to sequencing depth; the raw model is not.
+
+Within-dataset preservation check DONE (`scripts/train_covnorm.sbatch`, job 35178857): baseline +
+orf_v2_attn retrained at all 5 folds with `cov_norm=global_mean`, pooled and compared to the raw runs
+(`scripts/compare_covnorm.py`, median profile Pearson per region):
+
+| config      | region | raw   | normalized | diff   |
+|-------------|--------|-------|------------|--------|
+| baseline    | pc     | 0.600 | 0.593      | -0.007 |
+| baseline    | lncRNA | 0.349 | 0.363      | +0.014 |
+| baseline    | uORF   | 0.559 | 0.544      | -0.015 |
+| baseline    | dORF   | 0.291 | 0.285      | -0.006 |
+| orf_v2_attn | pc     | 0.618 | 0.609      | -0.009 |
+| orf_v2_attn | lncRNA | 0.404 | 0.387      | -0.017 |
+| orf_v2_attn | uORF   | 0.618 | 0.595      | -0.024 |
+| orf_v2_attn | dORF   | 0.348 | 0.340      | -0.008 |
+
+Honest read: depth normalization costs a SMALL but real amount within-dataset (~0.006 to 0.024 median
+Pearson, mostly ~0.01; baseline lncRNA is the one exception at +0.014). It is not the "no change" a
+first guess would expect -- the raw absolute depth carried a little within-Fibroblast-useful signal (a
+mild abundance prior on which transcripts have clean profiles) that normalizing away discards. This is
+the expected price of depth-invariance and it is worth paying: a model that only works at one
+sequencing depth is useless cross-dataset (the actual objective), and the depth x10 check proves the
+normalized input is invariant by construction. The cost is ~1.5 pp of median Pearson to buy
+transferability. (The 13-tx pc count difference 33257 -> 33244 is the chrM exclusion landing in the
+normalized runs' eval, negligible on the median per Task 11.) Note: this normalizes the depth SCALE
+only; cross-dataset/cross-tissue coverage SHAPE differences (3' bias, library prep) remain a separate
+transfer concern, now being tested directly by the 8-tissue LOTO (job 35180395, cov_norm=global_mean).
+
+## Task 11: mitochondrial gene exclusion -- DONE
+
+Mitochondrial protein-coding genes were slipping into the universe. `Mt_rRNA` / `Mt_tRNA` had
+been removed upstream by the ncRNA drop-list, but the 13 chrM mRNAs (MT-ND1/2/3/4/4L/5/6,
+MT-CO1/2/3, MT-CYB, MT-ATP6/8, tx ENST00000361227.2 .. ENST00000362079.2) passed through as
+`protein_coding`. They should not be there: mitochondrial mRNAs are translated by the mitoribosome
+with a different genetic code, are leaderless (no 5'UTR, `utr5=0`, so no uORFs), and carry none of
+the cytoplasmic 3-nt periodicity that the ORF-candidate track and the FM embeddings encode. They are
+extreme abundance outliers (MT-CO1 TPM 13,722; MT-CYB 69,976 pooled P-sites) and the model predicts
+them poorly (whole-tx profile Pearson median 0.124 for the 13 vs 0.618 for real pc genes) -- exactly
+because the standard-code ORF track and nuclear-trained embeddings do not apply to them.
+
+Fix: drop chrM at two points. (1) `dataset.excluded_tx()` reads `data/tx2biotype.tsv` and
+`load_split` filters every train/val/test list, so no chrM tx enters training or eval -- this is the
+effective gate and covers the existing Fibroblast pack and all future LOTO runs (shared split). (2)
+`define_universe_and_fasta.py` skips `chrom in {"chrM"}` so future universe / FASTA / embedding
+builds never include them. Confirmed: 13 usable MT pc genes dropped, zero chrM leak across all 5
+folds; split sizes essentially unchanged (train ~22.0k, val/test ~7k).
+
+Impact on the already-reported matrix (Tasks 6 to 10, all computed with the 13 present): negligible.
+pc profile-Pearson median 0.6180 with MT vs 0.6181 without (13 of 33,257 pooled); uORF/dORF metrics
+unaffected (MT mRNAs are leaderless, already excluded by the `utr5 >= 30` window); config rankings
+unchanged. So those numbers stand as reported; the exclusion is active for every future run.
+
+## Biotype / chromosome table
+
+`data/tx2biotype.tsv` built from GENCODE v49 GTF: 507,365 transcripts
+(`tx_id, gene_id, gene_name, chrom, strand, transcript_type, gene_type, length`; length
+= summed exon lengths). About 2,285 of the 509,650 hd5-axis transcripts have no GTF
+transcript-feature match and carry `NA`/`unknown` in the summary (843 of them have
+nonzero signal). Reused for the summary join and the later held-out-chromosome split.
+
+## Task 12: leave-one-tissue-out (cross-tissue transfer) -- DONE
+
+The project objective: does the model, trained on several tissues, predict the per-nt Ribo-seq
+profile of a tissue it never saw? Pilot: train on 8 Chothani tissues, hold out **Hepatocytes**
+(design in `LOTO_PLAN.md`). The FM embeddings + ORF track are sequence-based / tissue-independent,
+so the fixed 36,668-tx universe is reused with zero re-extraction; per-tissue expression enters
+through the RNA-seq coverage input. Each tissue has its own packed target + coverage + depth
+normalizer (`data/packed_<Tissue>/`, `cov_norm=global_mean` per tissue); training concatenates the
+8 held-in tissues (`scripts/train_loto.py`, `dataset.loto_split`, tissue held out not chromosome),
+capped at 6,000 tx/tissue for balance (deep tissues would otherwise dominate). chrM excluded
+(Task 11). Held-out Hepatocytes is the *deepest* target (2.46e9 pooled P-sites) -- a clean test but
+its depth flatters the numbers vs a shallower held-out tissue would.
+
+Consolidated held-out Hepatocytes profile Pearson (`scripts/loto_table.py`, from pertx.tsv), against
+the **matched** within-Fibroblast ceiling at the same normalization (Task 10 covnorm, NOT the raw
+Task 9 numbers):
+
+| backend | config | pc | lncRNA | uORF | dORF |
+|---------|--------|------|--------|------|------|
+| RiNALMo | baseline    | 0.565 | 0.361 | 0.459 | 0.209 |
+| RiNALMo | orf_v2_attn | **0.611** | **0.438** | 0.534 | 0.234 |
+| within-Fib (norm) | baseline    | 0.593 | 0.363 | 0.544 | 0.285 |
+| within-Fib (norm) | orf_v2_attn | 0.609 | 0.387 | 0.595 | 0.340 |
+| Orthrus | baseline    | 0.585 | 0.376 | 0.494 | 0.214 |
+| Orthrus | orf_v2_attn | **0.621** | **0.428** | 0.530 | 0.239 |
+
+Headline (RiNALMo, orf_v2_attn): **cross-tissue transfer is essentially lossless for pc (0.611 vs
+0.609 within-tissue) and exceeds within-tissue on lncRNA (0.438 vs 0.387)** -- a model predicts an
+unseen tissue's Ribo-seq profile about as well as it predicts its own. uORF (-0.06) and dORF (-0.11)
+keep real gaps: 5'/3'UTR translation is more tissue-specific. The abundance/count head transfers very
+well (count Pearson ~0.83). Architecture matters cross-tissue: **baseline transfers *worse* on pc
+(0.565 vs 0.593 within-tissue, -0.03)** -- the ORF track + attention is what buys the near-lossless
+transfer (+0.045 pc, +0.075 uORF over baseline), not a marginal gain.
+
+Concentration robustness (`scripts/robustness_concentration_loto.py`), the credibility check that the
+pc number is not spike-inflated: 75% of pc transcripts are *distributed* (<10% of P-sites on any one
+nt), and orf_v2_attn's distributed-pc median is **0.610 = the all-pc 0.611**, so the headline is
+genuine (0.610 distributed vs 0.609 within-tissue ceiling). lncRNA holds (distributed 0.441 >= all
+0.438). uORF is partly spike-inflated (44.5% of uORF windows spiky): honest distributed uORF is 0.512,
+below all-0.534, so the transfer gap to within-tissue (0.595) is real. orf_v2_attn beats baseline on
+distributed transcripts everywhere (pc +0.040, lncRNA +0.078, uORF +0.052) -- the architecture edge is
+not a spike artifact.
+
+Infrastructure note: the first pilot (job 35180395) died mid-training with no traceback (exit 120) --
+root cause was the 15 TB carpenterlab ceph group quota filling during the run, so checkpoint writes
+failed (see memory `feedback_group_ceph_15tb_quota`). Fixed by reclaiming redundant intermediates and
+hardening `train_loto.py` with per-epoch `last.pt` + `--resume`; the re-run (35183966) completed clean
+on the same config. Orthrus arm (job 35224524, `--emb_backend orthrus`) COMPLETED and is backfilled
+above: **the efficiency edge holds cross-tissue** -- Orthrus orf_v2_attn reaches pc 0.621 (edging
+RiNALMo's 0.611) and lncRNA 0.428 at 40% the embedding dimension, with the same architecture pattern
+(orf_v2_attn > baseline on pc: 0.621 vs 0.585). Task 7's within-tissue Orthrus advantage transfers.
+
+## Task 13: localization eval -- does the model concentrate signal on translated ORFs? -- DONE
+
+Profile Pearson scores the *shape* of the predicted profile but never asks the sharpest question this
+project cares about: on a held-out transcript, does the model localize predicted Ribo-seq signal to
+the ORFs that are genuinely translated -- especially non-canonical ones -- rather than to the many
+untranslated candidate AUG ORFs sharing the same transcript? `scripts/eval_localization.py` scores
+this against RiboCode ORF calls (`<Tissue>_collapsed.txt`; design in methods.md sec 5G). Every maximal
+AUG..in-frame-stop ORF on a test transcript is a candidate (length >= 30 nt); a candidate is POSITIVE
+if its start matches a RiboCode call. The orf_track marks candidate positions + frames but NOT which
+translate, so the discrimination must come from the model. Two length-fair scores from the predicted
+softmax profile: `density` (mean per-nt) and `frame0` (in-ORF frame-0 fraction, the periodicity
+signature, ~1/3 with no translation). RiboCode here was run AUG-only, so this is translation
+localization of AUG ORFs, **not** a non-AUG-start discovery test.
+
+Within-tissue fold-0 (held-out chromosomes; **2,687 translated** [1,652 annotated + 1,035
+non-canonical]). Internal in-frame alt-start candidates -- AUG ORFs re-initiating strictly inside an
+annotated CDS in its own reading frame -- are collapsed by default (methods.md sec 5G): they are
+5'-truncations of the same protein, not distinct ORFs. This drops **61,911** candidates from the
+negative set (0 non-canonical positives; 144 annotated calls that land at an internal in-frame position
+via a RiboCode-vs-`tx2cds` coordinate offset are kept), leaving **175,422 untranslated** candidate AUG
+ORFs. dORFs (in-frame past the stop and off-frame overlapping), out-of-frame CDS overlaps, in-frame
+N-terminal extensions, and all UTR / lncRNA ORFs are kept. AUROC separating translated from untranslated
+candidates:
+
+| config | stratum | pred frame0 | pred frame0 (len-ctrl) | pred density | ORF-length floor | obs frame0 (raw) |
+|--------|---------|-------------|------------------------|--------------|------------------|------------------|
+| baseline    | all           | 0.899 | 0.856 | 0.767 | 0.839 | 0.886 |
+| orf_v2_attn | all           | 0.914 | 0.870 | 0.770 | 0.839 | 0.886 |
+| baseline    | non-canonical | 0.778 | 0.770 | 0.675 | 0.616 | 0.864 |
+| orf_v2_attn | non-canonical | 0.813 | **0.807** | 0.697 | 0.616 | 0.864 |
+
+Headline: **the non-canonical stratum is the honest test, and the model reaches 94% of the observed
+ceiling on it.** On non-canonical ORFs (short: median 102 nt) the **length-controlled predicted-frame0
+AUROC is 0.807 (orf_v2_attn) / 0.770 (baseline)**, against a length-controlled observed-periodicity
+ceiling of 0.854 -- so orf_v2_attn recovers **94.4% of the data ceiling** (baseline 90.1%), localizing
+signal to translated non-canonical ORFs using learned periodicity, not length (the raw ORF-length floor
+is only 0.616 and the length-controlled score sits well above it). orf_v2_attn beats baseline on every
+non-canonical score (len-ctrl frame0 +0.037, density +0.022), the same architecture edge the
+whole-transcript LOTO showed. Even the ALL stratum now shows real discrimination beyond length
+(length-controlled AUROC 0.870 vs a 0.839 length floor): collapsing the internal in-frame CDS fragments
+(below) removes the long, legitimately-periodic negatives that would otherwise make the ALL stratum a
+pure length artifact.
+
+Fidelity (predicted vs observed frame0 on translated ORFs) -- **the model reproduces 3-nt periodicity
+it was never explicitly trained on** (the loss is multinomial NLL on raw per-nt counts, no periodicity
+term):
+
+| config | stratum | n | median pred frame0 | median obs frame0 | frame0 Pearson |
+|--------|---------|---|--------------------|-------------------|----------------|
+| orf_v2_attn | annotated     | 1652 | 0.812 | 0.801 | 0.416 |
+| orf_v2_attn | non-canonical | 1035 | 0.553 | 0.706 | 0.495 |
+| baseline    | annotated     | 1652 | 0.796 | 0.801 | 0.380 |
+| baseline    | non-canonical | 1035 | 0.504 | 0.706 | 0.432 |
+
+For canonical CDS the model matches the observed periodicity almost exactly (predicted 0.81 vs observed
+0.80). For non-canonical ORFs it predicts periodicity well above the 1/3 null (0.55) but *undershoots*
+observed (0.71) -- it knows they translate, less confidently. orf_v2_attn is closer than baseline
+everywhere (all-positives frame0 Pearson 0.625 vs 0.589). By non-canonical type (orf_v2_attn median
+predicted frame0): uORF 0.630, novel 0.596, dORF 0.458, Overlap_uORF 0.458, internal 0.177. uORF and
+novel are strong; dORF moderate (matching the LOTO dORF gap); `internal` is low but *correct* -- internal
+out-of-frame ORFs sit inside the CDS, so their own-frame periodicity is masked by the dominant CDS
+frame (observed is likewise low). Figure: `scripts/make_localization_figure.py` (3 panels: the frame0
+separation, the length-controlled non-canonical AUROC, the per-type fidelity). The fair upper bound is
+the *length-controlled observed ceiling* -- how well the observed Ribo-seq periodicity itself separates
+translated from untranslated within length strata: **0.854** on non-canonical ORFs, so orf_v2_attn's
+0.807 reaches **94% of the data ceiling** (baseline 0.770 = 90%). Caveat: AUG-only truth set -- non-AUG
+start discovery needs re-running the caller with near-cognate starts (future work).
+
+**Why the untranslated-candidate periodicity is bimodal, and why the internal in-frame alt starts are
+collapsed** (the frame0 violin in figure panel A has a large cluster above 0.7, not just the 1/3 null).
+Classifying each of the 237,333 enumerated untranslated candidates by its relationship to the annotated
+CDS (`cds_rel` column in `localization_orfs.tsv`) shows the set mixes two populations and the model is
+correct on both. The high cluster (predicted frame0 > 0.7 = 30% of candidates) is **94% in-frame with
+the annotated CDS** -- 87% internal in-frame alt starts (`cds_inframe`; predicted frame0 0.83, observed
+0.81, 98% above 0.7) plus 7% canonical starts RiboCode did not confirm on that transcript. These are AUG
+ORFs sharing a translated CDS's reading frame: RiboCode collapses each locus to one representative call,
+so the internal fragments read as "untranslated" while actually sitting inside real periodic
+translation, and the model correctly predicts them periodic. Because they are 5'-truncations of the same
+protein rather than distinct ORFs, they are collapsed out of the discrimination metric (methods.md sec
+5G) -- removing exactly the long, legitimately-periodic negatives that otherwise contaminate the negative
+set. The low cluster at the null is 56% off-frame CDS overlap (CDS P-sites are off-frame relative to
+these, so predicted and observed frame0 ~0.09) + 27% 3'UTR (near-zero signal) + 12% in-frame dORFs past
+the stop (`dorf_inframe`; predicted 0.41 / observed 0.38 -- real but sparse, and KEPT as distinct ORFs).
+5'UTR and lncRNA candidates sit intermediate (observed 0.62 / 0.60), consistent with genuine but sparser
+non-canonical translation; in-frame N-terminal extensions (`ext_inframe`, 158 candidates) are highly
+periodic (predicted 0.81 / observed 0.80) and are also KEPT, since a non-AUG extension of this kind is a
+genuine alt-ORF (MYC / VEGFA; methods.md sec 5G). Figure `results/figures/untranslated_decomp.png`
+(`scripts/make_untranslated_decomp_figure.py`).
+
+Cross-tissue (LOTO, held-out Hepatocytes; **10,482 translated** [7,808 annotated + 2,674 non-canonical];
+1,154,734 candidates enumerated, 314,037 internal in-frame alt starts collapsed, leaving **830,215
+untranslated** -- deeper and better-powered than Fibroblast). **Translated-ORF localization transfers
+losslessly -- in fact slightly better on the deeper held-out tissue:**
+
+| config | stratum | pred frame0 (len-ctrl) cross-tissue | within-Fib (len-ctrl) | pred frame0 (raw) | ORF-length floor |
+|--------|---------|-------------------------------------|-----------------------|-------------------|------------------|
+| baseline (rinalmo)    | non-canonical | 0.774 | 0.770 | 0.781 | 0.604 |
+| orf_v2_attn (rinalmo) | non-canonical | **0.827** | 0.807 | 0.830 | 0.604 |
+| baseline (orthrus)    | non-canonical | 0.809 | n/a | 0.813 | 0.604 |
+| orf_v2_attn (orthrus) | non-canonical | 0.822 | n/a | 0.824 | 0.604 |
+
+The non-canonical length-controlled predicted-frame0 AUROC on the *unseen* tissue is 0.774 (baseline) /
+0.827 (orf_v2_attn), matching or exceeding within-Fibroblast (0.770 / 0.807); the raw ORF-length floor
+is 0.604 and the length-controlled score sits well above it. **orf_v2_attn's edge over baseline GROWS
+cross-tissue** (+0.053 vs +0.037 within-tissue) -- the same signal as the whole-transcript LOTO, that the
+ORF track + attention is what buys the transfer. Fidelity: the model reproduces the (even cleaner)
+Hepatocytes periodicity on a tissue it never trained on -- annotated predicted frame0 0.824 vs observed
+0.853; non-canonical predicted 0.618 vs observed 0.751 with frame0 Pearson 0.563 (orf_v2_attn, up from
+within-tissue 0.495). Even on the length-confounded ALL stratum, orf_v2_attn's length-controlled AUROC is
+0.896 -- above the 0.884 length floor -- while baseline (0.872) sits below it: the ORF track + attention
+discriminates translated ORFs beyond length where the FM embedding + coverage alone cannot. Against the
+length-controlled observed ceiling on the held-out tissue (**0.879** non-canonical), orf_v2_attn's 0.827
+reaches **94% of the data ceiling** (baseline 0.774 = 88%) -- the model localizes non-canonical
+translation on an unseen tissue nearly as well as the observed Ribo-seq data itself does. The absolute
+non-canonical AUROC shifts with how the negative set is defined (uncollapsed vs internal-in-frame
+collapsed), but the model-reaches-94%-of-the-observed-ceiling ratio is stable across both definitions and
+both tissues, which is why the ceiling ratio is the headline.
+
+**Orthrus backend (`--emb_backend orthrus`, LOTO Hepatocytes arm, job 35247400, completed 2026-07-12)**
+completes the 4-way. On the non-canonical stratum Orthrus reaches length-controlled AUROC 0.809
+(baseline) / 0.822 (orf_v2_attn) -- **92.0% / 93.5% of the 0.879 observed ceiling**. The backend pattern
+differs from RiNALMo: Orthrus's baseline embedding alone already reaches 92% (vs RiNALMo baseline's 88%),
+so the ORF-track + attention adds only **+0.013** on Orthrus versus **+0.053** on RiNALMo -- the richer
+mature-mRNA (Mamba) embedding encodes more of the translation-localization signal up front, leaving less
+for the architecture head to recover. Both attention configs converge near the ceiling (RiNALMo 0.827 =
+94.1%, Orthrus 0.822 = 93.5%), with **RiNALMo + orf_v2_attn the single best**. Orthrus within-Fibroblast
+fold-0 localization was not run (only the cross-tissue LOTO arm), so those cells are `n/a`. The
+whole-transcript profile-Pearson LOTO 4-way is in `results/loto/loto_summary.tsv` (Orthrus orf_v2_attn pc
+0.621 vs RiNALMo 0.611; lncRNA 0.428 vs 0.438 -- effectively tied, same story as localization: Orthrus and
+RiNALMo are within noise on this task, both backends benefit from the ORF track + attention).
+
+## Task 14: RiboCode drop-in test -- do the predicted profiles reproduce the ORF caller's own calls? -- DONE
+
+The localization eval (Task 13) scores periodicity with a custom AUROC. A stronger, more concrete test:
+feed the model's predicted per-nt profile into the ACTUAL ORF caller (RiboCode) in place of the
+experimental Ribo-seq, and ask whether the ORF calls track the calls RiboCode makes on the real data.
+Method in methods.md sec 5H. RiboCode's per-transcript P-site density is a `dict {tx_id: np.ndarray}`
+consumed by `detectORF.main`; `scripts/ribocode_dropin.py` substitutes a predicted density and calls it
+directly, reusing the GENCODE v49 annotation DB and RiboCode defaults (start ATG, min_AA 5, pval 0.05,
+fdr_bh). Held-out Hepatocytes, orf_v2_attn RiNALMo LOTO model, model test transcripts. Three density
+variants, identical caller + params, only the density differs: `real` (real pooled counts, reference),
+`pred_obsdepth` (predicted shape x real per-tx depth, rounded -- isolates shape), `pred_preddepth`
+(predicted shape x count-head predicted depth, rounded -- fully standalone, no experimental data).
+Predicted densities are scaled to realistic depth and rounded to int (RiboCode hard-gates per-tx and
+per-ORF frame0 P-site sums >= 5, and a smooth density with no zeros would look artificially periodic).
+Calls compared by `(transcript_id, ORF_tstart)`: precision / recall / F1 vs the real-density calls
+(overall + recall by ORF type), the real-vs-official overlap (harness validation), and confidence /
+magnitude / type agreement on matched calls.
+
+Held-out Hepatocytes, orf_v2_attn RiNALMo LOTO model, 33,918 test transcripts (0 skipped; every tx maps
+1:1 to the annotation DB). **ORFs are floored at 90 nt (30 codons)** and calls are matched by **genomic
+ORF locus `(gene_id, ORF_gstop)`, not by isoform.** RiboCode's per-locus collapse picks the longest ORF
+per genomic stop (`detectORF.py:440-442`; density only breaks exact-start ties), so restricting the
+transcript universe (34k test tx here vs the official 509k) merely reshuffles which isoform carries a
+given call -- matching on the genomic locus is invariant to that. Calls at `pval_combined <= 0.05`,
+ORF_length >= 90 nt, restricted to the 11,091 test-tx genes; predicted calls are additionally
+enrichment-filtered at the default **0.5x uniform** (the chosen FP-minimizing operating point that
+strips the spurious 3'UTR dORFs -- sec below; `compare_dropin_calls.py --min_enrichment`):
+
+| comparison | nPred | nReal | match | precision | recall | F1 | -log10p Pearson | type concord |
+|------------|-------|-------|-------|-----------|--------|-----|-----------------|--------------|
+| real vs official *(harness check)*      | 13,179 | 16,555 | 13,099 | **0.994** | 0.791 | 0.881 | **1.00** | **1.00** |
+| **pred (shape, real depth) vs real**    | 13,737 | 13,179 | 12,260 | 0.892 | **0.930** | 0.911 | 0.79 | 1.00 |
+| **pred (standalone, no real data) vs real** | 13,534 | 13,179 | 12,226 | **0.903** | 0.928 | **0.915** | 0.82 | 1.00 |
+| pred (shape) vs official                | 13,737 | 16,555 | 12,267 | 0.893 | 0.741 | 0.810 | 0.79 | 1.00 |
+
+Pre-filter (no enrichment cut) the raw reproduction is pred-shape 0.815 / 0.946 / 0.876 and standalone
+0.866 / 0.940 / 0.901 -- untuned, the model already recovers 94% of the real calls; the 0.5 floor trades
+~1 point of recall for +4 precision by removing the softmax's 3'UTR leak. The 0.5 threshold was chosen on
+this held-out Hepatocytes set and should be re-validated per tissue before the exact value is trusted.
+
+**The `real vs official` precision of 0.994 proves the earlier isoform-level gap was purely
+representative reassignment, not a harness error:** running detectORF on the real packed counts
+reproduces 99.4% of the official calls at the genomic locus. Isoform-keyed `(transcript_id, ORF_tstart)`
+the same rows read pred-shape 0.704 / 0.817 / 0.756, standalone 0.729 / 0.791 / 0.759, and real-vs-official
+only 0.612 precision -- that view understates the model by penalizing collapse-representative
+disagreements (the same genomic ORF carried by a different isoform in the two runs), so it is reported
+here only for contrast. Separately, the 90 nt floor is load-bearing: without it the predicted variants
+are much noisier (isoform-keyed pred-shape precision 0.554 / F1 0.651), because the sub-90 nt regime is
+where the model over-calls (false-positive analysis below); the floor lifts precision ~+0.15 at no recall
+cost.
+
+**Headline: the model's predicted profile dropped into RiboCode reproduces the real ORF calls at F1 0.90
+untuned (standalone: 94% recall at precision 0.87), and at the chosen 0.5 enrichment operating point it
+is precision 0.90 / recall 0.93 / F1 0.915 -- the filter strips the spurious 3'UTR dORFs (below) for ~1
+point of recall.** On every matched call RiboCode assigns the same ORF type (concordance 1.00) and a
+strongly correlated confidence (pval_combined Pearson 0.79 / 0.82). The fully-standalone variant
+(count-head predicted depth, no experimental data at all) is the stronger of the two throughout, because
+its leaner depth over-calls less. The harness itself is validated at 0.994 real-vs-official precision, so
+any residual gap is the model, not the injection.
+
+Recall by ORF type (pred shape vs real, genomic locus, ORFs >= 90 nt, enrichment >= 0.5):
+
+| ORF type | recovered / real | recall | (pre-filter) |
+|----------|------------------|--------|--------------|
+| annotated    | 10,886 / 10,947 | **0.994** | 0.995 |
+| novel        |    330 / 377    | **0.875** | 0.891 |
+| uORF         |    715 / 968    | **0.739** | 0.877 |
+| Overlap_uORF |    281 / 474    | 0.593 | 0.605 |
+| Overlap_dORF |     19 / 51     | 0.373 | 0.471 |
+| dORF         |     18 / 149    | 0.121 | 0.503 |
+| internal     |     11 / 213    | 0.052 | 0.056 |
+
+Canonical CDS stays almost perfect (0.994) and novel strong (0.88); the enrichment floor is what costs
+uORF recall (0.88 -> 0.74) and deliberately collapses genuine short dORF recall (0.50 -> 0.12), since
+those dORFs are magnitude-indistinguishable from the spurious 3'UTR leak (below). internal stays a blind
+spot (0.05, its out-of-frame ORFs sit in the CDS-masked frame the model cannot see), unaffected by the
+filter.
+
+**False positives bucket by length, and the residual class signal is spurious 3'UTR dORFs.** Before the
+90 nt floor the predicted density (real depth) made 9,837 false positives (calls not in the real set):
+median FP length 78 nt vs 1,003 nt for true positives, 64% of FPs <= 120 nt, FP rate falling
+monotonically from 0.81 on the shortest ORFs to 0.14 on the longest, and within every ORF class the FPs
+are the shorter members -- so length, not class identity, is the driver, and the floor removes ~64% of
+them. **The dORF over-call is the clearest case.** RiboCode calls only 275 dORFs on the real data (0.9%
+of 24,160 -- genuinely rare); the predicted density (real depth) calls 1,708, an ~8-10x over-call (the
+standalone variant is milder at 673, its leaner predicted depth putting less mass over the gate).
+Diagnosing the 1,638 dORF FPs: **37% sit in 3'UTR windows with ZERO real P-sites and 46% below RiboCode's
+>= 5 gate** -- the softmax never zeros the 3'UTR, so scaling those tiny 3'UTR probabilities by a
+well-expressed transcript's large depth and rounding yields callable counts where there is no real
+signal; predicted frame0 there is 0.71 vs a real 0.50 (the model over-predicts 3'UTR phasing, 44% in the
+CDS reading frame = echo enriched over the 33% null, scattered a median 142 nt past the stop, not just at
+it). The 90 nt floor halves the dORF FPs (1,638 -> 878) and predicting depth instead of using the real
+depth cuts the dORF calls 61% (1,708 -> 673); both together leave 421 standalone dORFs. **This over-call
+is genuine, not a keying artifact:** by genomic locus the model still calls 928 dORF loci vs 149 real
+(~6x), so genomic keying (which fixes the representative-isoform artifact and lifts every other class)
+does NOT rescue dORFs -- they are real 3'UTR hallucinations. This is the sole remaining driver of the
+0.82 precision (annotated/uORF/novel recall is 0.88-0.995). **Caveats.** (1) The dORF over-call caps
+precision at 0.82; the count-head-depth (standalone) variant is the practical mitigation (precision
+0.87), and a predicted-density or UTR-mass threshold would target it directly. (2) AUG-only truth set,
+so this is translation-call concordance, not non-AUG discovery. Runners: `dump_pred_profiles.sbatch`
+(job 35245771), `ribocode_dropin.sbatch` (35245772), then `compare_dropin_calls.py --key genomic`;
+metrics in `results/loto/orf_v2_attn_holdout_Hepatocytes/dropin/dropin_metrics.json`.
+
+**Minimizing the dORF false positives (2026-07-12).** The spurious dORFs are the diffuse
+low-probability softmax leak into the 3'UTR: as predicted enrichment over uniform (mean predicted
+probability x transcript length), CDS is 1.76x and uORF 1.62x, while genuine dORFs are 0.15x and
+spurious dORF FPs 0.06x -- so a predicted-magnitude threshold removes them. Two thresholds were tested
+(genomic locus, ORFs >= 90 nt; `ribocode_dropin.py --floor_mult` + `analyze_floor_sweep.py`, job
+35246903):
+
+| config | precision | recall | F1 | dORF FPs | uORF recall |
+|--------|-----------|--------|-----|----------|-------------|
+| baseline (obsdepth)                    | 0.815 | 0.946 | 0.876 | 853 | 0.877 |
+| + per-position floor 1.0               | 0.873 | 0.936 | 0.903 | 204 | 0.800 |
+| standalone (preddepth)                 | 0.866 | 0.940 | 0.901 | 359 | 0.798 |
+| standalone + floor 1.0                 | 0.888 | 0.933 | 0.910 | 155 | 0.751 |
+| **standalone + mean-density >= 0.5x (default)** | **0.903** | 0.928 | **0.915** | **60** | 0.693 |
+| standalone + mean-density >= 0.7x      | 0.912 | 0.923 | 0.917 |  36 | 0.643 |
+| standalone + mean-density >= uniform   | 0.921 | 0.906 | 0.914 |  27 | 0.554 |
+
+- **Per-position density floor** (zero predicted positions below `floor_mult` x uniform, re-run
+  RiboCode): a gentle denoise -- recall barely moves (0.94), F1 up to 0.91, dORF FPs cut ~76%
+  (853 -> 204 / 359 -> 155), and it PRESERVES uORF recall (0.80) because a genuine uORF's frame0 peaks
+  survive the floor even when its mean is below uniform.
+- **Call-level mean-density filter** (keep calls whose mean predicted density >= tau x uniform): the
+  aggressive lever -- cuts dORF FPs ~97% (853 -> 27) and lifts precision to 0.92, at a larger
+  uORF-recall cost (0.55-0.64). It SUBSUMES the floor (floor + filter == filter alone).
+- **Standalone (count-head predicted depth) dominates real depth** at every operating point (leaner
+  depth -> fewer 3'UTR counts over RiboCode's >= 5 gate). annotated recall stays 0.985-0.999 throughout.
+
+**Chosen default: standalone + mean-density >= 0.5x uniform** (`compare_dropin_calls.py --min_enrichment
+0.5`, now the default) -- precision 0.90 / F1 0.915, spurious dORFs cut 853 -> 60 (-93%) while uORF recall
+holds at 0.69; dial to 0.7-1.0 for more precision (0.91-0.92) at more uORF cost, or the per-position floor
+for a gentler denoise. **The CDS-relative alternative was tested and does NOT help:** normalizing each
+ORF's density to the transcript's own median or 75th-percentile density (instead of to uniform) is a
+WORSE discriminator of genuine uORF vs spurious dORF (AUROC 0.78 / 0.84) than the plain uniform-enrichment
+score (0.947) -- the uORF cost is a threshold-level choice, not a metric problem, so a lower uniform
+threshold is the right lever. Figure `results/figures/dropin_floor_sweep.png`.
+
+**Transfer check (2026-07-12): the 0.5 threshold holds on a second tissue.** Re-running the identical
+pipeline on the within-Fibroblast fold-0 model (`results/improve/orf_v2_attn_f0`, a different, deep
+tissue) + Fibroblast RiboCode calls: the harness validates (real-vs-official precision 0.991, matching
+Hepatocytes' 0.994), and the enrichment sweep (standalone, genomic, >= 90 nt) tracks Hepatocytes -- >= 0.5
+cuts dORF FPs ~87% (409 -> 52, cf. 359 -> 60 on Hepatocytes), F1 rises then plateaus from 0.3-1.0 (knee at
+~0.3-0.5 in both), precision gains ~+0.10 from 0 -> 0.5, and uORF recall costs ~0.15-0.19, all matching.
+Absolute level is ~6 points lower on Fibroblast (standalone enr>=0.5 precision 0.842 / recall 0.854 / F1
+0.848 vs Hepatocytes 0.903 / 0.928 / 0.915) -- a genuine tissue/regime effect (Fibroblast over-calls more
+at baseline, and this is a held-out-chromosome fold, not a held-out-tissue LOTO) -- but the tradeoff shape
+and knee location are the same, so 0.5 is a robust operating point, not a Hepatocytes artifact. A pure
+held-out-tissue LOTO replicate (rather than within-tissue) would be the last confirmation.
+
+**Backend comparison (2026-07-13): the Orthrus drop-in matches RiNALMo, tied on novel ORF calling.** The
+drop-in was re-run end-to-end on the Orthrus LOTO `orf_v2_attn` model (held-out Hepatocytes, identical
+harness: dump predicted profiles job 35250402 -> `ribocode_dropin.py` 3 variants job 35250403 -> compare
+job 35250404; genomic locus, >= 90 nt, 0.5x enrichment). The real-vs-official harness check is byte-identical
+to RiNALMo's (precision 0.994 / recall 0.791 / F1 0.881 -- both consume the same real calls), so any residual
+difference is the model, not the injection. Overall reproduction sits within noise of RiNALMo:
+
+| comparison | backend | precision | recall | F1 |
+|------------|---------|-----------|--------|-----|
+| pred (shape, real depth) vs real         | orthrus | 0.892 | 0.935 | 0.913 |
+| pred (shape, real depth) vs real         | rinalmo | 0.892 | 0.930 | 0.911 |
+| pred (standalone, no real data) vs real  | orthrus | 0.903 | 0.930 | 0.916 |
+| pred (standalone, no real data) vs real  | rinalmo | 0.903 | 0.928 | 0.915 |
+
+Recall by ORF type (pred shape, real depth, genomic locus, >= 90 nt, enrichment >= 0.5) shows the backends
+trade classes to a net wash:
+
+| ORF type | Orthrus | RiNALMo | delta (orth - rina) |
+|----------|---------|---------|---------------------|
+| annotated    | 0.995           | 0.994           | +0.000 |
+| uORF         | **0.807**       | 0.739           | **+0.068** |
+| Overlap_uORF | 0.618           | 0.593           | +0.025 |
+| novel        | 0.862 (325/377) | **0.875** (330/377) | **-0.013** |
+| Overlap_dORF | 0.353           | 0.373           | -0.020 |
+| dORF         | 0.094           | 0.121           | -0.027 |
+| internal     | 0.023           | 0.052           | -0.028 |
+
+**On novel ORF calling the backends are a dead heat: Orthrus recovers 325/377 vs RiNALMo 330/377, a 5-ORF
+difference out of 377.** Orthrus's one clear edge is uORFs (+0.068) -- the mature-mRNA Mamba embedding
+front-loads 5'UTR translation signal -- while RiNALMo is marginally ahead on the sparse, hard classes
+(novel, dORF, internal, all rare and near the noise floor). Aggregate F1 is tied at ~0.91, the same
+within-noise verdict the localization eval (Task 13) reached: on the concrete ORF-calling test the FM
+backbone choice does not move novel-ORF recovery. Metrics in
+`results/loto/orf_v2_attn_orthrus_holdout_Hepatocytes/dropin/dropin_metrics.json`.
+
+## Task 15: one-hot control -- how much lift do the FM embeddings actually provide? -- DONE
+
+The whole pipeline conditions on a frozen RNA foundation-model embedding as the sequence input. The
+sharpest test of whether that buys anything is to replace it with a raw `(L,4)` A/C/G/T one-hot and hold
+everything else fixed (same dilated-CNN + transformer, same ORF track, same RNA coverage, same
+gene-disjoint splits) -- so the delta is exactly the value of the FM pretraining over raw sequence.
+Implemented as an `onehot` backend in `dataset.py` (computed on the fly; the universe is the rinalmo n
+orthrus intersection so the LOTO splits are byte-identical to the FM runs). Trained the same
+held-out-Hepatocytes LOTO in both configs (`baseline` = no ORF track; `orf_v2_attn` = + ORF track v2 + the
+2-layer transformer), then ran the identical three evals: profile Pearson (Task 10), non-canonical
+localization AUROC (Task 13), and the RiboCode drop-in concordance (Task 14).
+
+**Headline: the FM embeddings provide NO lift. One-hot matches or beats both RiNALMo and Orthrus on every
+metric, and is often slightly better.** The `orf_v2_attn` comparison (the apples-to-apples config):
+
+| metric | onehot | rinalmo | orthrus | best |
+|--------|--------|---------|---------|------|
+| profile Pearson pc                 | **0.640** | 0.611 | 0.621 | onehot |
+| profile Pearson lncRNA             | **0.447** | 0.438 | 0.428 | onehot |
+| profile Pearson uORF               | **0.559** | 0.534 | 0.530 | onehot |
+| localization non-canon AUROC (len-ctrl) | **0.832** (94.6% of ceiling) | 0.827 | 0.822 | onehot |
+| localization novel-type AUROC      | **0.874** | 0.871 | 0.865 | onehot |
+| drop-in standalone F1              | **0.923** | 0.915 | 0.916 | onehot |
+| drop-in precision / recall        | 0.925 / 0.920 | 0.903 / 0.928 | 0.903 / 0.930 | onehot (precision) |
+| drop-in novel recall              | 0.862 (325/377) | **0.875 (330/377)** | 0.862 (325/377) | rinalmo (+5 ORFs) |
+
+One-hot wins profile Pearson on **every** stratum in **both** configs (baseline pc 0.587 vs 0.585/0.565;
+lncRNA 0.405 vs 0.376/0.361), wins the non-canonical localization AUROC in both configs (baseline 0.815 vs
+0.809/0.774), and wins the drop-in F1 (0.923, driven by the best precision, 0.925). The **only** cell where
+an FM is nominally ahead is drop-in novel recall, where RiNALMo recovers 330/377 vs one-hot's 325/377 -- a
+5-ORF difference, within noise, and one-hot ties Orthrus exactly there. So across profile shape, translated-
+ORF discrimination, and ORF-call concordance, there is no metric on which the frozen FM embeddings
+meaningfully beat a raw one-hot.
+
+**Interpretation.** The embeddings are *frozen*, i.e. a fixed nonlinear compression of the sequence
+optimized for the FM's own pretraining objective (masked-LM / contrastive), whereas one-hot preserves exact
+per-nt codon and frame identity losslessly. With this much supervised signal (8 tissues x per-nt counts),
+the dilated CNN + transformer just learns the task-relevant features directly from raw sequence, and the FM
+compression only discards information. The lncRNA stratum is the tell: it is exactly where FM pretraining is
+supposed to help most (sparse, "needs language"), yet one-hot's margin there is among the largest
+(orf_v2_attn 0.447 vs 0.428/0.438; baseline 0.405 vs 0.376/0.361). Notably one-hot's advantage *grows* with
+the orf_v2_attn architecture (pc margin over Orthrus +0.002 baseline -> +0.019 orf_v2_attn): the FM already
+encodes some of what the ORF track + attention supply, so those additions help the FM less, while one-hot
+starts with nothing and ends ahead. **Caveats.** (1) This is the frozen-embedding regime; a *fine-tuned* FM
+backbone is a different experiment (impractical for the 650M/512-d models on this budget, and the point here
+is the deployed pipeline uses frozen embeddings). (2) The one nominal FM win (novel recall +5 ORFs) is
+noise-level. (3) AUG-only truth set throughout, as elsewhere.
+
+**Practical consequence:** for per-nt Ribo-seq P-site prediction, the model can drop the FM-embedding
+dependency entirely -- one-hot is as good or better, ~5M params either way, no per-token embedding
+extraction step (the slowest and most storage-heavy part of the pipeline), and it runs on CPU. Runs:
+`train_loto_onehot.sbatch` (jobs 35251300_0/_1), evals `eval_localization_onehot_cpu.sbatch` (35310632),
+`dump_pred_profiles_cpu.sbatch` -> `ribocode_dropin.sbatch` -> compare (35310629-31). The dump + localization
+were run on CPU (dump 3h36m vs ~15min GPU) because the GPU partition was 48/48 booked cluster-wide; the tiny
+model makes CPU a viable fallback. Metrics in `results/loto/{baseline,orf_v2_attn}_onehot_holdout_Hepatocytes/`.
+
+---
+
+## Task 16: cross-study (human Ruiz-Orera) + cross-species (mouse Wang) held-out transfer (2026-07-14, LANDED 2026-07-16)
+
+The strictest test of the profile's transferability: apply a Chothani-trained orf_v2_attn model,
+without retraining, to two fully independent datasets and score the three evals (profile Pearson,
+localization non-canonical AUROC, RiboCode drop-in) against each dataset's OWN RiboCode calls.
+
+- **Cross-study (human):** Ruiz-Orera 2024 iPSC-cardiomyocyte (PRJEB65856; 5 Ribo + 5 RNA), a cell
+  type absent from the 9-tissue training panel, same GENCODE v49 annotation. Reuses the Fibroblast
+  universe, so all three backends (one-hot / Orthrus / RiNALMo) are scored. Pack: 36,668 tx, 33,185
+  scorable; global-mean depth 743 (~10x shallower than Fibroblast -- the depth-normalized coverage
+  input is what makes the transfer fair).
+- **Cross-species (mouse):** Wang 2021 P42 liver (GSE94982; 2 Ribo + 2 RNA), GENCODE vM38. One-hot
+  only, since the one-hot control (Task 15) needs no species-specific FM embeddings -- the human-trained
+  one-hot model is applied directly to mouse sequence. Mouse universe 221,835 tx (65,936 pc + 155,899
+  lncRNA), 41,096 scorable; global-mean depth 43.9. Mouse orf_track_v2 + tx2cds built from vM38.
+
+Infrastructure built this session (methods.md 5K): `heldout/build_heldout_pack.py` (pool per-SRR ->
+pack, by-id join, no 3.7 GB intermediates), `heldout/build_mouse_universe.py`, `--pack/--fasta` on
+`build_orf_track.py`, `--gtf/--out` on `build_tx2cds.py`, `--heldout` mode on `dump_pred_profiles.py`
++ `eval_localization.py`, `heldout/eval_heldout_{predict,dropin}.sbatch`, `heldout/assemble_heldout.py`.
+The trained model's `cov_norm=global_mean` uses each held-out pack's own mean depth (the transfer
+mechanism). Both drop-in variants are reported: `pred_obsdepth` (predicted shape at real depth =
+transferable-profile test) and `pred_preddepth` (fully standalone, also tests the depth-dependent count
+head, expected to transfer worse cross-dataset).
+
+Original CPU chain (35314728 ...) hit short-wall timeouts; re-run as self-contained GPU jobs
+35335044-47 (see infrastructure note below). Results landed 2026-07-15.
+
+### Cross-study (human Ruiz-Orera) -- LANDED
+
+| backend | profile r (pc) | profile r (lnc) | drop-in F1 | precision | recall | novel-ORF recall | count-head F1 gap |
+|---------|---------------|-----------------|-----------|-----------|--------|------------------|-------------------|
+| one-hot | 0.4248        | 0.3350          | 0.931     | 0.937     | 0.925  | 0.797 (244/306)  | +0.002            |
+| Orthrus | 0.4138        | 0.3626          | 0.925     | 0.917     | 0.932  | 0.801 (245/306)  | -0.001            |
+| RiNALMo | 0.4178        | 0.3651          | 0.924     | 0.919     | 0.929  | 0.814 (249/306)  | -0.002            |
+
+(n_pc = 32,400; n_lnc = 772 scorable held-out transcripts; drop-in over n_real = 12,871 real-density calls.)
+
+- **The profile transfers.** One-hot pc profile Pearson 0.425 ties/beats the FMs (Orthrus 0.414, RiNALMo
+  0.418); the one-hot >= FM finding (Task 15) holds on fully independent data. FMs edge one-hot only on
+  lncRNA profile and novel-ORF recall (marginal).
+- **Drop-in F1 ~0.93 cross-study**, one-hot best (0.931). Notably the predicted-profile F1 (0.93) EXCEEDS
+  the real-held-out-profile-vs-official F1 (0.878, same for all backends): the model's denoised profile
+  reproduces the deep official RiboCode calls BETTER than the shallow real Ruiz-Orera data (depth 743)
+  does. The Ribo-seq refinement use case validates itself on independent data.
+- **Localization (full set, all 3 backends) -- LANDED 2026-07-16.** 827,551 candidate ORFs (10,071
+  translated positives / 817,480 negatives; `min_orf_nt` 30, in-frame CDS collapsed). Predicted-frame0
+  AUROC (does the predicted 3-nt periodicity discriminate a translated ORF from a candidate?), by ORF
+  category, backends near-identical:
+
+  | category | n_pos | pred_frame0 (onehot / orthrus / rinalmo) | obs_frame0 ceiling (Ruiz-Orera's own Ribo-seq) |
+  |----------|-------|------------------------------------------|------------------------------------------------|
+  | all          | 10,071 | 0.945 / 0.946 / **0.946** | 0.908 |
+  | annotated    | 7,668  | 0.976 / 0.979 / 0.978     | 0.914 |
+  | non-canonical| 2,403  | 0.847 / 0.838 / 0.845     | 0.887 |
+  | uORF         | 1,463  | 0.909 / 0.905 / 0.911     | 0.894 |
+  | novel (pred_density) | 184 | 0.924 / 0.935 / **0.936** | 0.642 |
+
+  Three headline points. (1) **The predicted profile beats the study's own measured periodicity** for
+  discriminating translated ORFs: all-category pred_frame0 0.945-0.946 EXCEEDS the obs_frame0 ceiling of
+  0.908 computed from Ruiz-Orera's actual (shallow, ~10x under Chothani) Ribo-seq -- the "predict beats
+  measure on shallow data" result made concrete on a fully independent human dataset. Same pattern on
+  annotated (0.976-0.979 vs 0.914) and novel-lncRNA-type ORFs (density 0.92-0.94 vs 0.64). (2) The prelim
+  0.752 non-canonical number was a small-shard artefact (n_pos 81); on the full set (n_pos 2,403) it is
+  **0.847**, and it is the one category where the model sits just below the observed ceiling (0.887) rather
+  than above it -- non-canonical ORFs are where measured signal, when you have it, still adds. (3) **Backend
+  is irrelevant here:** one-hot, Orthrus, and RiNALMo agree to within 0.01 on every category, so the FM
+  embeddings buy nothing over one-hot for cross-study localization (consistent with Task 15). Metrics:
+  `results/heldout/human_ruizorera/{onehot,orthrus,rinalmo}/localization_metrics_human_ruizorera.json`.
+
+### Count-head transferability -- RESOLVED
+
+The `pred_obsdepth` vs `pred_preddepth` drop-in F1 gap is ~0 across all three backends (+0.002, -0.001,
+-0.002). The predicted depth (count head, regressed to the Chothani reference) reproduces RiboCode calls
+as well as the REAL observed depth. So the fully standalone `pred_preddepth` path (predicted shape x
+predicted depth, needs no Ribo-seq at all) is validated, and the absolute count head transfers cross-study
+for the ORF-calling use case. Consequence: the TE / per-million count-head refactor discussed in
+`design_count_magnitude_transferability.md` is NOT needed for single-dataset deployment; it would only
+help multi-dataset training coherence. This settles the transferability question empirically (the earlier
+concern that the count head would not transfer was wrong for the calling use case).
+
+### Cross-species (mouse Wang liver) -- LANDED (drop-in), 2026-07-15
+
+The mouse genomic-key compare was blocked by a hardcoded human tx->gene map in
+`compare_dropin_calls.py`: it always loaded the human v49 `tx2biotype.tsv`, so all 41,096 mouse ENSMUST
+test tx missed the map, `keep_genes` came out empty, and `--key genomic` filtered out 100% of calls
+("test genes: 0", n_real 0). Fixed 2026-07-15: added a `--tx2gene` argument (default = human) plus a loud
+guard that aborts when 0 tx match the map (so this can't silently recur), built `data/mouse_tx2biotype.tsv`
+from the vM38 GTF (278,326 tx, via the now-parameterized `build_tx2biotype.py --gtf/--out`), and reran.
+Now `test genes: 11,617`.
+
+Mouse drop-in, one-hot, genomic key (min_len 90, pred enrichment >= 0.5):
+
+| comparison | nPred | nReal | F1 | precision | recall |
+|---|---|---|---|---|---|
+| real vs official (harness validation) | 13,579 | 13,992 | 0.981 | 0.995 | 0.966 |
+| pred_obsdepth vs real (PRIMARY)       | 13,365 | 13,579 | 0.929 | 0.936 | 0.922 |
+| pred_preddepth vs real (standalone)   | 13,914 | 13,579 | 0.919 | 0.908 | 0.930 |
+| pred_obsdepth vs official             | 13,365 | 13,992 | 0.915 | 0.937 | 0.895 |
+
+- **The human-trained model transfers across the species boundary.** Applied without retraining to mouse
+  liver, the one-hot model recovers 92-93% of RiboCode's own mouse calls from predicted profiles alone
+  (pred_obsdepth F1 0.929) -- essentially the same as the human cross-study F1 (0.931). It recovers 99.5% of
+  annotated ORFs (11,897/11,962) and 76% of novel ORFs (440/579); the non-canonical strata are harder
+  (uORF recall 0.208, dORF 0.120), the same pattern as human.
+- **Count-head resolution holds cross-species.** pred_preddepth F1 0.919 vs pred_obsdepth 0.929 (gap
+  -0.010) -- the fully standalone predicted-depth path is nearly as good as borrowing the real depth, even
+  across the human->mouse boundary. This mirrors the human cross-study gap ~0 and extends the
+  count-head-transfers conclusion to a second species.
+- **Harness validated.** real_vs_official F1 0.981 confirms the mouse pipeline (vM38 RiboCode annotation +
+  P-site calling) reproduces the official mouse calls near-perfectly, so the ~0.92 predicted numbers are a
+  real model result, not a broken harness.
+- Transcript-key cross-check (universe-sensitive, no gene map) is systematically lower as expected
+  (real_vs_official 0.838, pred_obsdepth 0.816, pred_preddepth 0.772): the difference is the
+  collapse-representative isoform reshuffle that genomic keying neutralizes, which is exactly why genomic is
+  the headline key here and for human. Written to `dropin/transcript_key/dropin_metrics.json`.
+
+Update (2026-07-16): the human full-set localization AUROC was reported in Task 16/17 (predicted-frame0
+AUROC 0.945, beating the observed-profile ceiling 0.908). The cross-species headline became the drop-in
+ORF-calling F1 (mouse Wang 0.929, Task 16/19) rather than a mouse profile-Pearson shape number; that
+per-nt mouse profile-Pearson assembly remains the one un-collated secondary metric (low priority -- the
+drop-in F1 is the stronger cross-species statement).
+
+### Infrastructure note (the timeout re-run)
+
+The original held-out chain sharded the predicted-profile dump across the `short` partition (1 h wall)
+with afterok-chained finalize. RiNALMo's O(L^2) transformer attention on long transcripts blew the 55-min
+wall (6/8 shards TIMEOUT), and `afterok` let a single timed-out shard poison the whole finalize (all four
+finalize jobs went DependencyNeverSatisfied). Re-run as one self-contained GPU job per (dataset, backend)
+(`heldout/dump_finalize_gpu.sbatch`): the un-sharded dump on a GPU finishes in minutes and writes
+`pred_profiles.npz` directly (no merge), then runs the 3 drop-in density variants + compare in the same
+job. This removed all array/merge/afterok fragility. Jobs 35335044-47.
+
+
+## Task 17: mixer + input-modality + capacity ablations, 9-fold LOTO, Mamba variant (2026-07-15)
+
+Controlled single-variable studies off the `orf_v2_attn_onehot` config, all on the SAME Hepatocytes
+hold-out (except 17D, which varies the held-out tissue). Metric below is the CONVERGED held-out
+TEST-set score (median per-transcript profile Pearson and median predicted-profile 3-nt periodicity
+over the 33,918 test transcripts = 32,869 protein-coding + 1,049 lncRNA), read from each run's
+`test_metrics.json` -- not the mid-flight validation Pearson used in earlier drafts of this section.
+Reference baseline `orf_v2_attn_onehot` (transformer, both inputs, 2 attn layers, ch 256): protein-coding
+Pearson **0.639**, periodicity **+0.391**, lncRNA Pearson **0.447**. 17A/17B/17D-landed are converged;
+17C (Mamba) and the remaining 17D folds are still marked [PRELIM].
+
+### 17A. Input-modality ablation -- RNA-seq drives MAGNITUDE, sequence drives SHAPE (LANDED)
+
+| input_mode | pc Pearson | pc periodicity | lncRNA Pearson |
+|------------|------------|----------------|----------------|
+| both (baseline)        | 0.639 | +0.391 | 0.447 |
+| emb one-hot (seq only) | 0.579 | +0.471 | 0.390 |
+| emb RiNALMo (seq only) | 0.546 | +0.487 | 0.346 |
+| cov (RNA-seq only)     | 0.122 | -0.011 | 0.088 |
+
+The profile head (shape) is a scale-free multinomial and the count head (magnitude) reads
+log1p(total coverage), so the architecture was designed for RNA-seq -> magnitude and sequence -> shape.
+This ablation confirms that split cross-tissue for the first time (previously only within-tissue, fold 0):
+
+- Sequence-only recovers 91% of the both-modality profile Pearson (0.579 of 0.639) and REPRODUCES the
+  3-nt periodicity -- in fact sharpens it (+0.471 vs the baseline's +0.391), because the coverage channel
+  contributes a smooth envelope that slightly dilutes fine periodicity.
+- RNA-seq-only collapses to 0.122 with periodicity DESTROYED (-0.011): a smooth magnitude signal cannot
+  express the periodic shape at all.
+- Adding RNA-seq on top of sequence lifts whole-transcript pc Pearson by +0.060 (0.579 -> 0.639) -- it
+  marks where coverage exists and firms up the broad envelope -- but the periodicity itself is sequence-borne.
+
+So the shape (and all of the periodicity RiboCode reads) comes from sequence; RNA-seq supplies magnitude
+plus a modest whole-transcript-envelope lift. This is the mirror image of Translatomer's abundance-weighted
+envelope metric (RNA-seq-only 0.731, sequence +5.3%); the difference is the metric (within-CDS periodic
+shape here vs a 65 kb genomic-window envelope there). one-hot >= RiNALMo (0.579 vs 0.546), consistent with
+the FM-no-lift finding in Task 15.
+
+### 17B. Capacity -- attention depth trades whole-tx Pearson for periodicity; width is neutral (LANDED)
+
+| config | pc Pearson | pc periodicity | lncRNA Pearson |
+|--------|------------|----------------|----------------|
+| baseline (2 attn layers, ch 256) | 0.639 | +0.391 | 0.447 |
+| attn = 4 layers                  | 0.603 | +0.430 | 0.423 |
+| channels = 384                   | 0.633 | +0.418 | 0.441 |
+
+On convergence, NEITHER deeper nor wider beats the baseline on whole-transcript pc Pearson. Deeper
+(4 attn layers) actually HURTS Pearson (0.603 < 0.639) while sharpening periodicity (+0.430 > +0.391) --
+a real depth-vs-periodicity tradeoff, not a free lift. Wider (384 ch) is within noise on Pearson
+(0.633 ~ 0.639) and slightly better on periodicity. Net: the baseline 2-attn/256-ch body is at the
+capacity sweet spot for whole-tx shape. (This REVISES the earlier mid-flight read of this section, which
+had reported "attn=4 gives a small lift 0.502 > 0.495" off a noisy validation Pearson; the converged
+held-out test metric reverses the Pearson ordering.)
+
+**Does the +0.039 periodicity help ORF calling? Drop-in test of attn=4 (2026-07-15, LANDED).** The
+4-layer variant was pushed through the identical RiboCode drop-in chain (dump -> detectORF x3 -> compare,
+genomic key) -- a rerun of the exact baseline drop-in with ONLY depth changed (jobs 35357991-993):
+
+| metric (pred_obsdepth vs real) | baseline (2L) | attn=4 (4L) | delta |
+|---|---|---|---|
+| drop-in F1              | 0.922 | 0.904 | -0.018 |
+| precision              | 0.913 | 0.871 | -0.042 |
+| recall                 | 0.932 | 0.940 | +0.008 |
+| non-canonical recall   | 0.614 | 0.678 | +0.064 |
+| uORF recall            | 0.689 | 0.809 | +0.120 |
+| Overlap_uORF recall    | 0.673 | 0.732 | +0.059 |
+
+The periodicity gain IS real for calling, and it lands exactly where predicted -- the non-canonical strata.
+Deeper attention recovers +0.064 more non-canonical ORFs overall and +0.120 more uORFs, because uORF / dORF
+/ novel calls hinge on clean 3-nt periodicity rather than the whole-tx envelope, so the sharper periodicity
+pays off there. BUT it costs precision (-0.042: the deeper model also over-calls more), so the AGGREGATE F1
+is slightly LOWER (0.904 vs 0.922). Verdict: whole-tx Pearson is a good proxy for aggregate F1 (both favor
+2-layer), but it MASKS a real recall/precision tradeoff on the non-canonical strata. The 4-layer is the
+better uORF / non-canonical DISCOVERY model (recover more, then filter on precision); the 2-layer is the
+better-calibrated general caller. So "2-layer is the capacity sweet spot" holds for aggregate F1 and
+whole-tx shape, but should be QUALIFIED: for uORF / non-canonical discovery specifically, deeper attention
+is worth the precision cost.
+
+### 17C. Mixer swap -- bidirectional Mamba (adapted from the seq2ribo polisher) (LANDED)
+
+A bidirectional Mamba body (`BiMambaBlock` = forward + reversed Mamba, summed; `MambaBody` stack) replaces
+the 2 transformer layers -- a controlled single-variable swap, trained in the Orthrus SIF (mamba_ssm
+1.2.0.post1). Adapted from seq2ribo's polisher (Kaynar & Kingsford 2026), made BIDIRECTIONAL because that
+model leans on its sTASEP simulation prior for downstream context and this model has no simulator (see
+`manuscript/related_work.md`). O(L) vs the transformer's O(L^2). `mamba_onehot` (5,768,962 params) CONVERGED
+(job 35349301, early-stopped near epoch 9). Held-out Hepatocytes test-set medians vs the transformer anchor:
+
+| mixer (2 layers, ch 256, both inputs, one-hot) | pc Pearson | pc periodicity | lncRNA Pearson |
+|---|---|---|---|
+| Transformer (baseline)      | 0.639 | +0.391 | 0.447 |
+| bidirectional Mamba         | 0.599 | +0.458 | 0.413 |
+
+The bidirectional Mamba lands BELOW the transformer on whole-tx pc Pearson (0.599 vs 0.639, -0.040) but
+ABOVE it on periodicity (+0.458 vs +0.391) -- the same Pearson-for-periodicity tradeoff as deeper attention
+(17B: attn=4 gave 0.603 / +0.430). It is competitive, not better, on this hold-out; the mid-flight
+validation read predicted exactly this (Mamba plateaued at val pc Pearson 0.492 @ epoch 3 vs the
+transformer's converged 0.505 @ epoch 9 on the same val split). The O(L) vs O(L^2) scaling is the standing
+structural advantage, so the Mamba mixer is worth keeping as an option for very long transcripts where the
+transformer's O(L^2) attention is the inference bottleneck, but it is not the default. (The 1-epoch smoke's
+periodicity +0.623 was an undertraining artifact; it settled to +0.458.) Code: `model.py`
+BiMambaBlock/MambaBody + `train_loto.py --mixer mamba`; all
+model-reconstruction sites (eval_extra, dump_pred_profiles, eval_localization, plot_example_uorf) read
+`mixer` from `args.json` (transformer default, backward compatible). Smoke run confirmed the CUDA
+forward/backward/eval work end-to-end.
+
+**Mamba drop-in test (2026-07-16): the periodicity-for-precision tradeoff is a GENERAL property of
+stronger mixers, not a transformer-depth quirk.** The Mamba variant was pushed through the identical
+RiboCode drop-in chain (dump in the Orthrus SIF -> detectORF x3 -> compare). It shows the SAME signature as
+attn=4 (17B) -- two independent "stronger global mixer" architectures, same result:
+
+| pred_obsdepth vs real | baseline (2L transf) | attn=4 | Mamba |
+|---|---|---|---|
+| drop-in F1            | 0.922 | 0.904 | 0.906 |
+| precision            | 0.913 | 0.871 | 0.880 |
+| recall               | 0.932 | 0.940 | 0.933 |
+| non-canonical recall | 0.614 | 0.678 | 0.638 |
+| uORF recall          | 0.689 | 0.809 | 0.761 |
+
+Both the deeper-attention and the state-space mixer trade aggregate F1 (via precision) for non-canonical /
+uORF recall relative to the 2-layer baseline: Mamba lifts uORF recall +0.072 (0.689 -> 0.761) and
+non-canonical +0.024, at precision -0.033 and F1 -0.016. So "sharper periodicity from a stronger mixer
+buys non-canonical ORF recovery at a precision cost" now holds across two unrelated architectures -- a
+general property of the profile model, not a one-off. The 2-layer transformer remains the best-calibrated
+general caller; deeper-attention or Mamba are the better uORF / non-canonical DISCOVERY front-ends.
+
+### 17D. Full 9-tissue leave-one-tissue-out (one-hot) (LANDED -- 9/9 folds)
+
+Each of the 9 Chothani tissues held out once (previously only Hepatocytes), one-hot `orf_v2_attn`,
+converged held-out test-set medians. The `period_OBS` column is the 3-nt periodicity of the REAL held-out
+Ribo-seq -- i.e. the target's own quality (independent of the model):
+
+| held-out tissue | pc Pearson | pc period_pred | pc period_OBS | lncRNA Pearson |
+|-----------------|------------|----------------|---------------|----------------|
+| Hepatocytes | 0.638 | 0.380 | 0.158 | 0.444 |
+| Fibroblast  | 0.629 | 0.340 | 0.222 | 0.473 |
+| HCAEC       | 0.570 | 0.415 | 0.171 | 0.436 |
+| Fat         | 0.562 | 0.299 | 0.260 | 0.416 |
+| ES          | 0.561 | 0.375 | 0.202 | 0.446 |
+| VSMC        | 0.490 | 0.442 | 0.110 | 0.352 |
+| HA_EC       | 0.447 | 0.452 | 0.098 | 0.338 |
+| HUVEC       | 0.413 | 0.414 | 0.110 | 0.347 |
+| Brain       | 0.234 | 0.431 | 0.044 | 0.153 |
+
+Mean pc Pearson over all 9 folds is **0.505** (**0.539** excluding the Brain outlier). The headline:
+**the cross-tissue pc-Pearson spread (0.23 to 0.64) is largely a held-out-TARGET data-quality ceiling, not
+a model-generalization gradient.** The model's own output quality (`period_pred`) is roughly constant
+across tissues (0.30 to 0.45 -- it predicts a cleanly periodic profile everywhere); what varies is how
+periodic the OBSERVED held-out Ribo-seq is (`period_OBS` 0.044 to 0.260), and pc Pearson broadly tracks
+`period_OBS` (strong at the low end, noisier at the top where depth also matters -- Hepatocytes is deep so
+it scores high at moderate OBS). Brain is the extreme: observed periodicity 0.044 (near noise -- the
+shallowest, noisiest tissue in the panel), so even a good periodic prediction cannot correlate highly
+against an essentially aperiodic target, capping pc Pearson at 0.234. This is the same shallow-data ceiling
+seen cross-study in Task 16: on the full-set Ruiz-Orera localization the predicted-frame0 AUROC (0.945 all,
+0.976 annotated) actually EXCEEDS that study's own observed-periodicity ceiling (0.908 / 0.914), because the
+external Ribo-seq is ~10x shallower than the model's denoised profile. So the LOTO result reads better as
+"the model predicts a consistent periodic profile across every held-out tissue; the score reflects target
+quality" than as "the model generalizes unevenly across tissues."
+
+Jobs: all 9 LOTO folds + ablations + mamba converged (35348241 A100 + 35348242 A5500). Anchor baseline:
+`results/loto/orf_v2_attn_onehot_holdout_Hepatocytes`.
+
+
+## Task 18: depth crossover -- at what sequencing depth does PREDICTING beat MEASURING? (2026-07-16, LANDED)
+
+Makes the Task 17D "profile-Pearson dispersion is a target-quality ceiling" claim concrete and
+quantitative, and directly demonstrates the Task 16 denoising finding: below a crossover depth, predicting
+the Ribo-seq profile from RNA-seq (no experiment) recovers MORE of the deep ORF-call truth than a real
+experiment at that depth. Hepatocytes held out (`orf_v2_attn_onehot`); full test-set depth 6.30e8 P-sites
+(33,918 tx). Figure: `figures/depth_crossover/depth_crossover.png` (+ `FIGURE_DATA_INPUTS.md`).
+
+Method: binomially thin the REAL Hepatocytes per-nt P-site profile to a fraction f of depth (each footprint
+kept i.i.d. w.p. f; `ribocode_dropin.py --subsample f --seed s`, `subsample_depth.sbatch` array), run
+RiboCode `detectORF` on the thinned counts, and score the calls against the deep OFFICIAL Hepatocytes calls
+(genomic locus key, 90 nt, 0.5x enrichment). The measurement curve F1(f) is compared to the depth-INDEPENDENT
+prediction line `pred_preddepth` (predicted shape x count-head predicted depth; uses RNA-seq + sequence,
+ZERO Ribo-seq), also vs the deep official. 8 depths x 3 seeds + a low-depth tail (`subsample_depth_curve.py`).
+
+| test-set P-sites (f) | measured F1 | measured non-canon recall |
+|---|---|---|
+| 6.30e8 (1.0)   | 0.881 | 0.57 |
+| 2.21e8 (0.35)  | 0.870 | 0.51 |
+| 1.26e8 (0.2)   | 0.860 | 0.46 |
+| 6.30e7 (0.1)   | 0.844 | 0.37 |
+| 3.15e7 (0.05)  | 0.821 | (~0.32) |
+| 2.21e7 (0.035) | 0.805 | 0.28 |
+| 1.26e7 (0.02)  | 0.779 | 0.23 |
+| 6.30e6 (0.01)  | 0.733 | 0.16 |
+| 3.15e6 (0.005) | 0.671 | 0.09 |
+| 1.26e6 (0.002) | 0.545 | 0.04 |
+| 3.15e5 (0.0005)| 0.271 | 0.00 |
+| **predict, NO Ribo-seq** | **0.818** | **0.323** |
+
+**Crossover: ~2.9e7 test-set P-sites (f~0.047).** Below ~29 million P-sites on these transcripts,
+predicting the profile from RNA-seq alone recovers more of the deep ORF-call truth (F1 0.818) than
+measuring Ribo-seq at that depth. At 6.3e6 P-sites (a normal-depth library on this test set) measuring
+gives F1 0.733 vs predicting 0.818 -- an 8.5-point gap in the prediction's favor; at 3.15e6 it is 0.671
+vs 0.818. The non-canonical panel crosses at a similar depth (~4e7). (`pred_obsdepth`, predicted shape at
+full real depth, sits at 0.819 -- essentially on the standalone line, confirming the count head's predicted
+depth is as good as the real depth here, consistent with Task 16.)
+
+This is the concrete form of the ceiling argument: a profile-Pearson or F1 number measured against shallow
+Ribo-seq is not a model ceiling, it is a MEASUREMENT ceiling -- and below ~29M P-sites the measurement is
+the weaker of the two estimates of the deep truth. Refined grid pinned the crossover at 29M (the coarse
+pilot's 56M was interpolated across a gap; the curve is convex near full depth). Jobs 35360209 (pilot),
+35364855 (refined 8x3).
+
+
+## Task 19: non-AUG (ATG + CTG) drop-in -- does the model help call CTG-initiated ORFs, or only ATG? (2026-07-16, LANDED)
+
+Every RiboCode call in Tasks 14-18 was ATG-only (verified: 100.0% of real and predicted calls, all
+categories incl. the non-annotated uORF/dORF/novel classes, start with ATG). So the "non-canonical"
+categories test non-canonical POSITION, all ATG-initiated; the v2 non-AUG-graded start channel had only
+ever been validated on profile SHAPE (uORF Pearson, Task 9c), never on non-AUG DETECTION. This task
+re-runs the Hepatocytes held-out drop-in (one-hot `orf_v2_attn`, reusing the existing `pred_profiles.npz`,
+no re-dump) with RiboCode's `ALTERNATIVE_START_CODON_LIST=["CTG"]` (== the `RiboCode -A CTG` CLI) on all
+three density variants, so real-vs-predicted ORF calling can be compared on CTG ORFs. CTG is FALLBACK-ONLY
+in RiboCode (`orf_finder.orf_find`: an alt-start opens an ORF only where its in-frame stop has no ATG), so
+CTG calls are a DISJOINT addition on top of the unchanged ATG calls -- confirmed empirically below.
+
+**Start-codon composition of the call sets** (genomic loci, 90 nt / raw-pval / 0.5x-enrichment filters):
+
+| set | n calls | ATG | CTG |
+|-----|--------:|----:|----:|
+| real (CTG-aware truth) | 14,622 | 13,141 (89.9%) | 1,481 (10.1%) |
+| pred_obsdepth | 14,416 | 13,423 (93.1%) | 993 (6.9%) |
+| pred_preddepth (standalone) | 13,846 | 13,087 (94.5%) | 759 (5.5%) |
+
+Real CTG ORFs are **92% uORFs** (920 uORF + 446 Overlap_uORF of 1,481; then 59 novel, 26 dORF, 19 internal,
+8 Overlap_dORF, 3 annotated) -- exactly where near-cognate CUG initiation is expected biologically.
+
+**Predicted-vs-real ORF calling, stratified by start codon** (genomic-locus key, same filters as Task 14):
+
+| start | variant | n real | n pred | match | precision | recall | F1 |
+|-------|---------|-------:|-------:|------:|----------:|-------:|---:|
+| ATG | pred_obsdepth | 13,141 | 13,423 | 12,257 | 0.913 | 0.933 | **0.923** |
+| ATG | pred_preddepth | 13,141 | 13,087 | 12,103 | 0.925 | 0.921 | **0.923** |
+| CTG | pred_obsdepth | 1,481 | 993 | 507 | 0.511 | 0.342 | **0.410** |
+| CTG | pred_preddepth | 1,481 | 759 | 420 | 0.553 | 0.284 | **0.375** |
+
+Findings:
+1. **Method is sound.** The stratified ATG F1 0.923 reproduces the ATG-only drop-in exactly, so enabling
+   CTG did NOT perturb the ATG calls -- the fallback-only semantics hold. And of the 1,481 real CTG loci,
+   the model recovered 521 at the locus (locus-recall 0.352) of which 507 it also called as CTG, so there
+   is essentially no codon-swapping: the model genuinely misses the other ~2/3, it does not mislabel them.
+2. **CTG detection is real but much weaker than ATG: F1 0.41 vs 0.92.** The predicted profile recovers
+   only ~1/3 of real CTG ORFs (recall 0.342) at ~half precision (0.511). Still, 507 recovered CTG ORFs
+   (almost all uORFs) that the model was never explicitly supervised to call is the FIRST direct evidence
+   the pipeline has any non-AUG detection ability -- the detection-level correlate of the v2 start
+   channel's uORF-Pearson gain (Task 9c).
+3. **The model UNDER-proposes CTG:** 993 CTG calls vs 1,481 real (6.9% vs 10.1% of its calls). It is
+   conservative on near-cognate starts, consistent with being trained on a periodicity-filtered P-site
+   target where CTG-uORF signal is weaker and noisier than CDS signal.
+4. **The CTG limitation is shape/detection, not depth.** Standalone `pred_preddepth` CTG F1 0.375 is close
+   to `pred_obsdepth` 0.410, so the count head's predicted depth is not the bottleneck (consistent with
+   Tasks 16/18); the gap is whether the predicted profile concentrates enough in-frame signal at the CTG.
+5. **Deployment implication.** Adding CTG drags the COMBINED drop-in F1 to 0.880 (from ATG-only 0.923),
+   because the noisy CTG tail (~10% of calls at F1 0.41) dilutes it. So keep RiboCode ATG-only when the
+   target is canonical ORFs; enable CTG only when non-AUG uORFs are specifically wanted and the softer
+   truth is acceptable -- it recovers ~500 real CTG uORFs at ~half precision.
+
+CAVEAT: RiboCode's CTG calls are a SOFTER TRUTH than ATG (near-cognate initiation is inherently noisier
+and less validated), so recall 0.34 is partly the truth being less reproducible, not only model miss.
+Scripts: `ribocode_dropin.py --alt_start_codons CTG`, `ribocode_dropin_ctg.sbatch`, `compare_dropin_ctg.py`
+(start-codon lookup from the RiboCode annotation FASTA), `ctg_compare.sbatch`. Metrics:
+`results/loto/orf_v2_attn_onehot_holdout_Hepatocytes/dropin_ctg/{dropin_metrics,dropin_ctg_metrics}.json`.
+Jobs 35368963 (drop-in array), 35368993 (compare).
+
+### Does the CTG result hold up elsewhere? -- 9 runs across backend / dataset / species / architecture (2026-07-16)
+
+Re-ran the ATG+CTG drop-in on 8 more runs that already had a dumped `pred_profiles.npz` (no re-dump),
+spanning four axes. `pred_obsdepth` vs real, genomic-locus key, same filters. F1saC = standalone
+(`pred_preddepth`) CTG F1; %CTGr = CTG share of the real calls; %uORF = uORF share of real CTG ORFs.
+
+| run | ATG F1 | nRealC | nPredC | match | CTG prec | CTG rec | CTG F1 | F1saC | %CTGr | %uORF |
+|-----|-------:|-------:|-------:|------:|---------:|--------:|-------:|------:|------:|------:|
+| Hep onehot (baseline)      | 0.923 | 1481 |  993 | 507 | 0.511 | 0.342 | **0.410** | 0.375 | 10.1% | 92% |
+| Hep orthrus                | 0.914 | 1481 | 1122 | 490 | 0.437 | 0.331 | 0.376 | 0.360 | 10.1% | 92% |
+| Hep rinalmo                | 0.911 | 1481 | 1160 | 543 | 0.468 | 0.367 | 0.411 | 0.378 | 10.1% | 92% |
+| Ruiz-Orera onehot          | 0.931 | 1713 |  687 | 374 | 0.544 | 0.218 | 0.312 | 0.262 | 11.8% | 93% |
+| Ruiz-Orera orthrus         | 0.925 | 1713 |  828 | 411 | 0.496 | 0.240 | 0.323 | 0.305 | 11.8% | 93% |
+| Ruiz-Orera rinalmo         | 0.924 | 1713 |  904 | 483 | 0.534 | 0.282 | 0.369 | 0.336 | 11.8% | 93% |
+| attn4 onehot (Hep)         | 0.905 | 1481 | 1831 | 691 | 0.377 | 0.467 | 0.417 | 0.403 | 10.1% | 92% |
+| mamba onehot (Hep)         | 0.906 | 1481 | 1223 | 547 | 0.447 | 0.369 | 0.405 | 0.360 | 10.1% | 92% |
+| mouse Wang liver onehot    | 0.929 |  606 |  233 |  49 | 0.210 | 0.081 | 0.117 | 0.136 |  4.3% | 84% |
+
+**ATG F1 stays 0.905-0.931 everywhere** -- the sanity check holds across all 9 (enabling CTG never perturbs
+the ATG calls). **CTG F1 ranges 0.117-0.417 (mean 0.349)**, i.e. CTG detection is real-but-weak everywhere
+and much below the ~0.92 ATG line. By axis:
+
+1. **Backend is irrelevant for CTG too:** within-Hepatocytes CTG F1 0.376-0.411 (onehot ~ rinalmo > orthrus
+   by a hair), the same backend-agnosticism seen on every other metric.
+2. **Independent human dataset (Ruiz-Orera) drops CTG F1 to 0.31-0.37, entirely via RECALL** (0.22-0.28 vs
+   0.33-0.37 within-tissue) while precision HOLDS (~0.50-0.54). Ruiz-Orera is ~10x shallower, so the real
+   CTG truth is sparser/noisier and the predicted profile has less to lock onto -- the model still proposes
+   precise CTG calls, just fewer of them. Composition is stable (11.8% CTG, 93% uORF).
+3. **Cross-species mouse collapses to CTG F1 0.117 (recall 0.081, 49/606).** The hard triple of cross-species
+   + shallow depth (mouse Wang mean depth ~44, the shallowest) + a smaller/sparser CTG truth (only 4.3% of
+   calls, 606 loci). Canonical transfer is fine (ATG F1 0.929), but non-AUG uORFs are less positionally
+   conserved and the shallow noisy target leaves almost nothing to recover. Small-n, treat as a floor.
+4. **A stronger mixer lifts CTG RECALL, the same periodicity-for-precision tradeoff seen on ATG uORFs.**
+   attn4 pushes CTG recall 0.342 -> **0.467** (+0.125) by proposing far more CTG ORFs (1831 vs 993, now
+   OVER-proposing vs 1481 real) and recovering more (691 vs 507), but precision falls 0.511 -> 0.377, so net
+   CTG F1 barely moves (0.417). mamba is milder (recall 0.369). This is the first evidence that the
+   architectures which boosted uORF recall (Tasks 9/17) improve non-AUG DETECTION recall specifically -- the
+   v2 start-channel + attention synergy operates on CTG ORFs, but the extra sensitivity is bought with false
+   positives, not free.
+
+Bottom line: the ~0.41 CTG F1 is a within-tissue, deep-target ceiling. It is backend-agnostic, degrades
+under distribution shift (independent dataset, and especially cross-species) primarily through RECALL, and
+is uniformly ~0.5x the ATG F1. The model's non-AUG ability is genuine but fragile, and a stronger mixer
+trades precision to raise its recall. All caveats from the Hepatocytes result stand, amplified on the
+shallow held-outs: RiboCode's CTG truth is soft, and shallower data makes it softer, so the recall drops
+are part model, part truth quality. Aggregate: `results/ctg_across_runs.json`; per-run
+`results/<run>/dropin_ctg/dropin_ctg_metrics.json`; `aggregate_ctg.py`. Jobs 35369472-35369487.
+
+### Task 19b: all-near-cognate drop-in (2026-07-17) -- RiboCode's fallback pre-emption collapses it to CTG
+
+Extended the drop-in to ALL 9 near-cognates (`--alt_start_codons CTG,GTG,TTG,ACG,ATA,ATT,ATC,AAG,AGG`,
+`ribocode_dropin_ctg.sbatch OUTSUB=dropin_allalt`; new `compare_dropin_allalt.py` stratifies by codon) on
+the base / mamba / attn4 Hepatocytes models. Result: the real call set is ONLY ATG (13,141) + CTG (1,481)
+-- **no GTG/TTG/ACG/etc. at all**. RiboCode's `ALTERNATIVE_START_CODON_LIST` is fallback-only AND
+priority-ordered, so CTG (first in the list) pre-empts every other near-cognate; adding the other 8 codons
+yields essentially zero additional calls. So "all alt ORFs" via RiboCode == ATG+CTG in practice, and the
+per-codon numbers reproduce Task 19 exactly (base ATG F1 0.923 / CTG 0.410; attn4 lifts CTG recall
+0.342->0.467, F1 0.417; mamba CTG 0.405). **Implication for the proteogenomics DB (proteogenomics/):** the
+model-selected novel-ORF search database CANNOT be built from RiboCode's alt-start caller (it will only
+ever surface CTG). The DB must instead ENUMERATE candidate ORFs directly (all near-cognate start ..
+in-frame stop) and score each with the model's predicted profile -- the caller is the bottleneck, not the
+model. Jobs 35499198-35499200 (drop-in) + 35499374-35499376 (compare); metrics in each run's
+`dropin_allalt/dropin_allalt_metrics.json`.
+
+## Task 20: Kozak start-context ablation -- remove / empirical / learned (2026-07-16, LANDED)
+
+Motivated by disliking the hand-picked Kozak heuristic in the ORF-track start channel
+(`kz = 0.5*[purine at -3] + 0.5*[G at +4]`). Four one-hot arms differing ONLY in start-propensity
+channel 3 (occupancy channels 0-2 + stop channel 4 byte-identical), all trained on Fibroblast and tested
+on held-out Hepatocytes (`orf_v2_attn` config, identical protocol: 40 epochs, patience 8, budget 16000),
+answer three questions: **Q1** remove the heuristic (V1 no-Kozak), **Q2** replace it with an
+empirically-fit PWM (V2), **Q3** let the model learn the context weights (V3, a `Conv1d(4->1, k=10)` gate
+over the one-hot slice). Full setup in methods.md 5N; plan + pre-registered prediction in `KOZAK_PLAN.md`.
+Consolidated `results/kozak/kozak_summary.{md,json}`; per-arm under `results/kozak/<arm>_onehot_fib2hep/`.
+
+| metric | V0 heuristic | V1 no-Kozak | V2 empirical | V3 learned |
+|--------|:---:|:---:|:---:|:---:|
+| **CTG non-AUG drop-in F1** (pred profile @ obs depth) | 0.340 | **0.369** | 0.343 | 0.320 |
+| CTG recall | 0.296 | 0.302 | 0.287 | 0.238 |
+| CTG precision | 0.401 | 0.475 | 0.428 | **0.489** |
+| n pred CTG loci (real = 1481) | 1092 | 942 | 994 | 720 |
+| non-canonical AUROC (len-ctrl) | 0.839 | **0.848** | 0.836 | 0.833 |
+| uORF AUROC (len-ctrl) | 0.921 | 0.923 | 0.917 | 0.916 |
+| uORF frame0 Pearson (fidelity) | 0.461 | **0.503** | 0.460 | 0.472 |
+| ATG drop-in F1 | 0.907 | 0.923 | 0.906 | 0.914 |
+| annotated-ORF AUROC (len-ctrl) | 0.912 | 0.912 | 0.910 | 0.915 |
+| pc whole-tx profile Pearson | 0.555 | **0.587** | 0.551 | 0.565 |
+| pc 5'UTR profile Pearson | 0.501 | **0.536** | 0.494 | 0.503 |
+| **best Fibroblast-val Pearson** (in-distribution) | 0.6458 | 0.6418 | 0.6431 | 0.6424 |
+
+**Interpretive anchor -- the four arms are in-distribution equivalent.** Best Fibroblast validation
+Pearson ties at 0.6418-0.6458 (spread 0.004), and V1 (no-Kozak) is actually the *lowest* there. So none of
+the cross-tissue test differences below come from one arm being a better-fit model; they are pure
+held-out-tissue generalization on a soft-truth task, single seed per arm. Read the deltas as directional,
+not decisive.
+
+**Q1 (remove the heuristic): removing it is free, and directionally best.** V1 tops nearly every held-out
+metric -- CTG F1 0.369 vs 0.340 (+0.029, via precision 0.475 vs 0.401 at equal recall), uORF frame0
+Pearson 0.503 vs 0.461, non-canonical AUROC 0.848, whole-pc 0.587, 5'UTR 0.536, even ATG F1 0.923 (the
+Kozak factor multiplies ATG starts too, so dropping it un-penalizes ATG starts with poor context). The
+consistency of the V1 win across ~7 semi-independent metrics argues it is a real, if small, effect rather
+than noise. The heuristic was a mild net *negative*: it injects a canonical-CDS prior that mildly
+mis-weights the non-canonical starts the project targets.
+
+**Q2 (empirical PWM): does not rescue it.** V2 CTG F1 0.343 == V0 0.340 (+0.003), uORF AUROC 0.917 vs
+0.921 -- a wash, and below V1. Fitting the Kozak context *better* does not help, because the problem is not
+the fit quality but that imposing a canonical-CDS start-context prior on ~92%-uORF CTG starts is the wrong
+move (pre-registered prediction confirmed: the CDS PWM floors 15-25% of uORFs to 0.5x; see `KOZAK_PLAN.md`
+and `kozak_context_alt_orfs.py`).
+
+**Q3 (learn it): the model CAN, which is exactly why the explicit gate is redundant.** V3's learned 4x10
+kernel (`figures/kozak/learned_vs_empirical_vs_heuristic.png`), never shown the annotation, rediscovers
+the canonical -3 purine (A+G weight +0.759 vs C+T -0.808), correctly down-weights the weak +4 position
+(G +0.128 vs +0.029 others; empirical +4 G is only 51.5%), and **matches the empirical PWM at Pearson r =
+0.807** over the 7 context positions -- two independent routes (Ribo-seq supervision vs annotated-start
+counting) converging on the same matrix. But *behaviorally* the learned gate is the WORST detector: it is
+the most conservative (720 CTG calls, precision 0.489 but recall 0.238), netting the lowest CTG F1 (0.320).
+The one-hot backbone already carries -3/+4 in its receptive field and uses start context implicitly (that
+is why V1, with no explicit start-context channel at all, does best), so bolting on an *explicit* Kozak
+gate -- heuristic, empirical, or learned -- is at best redundant and at worst (the hard sigmoid gate)
+suppresses recall.
+
+**Synthesis + recommendation.** The Kozak start-context factor does essentially no useful work in this
+model. In-distribution all four arms tie (val 0.642-0.646); on cross-tissue non-canonical detection the
+only directional signal is that *removing* the explicit factor (V1) is never worse and modestly best. The
+mechanistic reason is Q3: the sequence backbone reconstructs Kozak on its own (r=0.807), so an explicit
+start-context channel is redundant. **Recommendation: drop the heuristic -- build the ORF track with
+`--kozak none` (the V1 track).** It removes a hand-tuned literature prior that mildly mis-serves the
+non-canonical targets, simplifies the track, and directionally improves held-out detection. Neither the
+empirical PWM nor the learnable gate earns its added complexity.
+
+**Implemented (2026-07-16, default-flip only, no deployment retrain).** `build_orf_track.py` now defaults
+`--kozak none` (was `heuristic`); the `orf_track()` function default and the module docstring were updated
+to match. The `heuristic` and `pwm` paths remain available (opt-in) for reproducibility. IMPORTANT
+consistency note: the existing deployment `orf_v2_attn` model was TRAINED on the heuristic track
+`data/packed/orf_track_v2.npy`, which is left untouched -- so the deployed model keeps using its heuristic
+track (no train/inference mismatch). Only NEW `ext`-mode track builds are no-Kozak by default. A deployment
+rebuild (retrain orf_v2_attn on a no-Kozak train-on-8 track) is deferred; recommend a 3-seed confirmation
+of the V1 edge first (the cross-tissue deltas are single-seed).
+
+**Caveats.** Single seed per arm on a soft-truth task (RiboCode CTG calls); the cross-tissue deltas
+(CTG F1 spread 0.049) are modest and would be worth a 3-seed confirmation before hardening the V1
+recommendation into a deployment rebuild. One train/test tissue pair (Fib->Hep). The in-distribution
+val-Pearson tie is the robust part; the V1 test-set edge is the suggestive part. Jobs 35403140-35403146
+(v0/v2/v3), 35411708-35411710 (v1); orchestration `run_kozak_eval_chain.sh`; driver produced the final
+`kozak_summary.md`.
+
+## Task 21: Posture-B multimap sensitivity check (2026-07-17, LANDED)
+
+The pre-registered definitive version of the isoform-multimap check (methods.md 5O). Posture A counts
+each footprint on every within-gene isoform (phantom-signal risk on low-expressed siblings); posture B
+commits each footprint to one representative isoform. Key equivalence: for a gene's highest-expressed
+isoform, posture-A counts already equal posture-B counts, so posture B = "restrict train+eval to the
+highest-expressed isoform per gene" with NO target re-derivation (`make_representative_tx.py` ->
+`data/fibroblast_representative_tx.txt`, 12,485 genes = 34% of packed tx; `dataset.representative_tx()`
+via env `RIBO_REPRESENTATIVE_TX`). Airtight 2x2: {baseline, orf_v2_attn} x {A full, B representative},
+one-hot, fold-0, identical code/seed, only the universe differs (`train_postureB.sbatch`, job 35498336).
+Compare pc/lncRNA/uORF/dORF pooled medians A vs B. Expected to CONFIRM (Task 6 single-isoform-gene proxy).
+
+| config | pc | lncRNA | uORF | dORF | count Pearson | n test pc |
+|--------|----|--------|------|------|---------------|-----------|
+| baseline    A (full)           | 0.638 | 0.364 | 0.622 | 0.329 | 0.806 | 6,698 |
+| baseline    B (representative) | 0.623 | 0.346 | 0.618 | 0.259 | **0.823** | 2,202 |
+| orf_v2_attn A (full)           | 0.647 | 0.394 | 0.626 | 0.329 | 0.808 | 6,698 |
+| orf_v2_attn B (representative) | 0.635 | 0.371 | **0.655** | 0.309 | **0.823** | 2,202 |
+
+**Result: the multimap posture does NOT distort the conclusions -- CONFIRMED as pre-registered.** Posture B
+(one representative isoform per gene, the clean posture-B target) lands within ~0.01-0.02 of posture A on
+pc/lncRNA (B-A: baseline pc -0.015 / lncRNA -0.018; orf_v2_attn pc -0.012 / lncRNA -0.023), and the two
+headline conclusions survive intact: (1) the architecture edge holds on B -- orf_v2_attn beats baseline on
+every class (pc 0.635 vs 0.623, lncRNA 0.371 vs 0.346, uORF 0.655 vs 0.618); (2) magnitude is unaffected.
+Two things even IMPROVE on the clean representative universe: count Pearson rises to 0.823 (vs 0.806-0.808;
+representatives have cleaner expression signal) and orf_v2_attn's uORF is the best of all four (0.655). So
+the ~18x isoform-multimap inflation is genuinely absorbed by per-transcript normalization, and phantom
+signal on low-expressed siblings is not materially inflating posture A. The small B<A on pc/lncRNA is
+consistent with either mild phantom-easing in A or representatives (highest-expressed, often longer
+canonical isoforms) being intrinsically harder. Caveat: A and B are scored on DIFFERENT test sets (full
+6,698 vs representative 2,202), so this mixes training- and eval-composition; a common-subset cross-eval
+would isolate them, but the practical multimap question -- does posture A distort the story -- is answered
+NO. The pre-registered heavy check is closed; posture A stands. Jobs 35498336 (all 4 arms);
+`train_postureB.sbatch`, `make_representative_tx.py`, `dataset.representative_tx()`.
+
+## Task 22: replicate-concordance ceiling -- how much of the profile is even predictable? (2026-07-17, LANDED)
+
+Motivation: architecture changes (inputs, FM vs one-hot, attn depth, mamba, width, Kozak) have all
+plateaued at pc profile Pearson ~0.61-0.65. Is that the noise floor (near the ceiling, architecture not
+the bottleneck) or is there reproducible headroom the tested models miss? To find out, split the 32
+Fibroblast Ribo-seq samples into two independent 16-sample half-pools, compute the SAME per-transcript
+profile Pearson the model reports (whole-tx + 5'UTR/3'UTR windows, by biotype) between the halves, over 5
+random splits, then Spearman-Brown correct each half-depth r to full-pool depth (`replicate_concordance.py`,
+job 35535899; `results/replicate_concordance.json`).
+
+| class | replicate ceiling (SB, full) | raw r (half-depth) | model | model / ceiling |
+|-------|:---:|:---:|:---:|:---:|
+| pc whole-tx | **0.952** | 0.909 | 0.638 | 67% |
+| lncRNA whole-tx | **0.890** | 0.802 | 0.364 | 41% |
+| uORF (5'UTR) | **0.953** | 0.910 | 0.622 | 65% |
+| dORF (3'UTR) | **0.749** | 0.599 | 0.329 | 44% |
+
+(n = 33K pc / 1.2K lncRNA / 22K uORF-window / 11K dORF-window scorable tx per split; SB = 2r/(1+r).)
+
+**Result: the profile is HIGHLY reproducible, and the model captures only ~2/3 of it (pc) to ~2/5
+(lncRNA) -- so profile Pearson is NOT saturated; there is large, real reproducible headroom.** The
+architecture-sweep plateau is therefore NOT a noise-floor ceiling. The model nails the frame / 3-nt
+periodicity (most of its 0.64), but misses the reproducible position-specific magnitude modulation
+(elongation / pausing -- which positions pile up P-sites), which is reproducible at ~0.95 and no tested
+architecture (one-hot/FM/attn/mamba/width) captures.
+
+**Reconciliation -- two metrics, two stories (this is the key nuance):**
+- **ORF localization / calling** (the project's actual deliverable): the model IS at/above the ceiling --
+  Ruiz-Orera pred_frame0 AUROC 0.945 beats the observed-profile ceiling 0.908 (Task 16), plus the depth
+  crossover (Task 18). The frame signal is what calling needs, and the model has it near-perfectly.
+- **Per-nt profile SHAPE** (elongation dynamics): 41-67% of the ceiling -- a stated LIMITATION.
+
+**Honest limitation (paper framing).** This model is optimized for translation LOCALIZATION, which it
+achieves at the replicate-reproducibility ceiling. It does NOT capture the finer position-specific
+elongation dynamics (the reproducible profile-shape residual), which is the explicit target of dedicated
+ribosome-density models (seq2ribo, Riboformer, RiboMIMO, RiboNN's density head).
+
+**Per-codon (elongation-only) resolution + seq2ribo comparison (2026-07-17).** To separate periodicity
+from elongation, the concordance was re-run on the CDS collapsed to in-frame codons (periodicity removed):
+
+| per-codon CDS Shape r (elongation only) | value | note |
+|-----------------------------------------|:-----:|------|
+| replicate ceiling (SB, full-depth) | **0.950** | half-depth 0.905; n=31.6K pc |
+| this model (orf_v2_attn fold-0) | **0.526** | ~55% of ceiling; per-nt sanity 0.614 |
+| seq2ribo (Kaynar & Kingsford 2026, published "Shape r") | **0.05-0.19** | its own within-transcript metric |
+
+Three findings that overturn the naive read: (1) **the headroom is NOT periodicity** -- the per-codon
+elongation profile is *itself* reproducible at ~0.95, so the codon-to-codon pausing pattern is real
+biology, not noise; the per-nt 0.95 was not an artifact of the deterministic 3-nt frame. (2) **This model
+captures ~55% of the reproducible elongation signal (0.53/0.95)** -- moderate, with real remaining headroom.
+(3) **It substantially OUTPERFORMS the purpose-built seq2ribo on within-transcript shape** (0.53 vs its
+published Shape r 0.05-0.19), because this model is trained on the within-transcript profile (multinomial
+NLL) while seq2ribo optimizes cross-transcript magnitude -- seq2ribo's advertised 0.92 is "Elemwise r"
+(pooled across transcripts ~ TE/expression), NOT within-transcript shape. So seq2ribo is NOT the tool that
+closes this gap; if anything this model is closer. Caveat: seq2ribo's 0.05-0.19 is on its GWIPS-viz A-site
+data (domain + A-vs-P-site + median-vs-mean differ), so the cross-study number is directional; but since its
+within-transcript shape is weak even on its home turf, the direction is robust.
+
+**Corrected honest limitation (paper framing).** This model achieves translation LOCALIZATION at the
+replicate ceiling (the deliverable) AND captures roughly half the reproducible codon-level ELONGATION
+profile (0.53/0.95) -- better than the dedicated SOTA sequence model -- while ~half of that reproducible
+signal remains unpredicted by ANY current sequence model. That residual (codon-context-specific ribosome
+pausing) is a real, shared, open problem, not a tuning gap this architecture family can close. Decision:
+cite seq2ribo's published Shape r rather than stand it up domain-matched (its home-turf number already
+makes the point; an out-of-domain run on Fibroblast would only be <= that). `replicate_concordance.py`
+(pc_cds_codon), jobs 35535899 + 35539171; per-codon model number from
+`results/improve/orf_v2_attn_f0/dropin/pred_profiles.npz`.
+
+## Task 25: mm1 vs mm20 RNA-seq coverage posture -- fast proxy (2026-07-21, LANDED)
+
+Question the user raised ("run train + predict on uniquely-mapped RNA and compare"): the deployed RNA-seq
+COVERAGE input is built with STAR `--outFilterMultimapNmax 20` (mm20). Does single-mapper (mm1) coverage
+change the model? Retraining on mm1 would need re-downloading + re-aligning the 57 Chothani FASTQs (the
+training FASTQ were deleted) -- expensive. Fast proxy instead: align one 30M-read DoHH2 RNA-seq subsample
+BOTH ways (mm1 and mm20), build per-nt transcript coverage each way (`align_proxy_mm.sbatch`,
+`--outFilterMultimapNmax {1,20}`), and compare per-transcript on the DoHH2 expressed universe
+(`compare_coverage_mm.py`).
+
+| metric (DoHH2 universe, 30,950 tx with mm20 depth >= 50) | value |
+|---|---|
+| median per-tx Pearson(mm1, mm20) | **1.0000** |
+| tx with Pearson >= 0.999 | **85.7%** |
+| tx with Pearson < 0.95 | 5.3% |
+| total depth ratio mm1/mm20 | 0.9236 (mm20 has ~8% more reads, all multimappers) |
+| multimap-inflated tx (mm20 > 1.5x mm1) | 983 (3.2%) |
+
+**Result: the multimap posture does NOT materially change the model input -- a full mm1 retrain is
+unwarranted.** Coverage is identical (Pearson >= 0.999) on 85.7% of expressed transcripts and only 5.3%
+differ at all; the divergent tail is exactly the paralog / repeat / multimap-heavy loci (the 10 lowest-
+Pearson transcripts have mm20/mm1 depth ratios 7-145x -- histone clusters, paralog families, repeat-
+embedded transcripts). Because the model is per-transcript-normalized and sees identical input on ~95% of
+transcripts, its outputs are insensitive to the posture. This is consistent with Task 21 (posture-B: the
+~18x isoform-multimap inflation is absorbed by per-transcript normalization; conclusions posture-invariant)
+and confirms the standing note that `--outFilterMultimapNmax 20` is the correct RNA-seq-COVERAGE posture
+(the single-mapper rule is Ribo-seq-only, for P-site periodicity). The Chothani mm1 re-download was
+therefore stopped (ENA was throttling it to ~2 days anyway). Figure: `figures/B7_multimap_posture/`.
+Proxy aligns: jobs on `align_proxy_mm.sbatch`; comparison `compare_coverage_mm.py` ->
+`proteogenomics/data/mm_proxy/coverage_mm_{comparison.txt,pertx.tsv}`.
+
+## Figure set for the brief communication (2026-07-21, building)
+
+Reusable per-figure generators under `figures/<name>/` (each: `make_<name>.py` + `FIGURE_DATA_INPUTS.md`
+with a `## Regenerate` command + PDF/PNG). Master index: `figures/README.md`. Built this session (all read
+result JSON/TSV so they regenerate on retrain): A1 localization-beats-ceiling, A2 RiboCode drop-in F1 0.923,
+A3 even 9-fold LOTO generalization (profile-Pearson spread is held-out target quality, r=0.81 vs period_obs;
+count transfer even), B4 replicate ceiling, B5 translation signal exceeds an expression-only baseline
+(+0.12 length-ctrl), B7 mm1/mm20 posture (Task 25), C10 input saliency (start codon among the most salient
+nt in the transcript; the model reads the start context), D11 vs seq2ribo. Prior PNG figures adopted:
+prediction_examples, kozak (C9), depth_crossover. GATED on the immunopeptidome MS consolidation (Fig 2):
+B8 class-vs-global FDR, D12 CPAT/CPC2 baseline, D13 discovery forest plot, D14 novel-antigen case study.
+
+### mm1 adopted as the standard + strict-uniform re-run (2026-07-21, user directive)
+
+The user chose STRICT UNIFORM mm1: since the proxy proves mm1 == mm20 on the coverage input, unique mappers
+become the standard everywhere (smaller intermediates, faster STAR, one posture shared with Ribo-seq).
+Actions: (1) switched --outFilterMultimapNmax 20->1 in all 8 RNA-seq COVERAGE scripts + methods.md sec 2;
+(2) re-running the completed Fig 2 immunopeptidome datasets end-to-end on mm1 coverage so nothing in the
+figure is mixed-posture. Fully SLURM-native afterok chain per line (no head-node babysitting):
+align(mm1, SKIP_SALMON=1 since the universe is salmon-derived and unchanged) -> rebuild the model-input
+pack from the new coverage -> GPU predict -> enumerate/score ORFs -> model+null DBs -> HLA search ->
+MS2Rescore -> class-FDR compare (-> db_comparison_rescored_mm1.md). Driver: rerun_mm1_line.sh <LINE>
+<HELDOUT> <SRR>; new SLURM steps post_predict_line.sbatch + compare_line.sbatch. Launched DoHH2
+(35864420..23), SUDHL4 (35864424..27), HBL1 (35864428..31). The prior SU-DHL-4 mm20 predict (35864407)
+was cancelled. A549 (tryptic; RNA FASTQ had been deleted) is re-downloading its 4 ENCODE FASTQs to re-run
+mm1 too. The deployed model itself is NOT retrained (mm20-trained but proxy-equivalent on mm1 input; the
+Chothani training FASTQ are gone). Expectation per Task 25: the mm1 results match the mm20 results within
+noise; the value is uniform provenance, not a changed answer.
+
+A549 (tryptic) mm1 re-run also launched (35864436-39) via rerun_mm1_a549.sh: its canonical "fresh universe"
+lineage reads the ENCODE FASTQ (ENCSR000CON, re-downloaded, gzip 4/4 OK) projected onto A549's own universe;
+chain align_a549_encode(mm1) -> pack human_a549_fresh -> dump_a549_fresh -> enumerate -> db_fresh -> tryptic
+msf_full -> ms2rescore_fanout -> class-aware compare (-> _mm1.md, mm20 preserved as _mm20.md). All 4 Fig 2
+datasets (DoHH2, SU-DHL-4, HBL-1, A549) now re-running strictly on mm1 coverage.
+
+### mm1 strict-uniform re-run: outcome + a stale-rescore bug + a mokapot-stochasticity finding (2026-07-21)
+
+The 3 immunopeptidomes (HBL-1, DoHH2, SU-DHL-4) were re-run end-to-end on mm1. Two things surfaced:
+
+1. **Stale-rescore bug (fixed).** ms2rescore_line_fanout.sbatch has a resume guard (skip if psms.tsv
+   exists). The old mm20 rescore PSMs were not cleared, so the first mm1 pass SKIPPED rescoring (1 s/task)
+   and the compare read stale mm20 PSMs -> falsely byte-identical mm1==mm20. Caught by the suspicious exact
+   identity. Fixed: post_predict_line.sbatch + post_predict_a549.sbatch now clear stale rescore/search PSMs
+   before submitting; re-ran rescore+compare clean.
+
+2. **The DB is posture-invariant; peptide counts are mokapot noise.** The deterministic, posture-affected
+   artifact is the model's novel-ORF DB, and its counts are IDENTICAL mm1 vs mm20 to the digit (model
+   72,439 / 60,814 / 67,670; null 220,190 / 190,619 / 205,041). The downstream peptide discovery counts
+   wobble (e.g. DoHH2 model 17 vs 18 on two runs of the SAME mm1 search) -- MS2Rescore/mokapot is UNSEEDED
+   and stochastic on the sparse novel class. So mm1 and mm20 give the same DB and the same discovery within
+   rescoring noise -> the posture is safe (confirms Task 25 end-to-end).
+
+**Process caveat:** compare_rescored.py hardcodes db_comparison_rescored.md and compare_line.sbatch tees the
+same run to _mm1.md, and rescore/*.psms.tsv is a shared dir -- so the clean mm20 peptide baseline was
+overwritten during the re-run. It was not needed for the conclusion (DB-count identity + the determinism
+test carry it), but the compare/rescore I/O should be made posture-namespaced before any future A/B.
+
+**NEW Fig 2 rigor item (independent of posture): the Fig 2b discovery counts have mokapot run-to-run
+variance (+/- ~1-2 on these sparse counts).** Before finalizing Fig 2b, either seed mokapot for
+reproducibility OR report the counts as a mean +/- SD over N rescoring runs (error bars on the forest plot).
+
+### Strict-uniform mm1 re-run COMPLETE (2026-07-21/22) -- posture-invariance confirmed on all 4 Fig 2 datasets
+
+All 4 immunopeptidome/proteome datasets re-run end-to-end on mm1 coverage. Results match the preserved mm20
+baselines within noise, confirming the multimap posture does not change the Fig 2 conclusions:
+- HBL-1 / DoHH2 / SU-DHL-4 (immunopeptidome): model novel-ORF DB counts IDENTICAL mm1 vs mm20 (deterministic);
+  peptide discovery matches within mokapot stochasticity (characterized separately, D13 / stabilized).
+- A549 (tryptic): model DB 98,157 (mm1) vs 98,047 (mm20) = +0.1%; ALL discovery numbers identical -- raw
+  hyperscore class-FDR model 10 / null 13 (2.31x by rate), global-rescore 1/6, class-aware UNTRAINABLE (tryptic
+  novel class too sparse). Fix applied: compare_a549.sbatch now uses the ms2rescore env (compare_rescored_
+  classaware.py imports mokapot, absent from cas12a). mm20 preserved as *_classaware_mm20.md.
+
+Net: strict-uniform mm1 achieved; the deployed model is NOT retrained (proxy + full re-run both show
+equivalence); mm1 is now the standard coverage posture (smaller intermediates, faster STAR, consistent with
+Ribo-seq). Queue clear.
+
+## De novo ORF calling: no-Kozak mm1 retrain, count-head calibration, and the reproducibility ceiling (2026-07-24)
+
+Detailed running plan + all numbers: `docs/count_head_calibration_checks.md`. Headlines below.
+
+### Final model (mm1 + no-Kozak + Brain-drop) is localization-equivalent to the deployed model
+Retrained the one-hot `orf_v2_attn` holding out Hepatocytes, on 7 tissues (Brain dropped as noise), mm1
+coverage, no-Kozak ORF track (`orf_track_v2_nokozak.npy`; Kozak heuristic never set per Task 20). Run
+`results/loto/orf_v2_attn_onehot_noBrain_nokozak_mm1_holdout_Hepatocytes`, best val_pearson 0.527.
+Localization on the human Hepatocytes LOTO holdout: `pred_frame0` AUROC **0.941** vs deployed 0.940 (both
+beat the observed ceiling 0.907). The three changes (mm1, no-Kozak, drop-Brain) are localization-neutral --
+no regression, no obvious gain on that metric. All three tie within ~0.004 (seed noise).
+
+### But localization can't see the real problem: the standalone model OVER-CALLS non-canonical ORFs
+Standing evaluation now runs the RiboCode drop-in (`real` / `pred_obsdepth` = shape at real depth /
+`pred_preddepth` = standalone) on predicted profiles, per dataset, both arms (see below). On Hepatocytes the
+shape is fine (`pred_obsdepth` F1 ~0.80) but `pred_preddepth` over-calls: precision 0.71 (no-Kozak) / 0.74
+(deployed). Over-call is concentrated in short non-canonical ORFs and is DEPTH-dependent (worst on shallow
+data). Root cause is NOT count-scale: it is SMOOTHNESS -- the model predicts a noiseless *rate*, RiboCode's
+frame test is tuned for noisy integer counts, so spurious weak ORFs look cleanly periodic. Proof: `pred_obsdepth`
+(perfect per-tx counts) still has novel precision only 0.31; per-tx isotonic calibration cannot help.
+
+### Count-head calibration: Poisson injection wins; the CDS-anchored stringency dial
+Added `--pred_scale theta` (scale predicted effective depth) + `--pred_poisson` (sample Poisson(rate) instead
+of rounding) to `ribocode_dropin.py`. Check 4, matched CDS recall, Hepatocytes: **Poisson injection is the
+best lever** (+0.10 novel precision vs plain depth-scale at 90% CDS recall; p-value tightening WORSE -- the
+smooth density gives spurious ORFs deceptively good p-values). Recommended de novo recipe:
+`Poisson-sample(predicted_rate x theta) -> RiboCode`, theta = a **CDS-anchored** operating point (CDS is the
+one class we trust; CDS precision ~0.93 across the whole sweep). The **dial** (human Hepatocytes, 3-seed
+stable): theta=0.05 -> ~92% CDS recall, **226 novel @0.58, 660 uORF @0.73**; tighten for fewer/higher-precision
+novels. STANDING RULE: every ORF-calling test reports BOTH arms (standard pred_preddepth theta=1 + downsample+
+Poisson at CDS-anchored theta). Sweep TSVs preserved as supplemental-figure data.
+
+### O2: the between-experiment reproducibility ceiling (the honest de novo bar)
+Two independent mouse-liver Ribo-seq datasets (Wang, Janich; both pass periodicity QC -- 76-93% / 85-92%
+frame-0) agree only at **F1 0.675 ALL / 0.735 CDS / 0.505 non-canonical** (`o2_between_dataset.py`, coord-key
+matched). So non-canonical ORFs are only ~50% reproducible even between real experiments -- the model must be
+judged against ~0.5, NOT 1.0. A predictor reaching ~0.5 non-canonical F1 is "as informative as a second real
+experiment."
+
+**Model vs ceiling (Wang no-Kozak, 2026-07-24) -- CDS reaches the ceiling once calibrated.** Standard arm
+(theta=1) de novo: CDS F1 0.621 (0.84 of ceiling), non-canonical 0.067. The CDS shortfall is pure over-calling
+(the model makes 21,315 CDS calls vs ~14,700 real -> precision 0.51 despite recall 0.786 > ceiling's 0.756).
+The **Poisson arm fixes it**: at theta=0.02 the calibrated model makes 13,251 CDS calls, precision 0.76, and
+**CDS F1 = 0.744, edging PAST the 0.735 between-experiment ceiling** -- de novo (sequence + RNA-seq, no Ribo)
+predicts liver CDS ORF calls as well as a second real Ribo-seq experiment, matching the with-Ribo arm (0.759).
+Non-canonical improves ~3x under Poisson (0.067 -> 0.195 at theta=0.05) but stays far below its 0.505 ceiling
+-- the FP-filter + peaky model target that gap, not the depth dial. `results/o2_liver/o2_{,poisson_}summary.txt`.
+Janich symmetric model-vs-ceiling still queued (dump 35890103).
+
+### Transfer + the class-specific verdict (Check 5, GSE120762, deployed model)
+The dial KNOB transfers: theta=0.05 -> ~90% CDS recall on human liver, mouse BMDM, shallow AND deep. But
+non-canonical precision at an operating point is NOT a portable number -- it depends on the OBSERVED reference
+depth. Deep-reference follow-up (GSE-NT calls vs deep GSE-LPS observed) resolves it CLASS-SPECIFICALLY: CDS
+solid (0.83-0.89); uORF 0.23->0.46 (shallow reference unfairly penalized it -- half the "misses" are real);
+novel 0.07->0.11 vs a 0.54 baseline (model novels validate at only ~20% of the real-novel rate) = **novel is
+GENUINELY over-called, not an artifact**. Net thesis: CDS + (corrected) uORF calls are defensible; novel-ORF
+calling needs a robust caller, and must be scored vs a DEEP independent reference (never a shallow same-dataset
+one). This motivated O3.
+
+### O3 (forward goal): robust novel-ORF caller beyond RiboCode's frame test
+Move past the single univariate periodicity test (what the smooth density fools). Two tracks: co-opt an ML
+caller runnable on a substituted density (RibORF SVM / RP-BP / DeepRibo), or a lightweight per-ORF FP-filter
+classifier trained on reproducibility labels. Survey verdict (`docs/o3_orf_caller_miniplan.md`): NO wholesale
+co-opt -- every periodicity-based caller (RiboCode/Ribo-TISH/Ribotricer/RP-BP/ORFquant) inherits the same bug
+on a smooth predicted density, and the discriminating signal is read-distribution SHAPE, not periodicity. So
+keep RiboCode for candidate generation + build a custom FP-filter.
+
+**O3 track 1 -- FP-filter (`scripts/heldout/{orf_features,fp_filter}.py`, 2026-07-24):**
+- **Phase 1 refuted the central premise.** Extracting shape features (codon uniformity PME, Gini/CV, 5' ramp,
+  3'-of-stop drop, in-frame fraction, length) from the model's predicted density and labelling by the deep
+  observed calls: PME alone gives AUC ~0.50 for novel. The model over-smooths REAL ORFs too, so the shape
+  info that separates real from spurious is largely absent from its output. Best multivariate 5-fold CV =
+  logreg = RandomForest = **AUC 0.669** (novel) -- a linear, modest signal.
+- **Trained FP-filter (per-class balanced logreg, CV):** novel base rate 0.235 -> AUC 0.668; lift 1.5x at
+  50% recall. It leaves CDS untouched (annotated AUC 0.591, precision ~0.95 held).
+- **On the CDS-anchored framework (in-sample):** at fixed CDS recall 0.956 (theta=1.0 standard arm), the
+  filter lifts novel precision 0.294 -> 0.398 (+0.10) and uORF 0.425 -> 0.540 (+0.12) -- its niche is raising
+  non-canonical precision WITHOUT the CDS-recall cost that lowering theta pays (theta=0.05 reaches 0.590 novel
+  but drops CDS recall to 0.925). Complementary levers. Caveat: Hepatocytes-trained + applied -> optimistic
+  upper bound; cross-dataset (Wang/Janich) validation pending GPU.
+- **Verdict:** a real but MODEST post-hoc lever, ceiling-capped by the model's smoothness.
+
+**O3 track 2 -- anti-smoothing model (built + training in parallel, 2026-07-24):** the higher-ceiling fix.
+`model.py::profile_entropy_gap` adds `--peakiness_weight * relu(H(pred) - H(obs))` to the profile loss so the
+model stops hedging with smooth profiles (the multinomial NLL alone tolerates a smooth prediction). Deep pooled
+targets (~6.6 P-sites/nt) mean H(obs) reflects real 3-nt periodicity, not shot noise. `train_loto_noBrain_peaky.sbatch`
+(PK=0.2) is an exact A/B vs the current no-Kozak mm1 model (same config/holdout + the term), queued 35890525
+behind the O2 dumps. A/B when it lands: does feature-separation AUC clear 0.669, does novel over-calling drop
+at matched CDS recall, does val_pearson hold. See Check 8 + the mini-plan.
+
+## Task 26: 3-seed union comparison -- attn vs mamba4, settled (2026-07-31, LANDED)
+
+Which architecture ships as the primary model. Both are trained on the union universe with the
+no-Kozak ORF track (`--kozak none`) and mm1 coverage; only the sequence mixer differs. Three seeds
+each, scored on held-out test median per-transcript Pearson.
+
+| seed | `orf_v2_attn` (dilated CNN + 2 transformer layers) | `orf_v2_mamba4` (dilated CNN + 4 Bi-Mamba blocks) |
+|---|--:|--:|
+| 0 | 0.6585 | 0.6851 |
+| 1 | 0.6603 | 0.6753 |
+| 2 | 0.6598 | 0.6794 |
+| **mean** | **0.6595** | **0.6799** |
+| spread | 0.6585 - 0.6603 | 0.6753 - 0.6851 |
+
+**Gap = +0.0204 in favour of mamba4, and the seed ranges do not overlap: mamba4's worst seed (0.6753)
+beats attn's best (0.6603).** At n=3 per architecture this is a clean separation, not a seed artefact.
+Note the two architectures differ markedly in seed stability -- attn's spread is 0.0018 while mamba4's
+is 0.0098, i.e. mamba4 is ~5x noisier across seeds. It wins anyway, but a single-seed mamba4 number
+should not be quoted without the spread.
+
+Params: attn 5,071,106; mamba4 7,521,026. Mamba4 is GPU-only (mamba-ssm CUDA kernels).
+
+**Both models ship** (user decision, 2026-07-31): mamba4 is the primary model and the headline result;
+attn moves to supplemental for the paper but stays maintained as the released inference path for
+CPU-bound users, since it is the only one of the two that runs without a GPU. Both are covered by the
+architecture figure pair (`figures/arch_attn/arch_rinalmo.png`, `arch_rinalmo_mamba.png`) and the
+tutorial's architecture page.
+
+Provenance note: attn seed1 initially hit the 24 h wall at epoch 23 and was relaunched with a 48 h
+limit and `--resume`. The resumed run was explicitly verified to restart from epoch 23 with its prior
+best (`val_pearson=0.6015`) rather than silently reinitialising from epoch 0, so seed1's 0.6603 is a
+genuine continuation, not a short run.
+
+## Task 46: macrophage proteogenomics -- model-selected vs null ORF DB, 12 populations (2026-07-30, LANDED)
+
+Does restricting the MS search database to model-selected ORFs beat a size-matched null selection?
+12 mouse macrophage populations, 214 mzML. Novel = peptide maps ONLY to model/null-called ORFs and is
+scored against `REV_nuORF|` decoys only (class-specific FDR at 1%; a global FDR inflates non-canonical
+discovery ~10-13x and must not be used here). Full per-population table:
+`proteogenomics/data/macrophage_tissue/macro_model_vs_null.md`.
+
+| metric | canonical baseline | model DB | null DB |
+|---|--:|--:|--:|
+| novel peptides (1% class FDR) | -- | **440** | 374 |
+| canonical PSMs | 9,961,958 | 9,430,641 | 8,481,926 |
+| **PC-churn** (vs baseline) | -- | **-531,317** | **-1,480,032** |
+| net PSM (canonical + novel targets) | -- | 9,975,276 | 10,074,790 |
+
+> **RETRACTED 2026-08-01 -- the churn and net-PSM columns above are NOT FDR-filtered.** See Task 52.
+> `macro_churn_aggregate.analyze()` applied the FDR loop only to the novel-peptide column; `canon` and
+> `total_t` counted every rank-1 PSM. Unfiltered, those columns measure how many spectra a database
+> ABSORBED, which scales with database size. Corrected findings:
+>
+> - **The -1,480,032 PC-churn does not survive FDR.** Canonical PSMs at 1% FDR are 335,548 /
+>   335,804 / 335,392 / 336,284 for canonical-only / model@0.5 / model@0.74 / null (BMDM) -- a
+>   **0.27% spread**. Across 12 populations the shift is -0.6% to +1.0%. The displaced PSMs were
+>   sub-threshold matches, never confident identifications. The unfiltered number overstated the
+>   effect 10-25x.
+> - **The original sentence "adding poorly-chosen ORFs actively costs previously-confident canonical
+>   identifications" is WRONG** and is withdrawn. Those identifications were not confident.
+> - **The null's net-PSM "win" was an absorption artefact**: 1,592,864 unfiltered novel rank-1 PSMs
+>   yielding only 374 FDR-surviving peptides (4,259 raw matches per real peptide, vs 399 for the
+>   CDS-anchored arm). Its novel gain was ~93% accounted for by its canonical loss -- it was
+>   relabelling canonical matches as junk-novel.
+>
+> **What survives unchanged** is the novel-peptide axis, where every arm uses the same decoy class,
+> procedure and denominator: model 440 vs null 374, and the model wins the per-population discovery
+> rate in all 12 (2.94x to 8.05x). That comparison is untouched by the artefact. The claim from this
+> experiment must be a discovery-rate claim, not a churn claim and not a net-PSM claim.
+
+Caveat on provenance: the macrophage MODEL database was built with
+`orf_v2_attn_onehot_noBrain_nokozak_mm1_holdout_Hepatocytes` -- the pre-union deployed checkpoint, a
+7-tissue LOTO model (train `Fibroblast,VSMC,ES,Fat,HA_EC,HCAEC,HUVEC`, hold out Hepatocytes) applied
+cross-species to mouse. (An earlier draft of this note called it "the deployed fibroblast checkpoint";
+that was wrong. Fibroblast is one of seven training tissues and the name of the default universe FASTA,
+not the model's training set.) It is NOT the union-universe attn/mamba4 pair selected in Task 26, so
+these numbers are a lower bound on the shipped architectures; the rebuild is Task 50.
+
+## Task 52: the DB-tradeoff metric was measuring database size (2026-08-01, LANDED)
+
+Triggered by a question that should not have had an answer: how can the CDS-anchored macrophage DB
+report MORE novel peptides and LESS canonical churn than the null, yet a LOWER net PSM?
+
+**Cause.** `macro_churn_aggregate.analyze()` FDR-filtered only the novel-peptide column:
+
+```python
+canon   = sum(1 for (_,_,k) in sel if k == "canon_t")             # NO FDR
+total_t = sum(1 for (_,_,k) in sel if k in ("canon_t","novel_t")) # NO FDR
+nov     = ...                                                     # <- FDR applied only here
+```
+
+Unfiltered, `canon` and `total_t` count how many spectra a database ABSORBED. A larger database
+absorbs more by chance, so both columns scale with database size rather than with correctness.
+
+**Decomposition (12 populations).** Splitting net PSM into its parts explains the paradox exactly:
+
+| arm | canon PSM | novel_t PSM | net PSM | novel pep @1% | raw PSM per real peptide |
+|---|--:|--:|--:|--:|--:|
+| deployed attn @0.5 | 9,430,641 | 544,635 | 9,975,276 | 440 | 1,238 |
+| mamba4 @0.5 | 9,307,176 | 687,819 | 9,994,995 | 446 | 1,542 |
+| **mamba4 @0.74 anchored** | 9,804,842 | **184,016** | 9,988,858 | **461** | **399** |
+| null (2.36M seqs) | 8,481,926 | **1,592,864** | 10,074,790 | 374 | **4,259** |
+
+The null's entire net-PSM lead is 1,592,864 junk matches that do not survive FDR. Its novel gain
+(+1,592,864) is ~93% accounted for by its canonical loss (-1,480,032): it is mostly RELABELLING
+canonical matches as junk-novel, then being credited for them by a column that cannot tell.
+
+**The churn claim does not survive FDR either.** Canonical PSMs retained at 1% FDR, BMDM:
+
+| db | canon_t raw | other_d raw | FDR thresh | **canon_t kept @1%** |
+|---|--:|--:|--:|--:|
+| canonical-only | 849,994 | 361,892 | 18.517 | **335,548** |
+| model @0.5 | 811,734 | 325,175 | 18.509 | **335,804** |
+| model @0.74 | 836,911 | 349,132 | 18.522 | **335,392** |
+| null | 737,895 | 255,138 | 18.484 | **336,284** |
+
+A **0.27% spread** (-0.6% to +1.0% across all 12 populations) against an unfiltered churn of -5.3% to
+-14.9%. The displaced PSMs were sub-threshold matches, never confident IDs. **Task 46's statement that
+poorly-chosen ORFs "actively cost previously-confident canonical identifications" is withdrawn.**
+
+**A second, subtler trap.** Naively fixing this by applying class-specific FDR to the canonical side
+produces an impossible result -- the null gaining +3,317 canonical peptides over a canonical-only
+search. Junk cannot create real canonical IDs. Mechanism, visible in the table above: a large novel
+space soaks up SPURIOUS matches preferentially, so canonical decoys are cannibalised faster than
+canonical targets (`other_d` -29.5% vs `canon_t` -13.2%), deflating the estimated canonical FDR and
+relaxing its threshold. So the unfiltered and the naive class-specific-FDR versions are BOTH biased
+toward the larger database, by different mechanisms.
+
+**Resolution (now a standing rule).** Every column in a DB-comparison table must be FDR-filtered by
+the same procedure; never place a filtered column beside an unfiltered one. Canonical/net columns use
+GLOBAL 1% FDR (keeps the target-decoy competition intact); class-specific FDR is for the novel column
+only, where the denominator is the point. Report discovery rate per 100k DB sequences, since raw
+counts are not comparable across databases of different size. Reference impl for the corrected
+computation: `proteogenomics/scripts/net_psm_fdr.py`.
+
+**What was unaffected.** The novel-peptide comparison -- same decoy class, same procedure, same
+denominator across every arm -- stands: **461 (CDS-anchored) > 446 (mamba4@0.5) > 440 (deployed@0.5)
+> 374 (null)**, at 277.6 vs 15.9 discoveries per 100k sequences (17.5x). The macrophage conclusion is
+a discovery-rate result, not a churn result.
+
+## Task 53: `pgx` -- RiboCode-called search databases replace the f0 threshold (2026-08-01, BMDM LANDED)
+
+Retires the `pred_frame0`-threshold database build. ORFs are now called by Poisson-calibrated
+RiboCode on the model's predicted signal, N-terminal extensions are tested separately, and both
+naive nulls are built from the same expressed universe. Pipeline: `proteogenomics/scripts/pgx/`;
+methodology in `methods.md` 5S; plan and full numbers in `docs/proteogenomics_pipeline_miniplan.md`.
+
+### Why the f0 threshold had to go
+
+`f0` is a ratio over the ORF interval, so prepending a zero-signal upstream region changes neither
+numerator nor denominator: it is INVARIANT to N-terminal extension. Measured on BMDM over 12,719
+stop-codon groups, **96.2%** of 51,646 upstream non-AUG ORFs sat within 0.05 of the true CDS's
+`f0`, median |delta f0| = **0.0026**. There was also no Poisson step, no periodicity test and no
+significance filter anywhere in that path.
+
+### BMDM headline (mamba4 union, theta* = 0.05, tryptic, 18 fractions)
+
+| arm | novel PSMs | novel pept | novel seqs w/PSM | DB novel seqs | GENCODE PSMs | dPSM | dPept | ncStart |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|
+| gencode (baseline) | 0 | 0 | 0 | 0 | 335,548 | +0 | +0 | 0 |
+| **model (RiboCode-called)** | 121 | 40 | 20 | **1,533** | 335,187 | **-361** | -61 | **3** |
+| null_atg (naive AUG) | 177 | 50 | 104 | 235,686 | 325,254 | **-10,294** | -2,048 | 0 |
+
+Novel columns at 1% class-specific FDR; GENCODE columns and dPSM at 1% global FDR. The GENCODE
+baseline reproduces the legacy canonical arm EXACTLY (335,548 both), so the two builds are on
+identical footing and only the novel content differs.
+
+- **Database size:** 154x smaller (1,533 vs 235,686 novel sequences).
+- **Canonical cost:** 28x lower (-361 vs -10,294 PSMs; 0.11% vs 3.07% of baseline).
+- **Discovery density:** 26.1 vs 0.21 novel peptides per 1,000 DB sequences, a **123x** difference.
+- **Net trade for using the null instead:** +10 novel peptides for -1,987 canonical peptides.
+
+### The model recovers peptides the 154x larger null cannot report
+
+Peptide overlap: 23 shared, **17 model-only**, 27 null-only. Every model-only peptide is accounted
+for mechanistically:
+
+| cause | n | explanation |
+|---|--:|---|
+| absent from the null's sequence space | 3 | non-AUG start; unreachable by AUG-only enumeration at ANY threshold |
+| present in the null DB but below its FDR threshold | 13 | search-space inflation raises the class-specific hyperscore cut from **20.20 to 28.10** (+7.91); all 13 clear the model's cut |
+| present but not seen as rank-1 | 1 | lost to rank-1 competition in the larger space |
+
+So a bigger database does not merely cost canonical identifications, it **actively destroys
+non-canonical discovery** it structurally contains: 13 real peptides sit in the null's own FASTA
+and cannot be reported at 1% FDR because the null's own size raised the bar.
+
+### Extensions (the new, separately-tested entry class)
+
+RiboCode cannot produce these: `orf_finder.orf_find` sets `alt_flag = 0` as soon as an in-frame ATG
+precedes the stop, so a near-cognate extension of an annotated CDS is unreachable at any parameter
+setting. `pgx.extensions` applies RiboCode's own frame statistic to the **extension region alone**
+(candidate start -> annotated CDS start). BMDM: 30,243 candidate starts -> 884 testable ->
+**564 pass** q<=0.05 (CTG 152, GTG 95, AAG 72, AGG 67, TTG 46, ACG 37, ATC 34, ATT 27, ATG 18,
+ATA 16). Of the 884 that reached the test the retired whole-ORF `f0 >= 0.5` criterion would have
+admitted **884 of 884**, and by inheritance essentially all 30,243: a 54x reduction on evidence.
+RiboCode itself labelled 236 `annotated` calls as extensions but only 18 ATG extensions survive the
+region-specific test, so its most-5'-start choice is unsupported ~92% of the time.
+
+### Comparison with the retired build (same spectra, same FDR treatment)
+
+| build | novel pept | DB novel seqs | dPSM | pept per 1,000 seqs |
+|---|--:|--:|--:|--:|
+| legacy model (f0 >= 0.5) | 46 | 13,835 | -2,526 | 3.3 |
+| legacy null (all ATG candidates) | 41 | 187,043 | -9,114 | 0.2 |
+| **pgx model (RiboCode-called)** | 40 | **1,533** | **-361** | **26.1** |
+
+Honest reading: absolute novel yield is slightly LOWER than the retired build (40 vs 46 peptides).
+The gains are in efficiency and canonical preservation -- 9x fewer sequences, 7x lower canonical
+cost, 8x higher discovery density -- plus a statistical basis the f0 cut never had, and 3 peptides
+no AUG-only pipeline can reach.
+
+### Four defects found, three of them in this work
+
+All caught by controlled comparison, not by inspection; none crashed anything.
+
+1. **Absolute CDS-recall anchor unreachable.** Recall of all annotated CDS plateaus at 0.533
+   (10,236 of 19,190), so a 0.90 target can never be met. Re-anchored on the achievable CDS set;
+   theta* = 0.05 then reproduced the Check 5 operating point independently.
+2. **Null missing an ORF class the model had.** RiboCode maps out-of-frame CDS overlaps to
+   Overlap_uORF/Overlap_dORF (novel); the null enumerator called them `internal` and dropped them.
+   117 of 1,533 model sequences escaped a 2.3M-sequence null, all ATG. After aligning the
+   classifiers: 0 escape null_nc, and 546/546 (100%) escaping null_atg do so by start codon.
+3. **Enzyme override.** `search_enzyme_nocut_1` was set to `""`, silently switching trypsin to
+   trypsin/P. Detected because the GENCODE-only baseline read 352,307 against the legacy arm's
+   335,548 (+5.0%) on byte-identical databases. Fixed to `P`; the baseline now matches exactly.
+4. **`num_slices` is not an MSFragger 4.2 parameter** (logged as "Unknown parameters"); removed
+   rather than left as a warning-generating no-op. MSFragger sizes slices from `-Xmx`.
+
+### Status
+
+`null_nc` (2.5M-target near-cognate null) still searching; its arm will be appended. Open decision:
+`--biotype-field` transcript_type (current default, matches all prior universes) vs gene_type
+(adds NMD / retained_intron isoforms, where non-canonical ORFs concentrate; A549 45,166 vs 41,139).
+
+### Task 53 addendum: five-arm tables, both shipping models (2026-08-01)
+
+Both calling arms now get their own database and search by default (`pgx.run --db-arms`, default
+`standard,poisson`), so the benefit of calibration is visible rather than asserted. BMDM, tryptic,
+18 fractions; `gencode`, `null_atg`, `null_nc` are shared between the two models (identical
+databases, searched once via `--shared-search-root`).
+
+| arm | novel PSMs | novel pept | seqs w/PSM | DB novel seqs | GENCODE PSMs | dPSM | dPept | ncStart |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|
+| gencode | 0 | 0 | 0 | 0 | 335,548 | +0 | +0 | 0 |
+| mamba4 standard (theta=1) | 86 | 31 | 21 | 10,454 | 334,790 | -758 | -138 | 3 |
+| **mamba4 poisson (theta*=0.05)** | 121 | **40** | 20 | 1,533 | 335,187 | **-361** | -61 | 3 |
+| attn standard (theta=1) | 77 | 30 | 16 | 5,991 | 334,963 | -585 | -122 | 0 |
+| **attn poisson (theta*=0.05)** | 88 | 33 | 11 | 1,244 | 335,158 | -390 | -72 | 2 |
+| null_atg | 177 | 50 | 104 | 235,686 | 325,254 | -10,294 | -2,048 | 0 |
+| null_nc | 657 | 177 | 760 | 2,512,388 | 319,544 | -16,004 | -4,634 | 9 |
+
+**Calibration wins on every axis, in BOTH architectures.** The Poisson arm finds more peptides than
+theta=1 (40 vs 31 for mamba4, 33 vs 30 for attn) from 6.8x / 4.8x FEWER sequences and at roughly
+half the canonical cost. This was not the expected direction: relaxing calibration was supposed to
+trade precision for recall. Instead the extra 8,921 (mamba4) / 4,747 (attn) sequences that theta=1
+admits are actively harmful -- they inflate the class-specific FDR threshold enough to bury genuine
+peptides the smaller database reports, the same mechanism that costs `null_nc` 16 of the model's own
+peptides, at smaller scale.
+
+This closes the question left open by the four-arm table: the model's lower recall against
+`null_nc` is **not** an artifact of over-conservative calibration, because loosening theta makes it
+worse. Whatever the near-cognate null finds, the caller does not reach it by relaxing stringency.
+
+**mamba4 vs attn: more ORFs, not better ORFs.** mamba4 finds 21% more novel peptides (40 vs 33) at
+slightly lower canonical cost (-361 vs -390), so it is the better arm overall. But per-sequence
+discovery density is indistinguishable -- **26.1 vs 26.5 peptides per 1,000 DB sequences** -- so the
+advantage comes from calling MORE ORFs (1,533 vs 1,244), not from better per-ORF discrimination.
+State it that way; this dataset does not show mamba4 is the better discriminator.
