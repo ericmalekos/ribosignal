@@ -1,0 +1,11 @@
+=== aligns cleared 2026-07-20T08:43:25-07:00 ===
+35844129        RUNNING   02:23:29 
+35844129.ba+    RUNNING   02:23:29 
+35844365        RUNNING   02:02:51 
+35844365.ba+    RUNNING   02:02:51 
+--- DoHH2 (coverage MISSING; salmon tx>1TPM 34398) ---
+  NO coverage -- skip DoHH2
+--- SUDHL4 (coverage MISSING; salmon tx>1TPM 37978) ---
+wrote /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/SUDHL4_pilot/SUDHL4_universe.fa
+  NO coverage -- skip SUDHL4
+=== prep done 2026-07-20T08:43:41-07:00 ===

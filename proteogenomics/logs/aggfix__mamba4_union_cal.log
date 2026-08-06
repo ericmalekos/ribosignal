@@ -1,0 +1,44 @@
+  BMDM done
+  Kupffer done
+  LargeIntestinal done
+  LiverRecruited done
+  LungRecruited done
+  LungResident done
+  Microglia done
+  Peritoneal done
+  RAW264 done
+  SmallIntestinal done
+  SpleenRecruited done
+  SpleenResident done
+wrote /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/macrophage_tissue/macro_model_vs_null_mamba4_union_cal.md
+# Macrophage proteogenomics: model-selected vs null ORF DB, per population (mamba4_union_cal)
+
+ALL columns are FDR-filtered (Task 52). Novel peptides use 1% CLASS-SPECIFIC FDR (novel = maps ONLY to model/null-called ORFs, scored against REV_nuORF| decoys only). Canonical and net PSMs use 1% GLOBAL FDR (all targets vs all decoys), which keeps the target-decoy competition intact -- class-specific FDR on the canonical side is confounded by decoy cannibalisation, and RAW rank-1 counts measure spectra absorbed rather than identified and scale with DB size. Expect canonical to be near-FLAT across DBs (~0.3% spread); a large apparent churn means the filter was skipped.
+
+| population | model novel | null novel | model/null rate | canon base | canon model | ΔPC model | canon null | ΔPC null | net PSM model | net PSM null |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| BMDM | 42 | 41 | 13.85x | 335,548 | 334,681 | -867 | 326,434 | -9,114 | 335,049 | 327,662 |
+| Kupffer | 20 | 31 | 8.48x | 250,859 | 248,587 | -2,272 | 250,468 | -391 | 248,835 | 251,261 |
+| LargeIntestinal | 40 | 31 | 21.94x | 239,377 | 238,894 | -483 | 242,820 | +3,443 | 239,188 | 243,649 |
+| LiverRecruited | 42 | 23 | 23.70x | 284,128 | 283,131 | -997 | 275,222 | -8,906 | 283,435 | 276,245 |
+| LungRecruited | 35 | 38 | 12.77x | 203,552 | 203,038 | -514 | 196,491 | -7,061 | 203,340 | 197,321 |
+| LungResident | 42 | 29 | 20.76x | 368,681 | 367,657 | -1,024 | 358,457 | -10,224 | 367,963 | 359,726 |
+| Microglia | 20 | 16 | 23.83x | 205,348 | 204,998 | -350 | 200,177 | -5,171 | 205,135 | 200,821 |
+| Peritoneal | 39 | 30 | 17.36x | 316,325 | 312,588 | -3,737 | 305,187 | -11,138 | 312,868 | 306,229 |
+| RAW264 | 51 | 45 | 15.73x | 418,204 | 401,439 | -16,765 | 406,464 | -11,740 | 401,966 | 407,954 |
+| SmallIntestinal | 45 | 40 | 19.06x | 254,164 | 253,818 | -346 | 248,436 | -5,728 | 254,111 | 249,261 |
+| SpleenRecruited | 40 | 29 | 17.84x | 192,569 | 192,178 | -391 | 200,449 | +7,880 | 192,428 | 201,218 |
+| SpleenResident | 45 | 21 | 27.72x | 215,867 | 215,312 | -555 | 210,530 | -5,337 | 215,551 | 211,238 |
+| **TOTAL (12 pop)** | **461** | **374** | | 3,284,622 | 3,256,321 | -28,301 | 3,221,135 | -63,487 | 3,259,869 | 3,232,585 |
+
+## Verdict
+
+- Novel peptides (1% class FDR): model **461** vs null **374** across 12 populations.
+- PC-churn: canonical PSMs 3,284,622 (baseline) -> 3,256,321 (model, -28,301) -> 3,221,135 (null, -63,487). The null DB displaces 35,186 MORE canonical PSMs than the model DB.
+- Net PSM: model 3,259,869 vs null 3,232,585.
+
+## Reused searches
+
+- `canonical` reused from tag `<original>` for 12 population(s): BMDM, Kupffer, LargeIntestinal, LiverRecruited, LungRecruited, LungResident, Microglia, Peritoneal, RAW264, SmallIntestinal, SpleenRecruited, SpleenResident. Valid because this DB's sequence content does not depend on the model checkpoint.
+- `null` reused from tag `<original>` for 12 population(s): BMDM, Kupffer, LargeIntestinal, LiverRecruited, LungRecruited, LungResident, Microglia, Peritoneal, RAW264, SmallIntestinal, SpleenRecruited, SpleenResident. Valid because this DB's sequence content does not depend on the model checkpoint.
+

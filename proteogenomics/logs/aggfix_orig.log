@@ -1,0 +1,39 @@
+  BMDM done
+  Kupffer done
+  LargeIntestinal done
+  LiverRecruited done
+  LungRecruited done
+  LungResident done
+  Microglia done
+  Peritoneal done
+  RAW264 done
+  SmallIntestinal done
+  SpleenRecruited done
+  SpleenResident done
+wrote /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/macrophage_tissue/macro_model_vs_null.md
+# Macrophage proteogenomics: model-selected vs null ORF DB, per population
+
+ALL columns are FDR-filtered (Task 52). Novel peptides use 1% CLASS-SPECIFIC FDR (novel = maps ONLY to model/null-called ORFs, scored against REV_nuORF| decoys only). Canonical and net PSMs use 1% GLOBAL FDR (all targets vs all decoys), which keeps the target-decoy competition intact -- class-specific FDR on the canonical side is confounded by decoy cannibalisation, and RAW rank-1 counts measure spectra absorbed rather than identified and scale with DB size. Expect canonical to be near-FLAT across DBs (~0.3% spread); a large apparent churn means the filter was skipped.
+
+| population | model novel | null novel | model/null rate | canon base | canon model | ΔPC model | canon null | ΔPC null | net PSM model | net PSM null |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| BMDM | 46 | 41 | 4.65x | 335,548 | 333,022 | -2,526 | 326,434 | -9,114 | 333,643 | 327,662 |
+| Kupffer | 22 | 31 | 2.94x | 250,859 | 245,791 | -5,068 | 250,468 | -391 | 246,198 | 251,261 |
+| LargeIntestinal | 34 | 31 | 5.19x | 239,377 | 237,720 | -1,657 | 242,820 | +3,443 | 238,131 | 243,649 |
+| LiverRecruited | 45 | 23 | 8.05x | 284,128 | 273,496 | -10,632 | 275,222 | -8,906 | 273,991 | 276,245 |
+| LungRecruited | 32 | 38 | 3.45x | 203,552 | 201,113 | -2,439 | 196,491 | -7,061 | 201,568 | 197,321 |
+| LungResident | 48 | 29 | 6.91x | 368,681 | 366,104 | -2,577 | 358,457 | -10,224 | 366,663 | 359,726 |
+| Microglia | 20 | 16 | 5.76x | 205,348 | 204,301 | -1,047 | 200,177 | -5,171 | 204,547 | 200,821 |
+| Peritoneal | 40 | 30 | 5.56x | 316,325 | 310,894 | -5,431 | 305,187 | -11,138 | 311,388 | 306,229 |
+| RAW264 | 54 | 45 | 4.96x | 418,204 | 412,243 | -5,961 | 406,464 | -11,740 | 413,073 | 407,954 |
+| SmallIntestinal | 43 | 40 | 4.78x | 254,164 | 252,989 | -1,175 | 248,436 | -5,728 | 253,435 | 249,261 |
+| SpleenRecruited | 34 | 29 | 4.81x | 192,569 | 190,578 | -1,991 | 200,449 | +7,880 | 190,957 | 201,218 |
+| SpleenResident | 22 | 21 | 4.27x | 215,867 | 214,118 | -1,749 | 210,530 | -5,337 | 214,482 | 211,238 |
+| **TOTAL (12 pop)** | **440** | **374** | | 3,284,622 | 3,242,369 | -42,253 | 3,221,135 | -63,487 | 3,248,076 | 3,232,585 |
+
+## Verdict
+
+- Novel peptides (1% class FDR): model **440** vs null **374** across 12 populations.
+- PC-churn: canonical PSMs 3,284,622 (baseline) -> 3,242,369 (model, -42,253) -> 3,221,135 (null, -63,487). The null DB displaces 21,234 MORE canonical PSMs than the model DB.
+- Net PSM: model 3,248,076 vs null 3,232,585.
+

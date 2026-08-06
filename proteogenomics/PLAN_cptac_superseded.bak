@@ -1,0 +1,90 @@
+# CPTAC novel-protein discovery reanalysis (Ribo-seq model as a translation prior for MS)
+
+Kicked off 2026-07-17. Application of the riboseq_signal_model: use the model's predicted translation to
+build a proteomics search database enriched for genuinely-translated novel ORFs, and test whether it
+finds novel peptides in matched CPTAC MS at a HIGHER-THAN-NULL rate.
+
+## Hypothesis
+
+Ribo-seq/translation prediction typically precedes proteomics. The model selects WHICH candidate ORFs
+(from RNAseq-expressed transcripts) are actually translated, so a model-selected ORF database should be
+smaller and more enriched for real novel peptides than a naive "all expressed ORFs" database, giving more
+confident novel-peptide IDs at controlled FDR. This directly tests the sibling project's finding
+(project_expr_context_human_ms_fdr): the model's real edge is Ribo-seq TRANSLATION, not MS detectability.
+
+- **Test DB**: canonical proteome + model-selected translated novel ORFs (from CPTAC RNAseq via the model).
+- **Null DB**: canonical proteome + 3-frame translation of all >1 TPM expressed transcripts (no model
+  selection -- the naive expressed-ORF background).
+- **Readout**: novel-peptide identifications at class-specific FDR, model-DB rate vs null-DB rate,
+  per-cohort + pooled, with PC-churn + net-PSM columns (feedback_db_tradeoff_table_columns).
+
+## Decisions (user, 2026-07-17)
+
+- **Pilot on 3 cohorts** first, then scale. Pilot order (smallest raw proteome first, per ACQUISITION.md):
+  **GBM (PDC000204, 214 GB) -> CCRCC (PDC000127, 440 GB) -> LUAD (PDC000153, 466 GB)**.
+- **Public acquisition** for proteomics (PDC, fully OPEN, no dbGaP).
+- **RNA-seq = CONTROLLED dbGaP path (user choice, 2026-07-17):** gold-standard isoform-level. Requires
+  dbGaP **phs001287** approval + GDC token -> download genome BAMs (2-4 TB/cohort, sample-streamed) ->
+  revert to FASTQ -> **salmon decoy-aware** isoform TPM + per-nt RNA-seq coverage -> model gets its FULL
+  input (coverage, not sequence-only). GATES the pilot on dbGaP approval (weeks of lead time).
+- **Rescoring**: MS2Rescore (MS2PIP + DeepLC; strongest for novel/non-tryptic). NOT yet installed -> fresh
+  install (a data-independent prep task, do while waiting on dbGaP).
+- **FDR**: class-specific target-decoy (reuse phase60_class_specific_fdr.py) -- global FDR inflates novel
+  discovery ~10x (the "crazy FDR" lesson).
+
+## Tool locations (verified 2026-07-17)
+
+- MSFragger 4.2: `conda_envs/msfragger/share/msfragger-4.2-0/MSFragger-4.2/MSFragger-4.2.jar`
+  (+ its own JVM `conda_envs/msfragger/bin/java`). Reusable params in sibling
+  `expression_context_human/data/msfragger/fragger_{tryptic,hla_slice}.params`.
+- Comet: `conda_envs/proteomics/bin/comet` (+ `comet.params.new`).
+- MS2Rescore: absent -> install (env `conda_envs/ms2rescore` via micromamba on the group fs).
+- Class-specific FDR + DB build + Percolator: sibling `expression_context_human/scripts/phase60*`,
+  `build_msfragger_db.py`, `phase76b_build_novel_dbs.py`, `phase60e/61e_percolator_driver.sh`.
+
+## Status: GATED on dbGaP phs001287 (RNA-seq controlled path chosen). While waiting, pre-build the
+## data-independent pipeline (MS2Rescore install; DB-build + class-FDR adaptation; a dry-run of
+## search->rescore->FDR on a few sibling-project mzMLs) so it is proven before CPTAC data lands.
+
+## HARD CONSTRAINT: 15 TB shared ceph quota, ~5.2 TB free (9.81/15 used at kickoff)
+
+A single CPTAC cohort's raw/mzML can be 1-3 TB, so even the 3-cohort pilot cannot hold all raw at once.
+STRICT per-cohort streaming: download one cohort's mzML -> search (MSFragger + Comet) -> KEEP only the
+compact search results (pin/pepXML/tsv) -> DELETE the raw mzML before the next cohort. Never let two
+cohorts' raw sit on disk. Watch `getfattr -n ceph.dir.rbytes` between cohorts. This is the EDQUOT-kills-
+jobs rule (feedback_group_ceph_15tb_quota) applied at scale.
+
+## Phases
+
+1. **Acquire (per cohort, streamed)** -- PDC manifest -> mzML; GDC -> RNAseq. Serial head-node pull to
+   group fs, md5-verified (project download rule). [research agent scoping the exact PDC/GDC API + sizes]
+2. **RNAseq -> expressed set** -- salmon decoy-aware (standing rule), per cohort, keep >1 TPM transcripts.
+3. **Model translation calls** -- run the deployment model + all-alt-ORF caller on each cohort's expressed
+   transcripts, CPTAC RNAseq as the coverage input (reuse scripts/heldout/ cross-dataset infra); select
+   translated ORFs above a score threshold, class-labeled (lncRNA-ORF / uORF / dORF / novel).
+4. **Build DBs** -- canonical / model-selected-novel / 3-frame-null, each + decoys (reuse
+   build_msfragger_db.py, phase76b_build_novel_dbs.py from the sibling project).
+5. **Search** -- MSFragger + Comet (conda_envs/proteomics/bin/comet; reuse sibling sbatch), then DELETE raw.
+6. **Rescore** -- MS2Rescore (install) -> Percolator.
+7. **Class-specific FDR + eval** -- reuse phase60_class_specific_fdr.py; novel-peptide IDs at 1% class FDR;
+   model-DB vs null-DB rate; per-cohort + pooled; PC-churn + net-PSM table.
+
+## Reuse map (sibling expression_context_human)
+
+- Comet install: `conda_envs/proteomics/bin/comet` (+ comet.params.new). MSFragger: sibling sbatch.
+- DB builders: `build_msfragger_db.py`, `phase76b_build_novel_dbs.py`, `phase58a_build_allisoform_db2.py`.
+- Class-specific FDR: `phase60_class_specific_fdr.py` (+ phase60c_msfragger_fdr.py). CRITICAL.
+- Percolator drivers: `phase60e/61e_percolator_driver.sh` (MS2Rescore feeds Percolator).
+- Cross-dataset model application: `scripts/heldout/` (Ruiz-Orera / Wang pattern).
+- Salmon decoy-aware index (human GENCODE v49 + GRCh38 decoys): the shared prism index.
+
+## Open / next
+
+- Research agent: nail the PDC (GraphQL) + GDC acquisition for LUAD/CCRCC/GBM -- file counts, total sizes
+  (for the streaming budget), controlled-access status, TMT plex layout.
+- Then: pilot cohort #1 (smallest of the 3) end-to-end to validate model-DB > null before the other two.
+
+## Standing rules
+
+ASCII only; no "our"; no AI-authorship; no commit/push without ask; scratch to /data/tmp/emalekos; group
+ceph is 15 TB SHARED (EDQUOT kills jobs -- stream + delete raw); maintain methods.md/results.md/logs.

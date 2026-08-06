@@ -1,0 +1,8 @@
+BMDM, raw rank-1 PSM composition (NO FDR) + the canonical FDR threshold each DB picks
+
+  db              canon_t   other_d   novel_t   novel_d  canonFDRthr  canon_t kept
+  ----------------------------------------------------------------------------------
+  canonical       849,994   361,892         0         0       18.517       335,548
+  model@0.5       811,734   325,175    39,087    40,964       18.509       335,804
+  model@0.74      836,911   349,132    13,624    13,841       18.522       335,392
+  null            737,895   255,138   113,682   119,811       18.484       336,284

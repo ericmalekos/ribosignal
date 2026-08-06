@@ -1,0 +1,12 @@
+canonical proteins (unique, >= 7 aa): 57,226
+candidate ORFs read: 5,956,246; unique novel proteins (all): 187,043; model-selected (f0>=0.72): 142,248
+  all-novel by class: {'dORF': 155880, 'uORF': 9975, 'nterm_ext': 339, 'lncRNA_orf': 20849}
+  selected  by class: {'nterm_ext': 44571, 'uORF': 18163, 'dORF': 44404, 'lncRNA_orf': 35110}
+  NULL  start codons (restricted to ['ATG']): {'ATG': 187043}
+  MODEL start codons: {'CTG': 25777, 'AGG': 18590, 'GTG': 18438, 'AAG': 18273, 'ATG': 16060, 'TTG': 12834, 'ATT': 9743, 'ATC': 9245, 'ATA': 7273, 'ACG': 6015}
+  MODEL non-AUG selected: 126,188 / 142,248 (88.7%) -- these can yield ncStart peptides
+  wrote db_canonical.fasta: 57,226 target + 57,226 decoy = 114,452 seqs
+  wrote db_model.fasta: 199,474 target + 199,474 decoy = 398,948 seqs
+  wrote db_null.fasta: 244,269 target + 244,269 decoy = 488,538 seqs
+
+DBs + class maps in /data/tmp/emalekos/nonaug_test/db_nonaug

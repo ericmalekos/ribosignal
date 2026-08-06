@@ -1,0 +1,10 @@
+{
+  "ms2rescore": {
+    "feature_generators": { "basic": {}, "ms2pip": { "model": "Immuno-HCD", "ms2_tolerance": 0.02 } },
+    "rescoring_engine": { "mokapot": {} },
+    "psm_file_type": "pepxml",
+    "id_decoy_pattern": "^REV_",
+    "processes": 8,
+    "lower_score_is_better": false
+  }
+}

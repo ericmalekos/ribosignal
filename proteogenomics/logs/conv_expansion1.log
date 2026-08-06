@@ -1,0 +1,13 @@
+[05:38:18] convert DOHH2_400M_050219_1
+2026-07-20 05:38:49 INFO Finished parsing /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/DoHH2_pilot/immunopeptidome/DOHH2_400M_050219_1.raw
+2026-07-20 05:38:49 INFO Processing completed 0 errors, 0 warnings
+[05:38:49] convert DOHH2_400M_050219_2
+2026-07-20 05:39:21 INFO Finished parsing /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/DoHH2_pilot/immunopeptidome/DOHH2_400M_050219_2.raw
+2026-07-20 05:39:21 INFO Processing completed 0 errors, 0 warnings
+[05:39:22] convert SUDHL4_400M_050219_1
+2026-07-20 05:39:54 INFO Finished parsing /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/SUDHL4_pilot/immunopeptidome/SUDHL4_400M_050219_1.raw
+2026-07-20 05:39:54 INFO Processing completed 0 errors, 0 warnings
+[05:39:54] convert SUDHL4_400M_050219_2
+2026-07-20 05:40:26 INFO Finished parsing /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/SUDHL4_pilot/immunopeptidome/SUDHL4_400M_050219_2.raw
+2026-07-20 05:40:26 INFO Processing completed 0 errors, 0 warnings
+CONV DONE 2026-07-20T05:40:26-07:00
