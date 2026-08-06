@@ -1,0 +1,6 @@
+target SRR34449553_1.fastq.gz  want_md5=1a91bba74b54c9ec0f5dbcee8196d134  want_bytes=2912035829
+try 1 (18:17:53) ...
+OK SRR34449553_1.fastq.gz 2.8G md5 verified on try 1
+downloader exited 2026-07-31T18:22:32-07:00: 8/8 files present, 8 md5-verified
+submitting pack build
+Submitted batch job 35986494

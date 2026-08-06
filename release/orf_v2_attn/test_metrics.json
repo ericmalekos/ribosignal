@@ -1,0 +1,24 @@
+{
+  "n": 70883,
+  "all": {
+    "n": 70883,
+    "pearson_median": 0.6585281520443113,
+    "spearman_median": -0.03047691815168671,
+    "period_pred_median": 0.31448888927997387,
+    "period_obs_median": 0.145679324178579
+  },
+  "protein_coding": {
+    "n": 32869,
+    "pearson_median": 0.6699278573267087,
+    "spearman_median": -0.02108185869956758,
+    "period_pred_median": 0.33587484219778907,
+    "period_obs_median": 0.15780283676122167
+  },
+  "lncRNA": {
+    "n": 1049,
+    "pearson_median": 0.458279039688977,
+    "spearman_median": -0.3135543737847027,
+    "period_pred_median": 0.07268398156130003,
+    "period_obs_median": 0.02409286745914528
+  }
+}

@@ -1,0 +1,26 @@
+========================================================================
+P-SITE TARGET + RNASEQ COVERAGE DISTRIBUTION REPORT (Fibroblast)
+universe: 36,668 expressed pc+lncRNA tx  |  sample N=1500 (min total P-sites >= 50)
+========================================================================
+
+[1] PER-TRANSCRIPT TOTALS (whole universe, from summary TSVs)
+  target total P-sites/tx (universe): median=3,463  mean=17,741  p90=26,449  max=2,796,930
+  tx with >= 50 P-sites: 34,496 / 36,668 (94.1%)
+  tx with zero P-sites: 816 (2.2%)
+
+[2] PER-NUCLEOTIDE STATS (sample of 1500 expressed+translated tx)
+  TARGET per-nt: zero=74.2%  =1:7.6%  2-5:8.9%  6-20:5.6%  21+:3.72%  max=48,379
+  TARGET per-nt mean=6.657  var=15674.359  var/mean=2354.5  (>>1 => overdispersed => NB over Poisson)
+  COVERAGE per-nt: zero=5.0%  mean=146.85  max=20,260  (one sample SRR15513236)
+
+[3] 3-nt PERIODICITY (mean P-site autocorr over 1500 tx, lags 1-12)
+  lag:      1      2      3      4      5      6      7      8      9     10     11     12
+  ac:    0.12   0.05   0.32   0.02   0.02   0.24   0.01   0.01   0.23   0.01   0.00   0.21
+  mean ac at lags 3/6/9/12 = 0.251  vs off-frame (1/2/4/5/7/8) = 0.039  -> periodicity PRESENT
+
+[4] COUPLING coverage <-> P-sites
+  WITHIN-tx per-nt Spearman: median=0.170 IQR=[-0.031,0.370]  (low => coverage does NOT localize translation; embedding must)
+  ACROSS-tx total(P-sites) vs total(coverage), log1p Pearson r=0.776  (high => coverage is a good abundance prior)
+  SANITY total(coverage) vs salmon meanTPM, log1p Pearson r=0.414 (n=1500; should be strongly positive)
+
+========================================================================

@@ -1,0 +1,37 @@
+{
+  "mode": "ext",
+  "kozak": "none",
+  "pwm_file": null,
+  "channels": [
+    "orf_f0",
+    "orf_f1",
+    "orf_f2",
+    "start_ext",
+    "is_stop"
+  ],
+  "occupancy_start_codons": "ATG",
+  "shape": [
+    212647172,
+    5
+  ],
+  "dtype": "float16",
+  "start_weights": {
+    "ATG": 1.0,
+    "CTG": 0.5,
+    "GTG": 0.35,
+    "ACG": 0.35,
+    "TTG": 0.3,
+    "ATA": 0.25,
+    "ATT": 0.2,
+    "ATC": 0.2,
+    "AAG": 0.15,
+    "AGG": 0.15
+  },
+  "mean_per_channel": {
+    "orf_f0": 0.37902565664028676,
+    "orf_f1": 0.3763415014990183,
+    "orf_f2": 0.3749191830305648,
+    "start_ext": 0.0580098731050474,
+    "is_stop": 0.039611008793476926
+  }
+}

@@ -1,0 +1,9 @@
+universe transcripts: 36,668
+
+[controls] pooled coverage vs target per-nt length (join by id)
+  coverage tx: 509,650  target tx: 509,650  same set: True
+  ACTB ENST00000674681.1: cov_len=2554 tgt_len=2554 len_match=True  cov_total=713,959,400  psite_total=1,166,987
+  GAPDH ENST00000229239.10: cov_len=1285 tgt_len=1285 len_match=True  cov_total=487,985,855  psite_total=162,424
+
+[abundance] mean per-nt coverage vs salmon meanTPM (log1p Pearson, n=36668): 0.490  (length-normalized; expect strongly positive)
+[coupling] total coverage vs total P-sites (log1p Pearson, n=36668): 0.703  (expect ~0.7-0.8)

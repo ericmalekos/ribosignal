@@ -1,0 +1,8 @@
+	/private/groups/carpenterlab/emalekos/conda_envs/riboseq/bin/STAR-avx2 --runThreadN 16 --genomeDir /private/groups/carpenterlab/emalekos/genomes/star_index_grch38_v49 --readFilesIn /data/tmp/emalekos/heldout/human_ruizorera_ERR12549929_2005232/ERR12549929.trimmed.fastq.gz --readFilesCommand zcat --outSAMtype BAM SortedByCoordinate --quantMode TranscriptomeSAM --outFilterMismatchNoverLmax 0.05 --outFilterMatchNminOverLread 0.7 --outFilterMultimapNmax 20 --alignEndsType EndToEnd --outSAMattributes NH HI AS nM MD --outFileNamePrefix /data/tmp/emalekos/heldout/human_ruizorera_ERR12549929_2005232/ERR12549929. --outTmpDir /data/tmp/emalekos/heldout/human_ruizorera_ERR12549929_2005232/_STAR_tmp --limitBAMsortRAM 30000000000
+	STAR version: 2.7.11b   compiled: 2025-11-14T12:06:42+0000 :/opt/conda/conda-bld/star_1763121846936/work/source
+Jul 13 04:13:29 ..... started STAR run
+Jul 13 04:13:29 ..... loading genome
+Jul 13 04:13:59 ..... started mapping
+Jul 13 04:27:43 ..... finished mapping
+Jul 13 04:27:47 ..... started sorting BAM
+Jul 13 04:34:12 ..... finished successfully

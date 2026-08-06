@@ -1,0 +1,18 @@
+======================================================================
+STEP 1  Fibroblast P-site target input verification
+======================================================================
+input hd5 files            : 32  (/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_per_tissue/Fibroblast)
+axis transcripts           : 509,650
+per-sample P-site depth    : min 2,144,083  max 7,676,156  total 121,618,960
+
+-- ncRNA drop-list (rRNA/tRNA/miRNA/sno/sn...) posture --
+drop-list transcripts      : 7,587
+  present on axis          : 7,587  (expect present-but-zero)
+  absent from axis         : 0  (filtered at read level, never in GENCODE tx set)
+present ncRNA by gene_type : misc_RNA=2207, snRNA=1901, miRNA=1879, snoRNA=942, rRNA_pseudogene=497, scaRNA=49, rRNA=47, unknown=24, Mt_tRNA=22, ribozyme=8, sRNA=5, vault_RNA=4, Mt_rRNA=2
+pooled P-sites over present ncRNA : sum=0  max_single_tx=0  nonzero_tx=0/7587
+
+-- positive controls (housekeeping, expect very large) --
+ACTB  : isoforms=43  pooled_total=38,724,541  top_isoform=ENST00000462494.5 (1,234,486)  len_match(hd5==GENCODE)=43/43
+GAPDH : isoforms=40  pooled_total=4,947,235  top_isoform=ENST00000229239.10 (162,424)  len_match(hd5==GENCODE)=40/40
+======================================================================

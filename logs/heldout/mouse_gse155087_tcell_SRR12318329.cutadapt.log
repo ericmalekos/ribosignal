@@ -1,0 +1,83 @@
+This is cutadapt 5.2 with Python 3.13.14
+Command line parameters: -j 16 -a AGATCGGAAGAGC --trim-n --minimum-length 20 --maximum-length 40 -o /data/tmp/emalekos/heldout/mouse_gse155087_tcell_SRR12318329_457674/SRR12318329.trimmed.fastq.gz /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/heldout_raw/gse155087_tcell/fastq/SRR12318329.fastq.gz
+Processing single-end reads on 16 cores ...
+
+=== Summary ===
+
+Total reads processed:              35,123,808
+Reads with adapters:                35,064,106 (99.8%)
+
+== Read fate breakdown ==
+Reads that were too short:             163,459 (0.5%)
+Reads that were too long:               70,432 (0.2%)
+Reads written (passing filters):    34,889,917 (99.3%)
+
+Total basepairs processed: 1,791,314,208 bp
+Total written (filtered):  1,032,673,950 bp (57.6%)
+
+=== Adapter 1 ===
+
+Sequence: AGATCGGAAGAGC; Type: regular 3'; Length: 13; Trimmed: 35064106 times
+
+Minimum overlap: 3
+No. of allowed errors:
+1-9 bp: 0; 10-13 bp: 1
+
+Bases preceding removed adapters:
+  A: 17.7%
+  C: 32.8%
+  G: 34.2%
+  T: 15.1%
+  none/other: 0.2%
+
+Overview of removed sequences
+length	count	expect	max.err	error counts
+3	84	548809.5	0	84
+4	104	137202.4	0	104
+5	179	34300.6	0	179
+6	211	8575.1	0	211
+7	416	2143.8	0	416
+8	908	535.9	0	908
+9	2193	134.0	0	2179 14
+10	6635	33.5	1	6537 98
+11	18043	8.4	1	17714 329
+12	61410	2.1	1	60223 1187
+13	88242	0.5	1	86410 1832
+14	351187	0.5	1	344686 6501
+15	459029	0.5	1	450310 8719
+16	648971	0.5	1	637020 11951
+17	1871340	0.5	1	1838242 33098
+18	1832253	0.5	1	1799957 32296
+19	2084207	0.5	1	2047530 36677
+20	3962472	0.5	1	3893256 69216
+21	4951404	0.5	1	4866116 85288
+22	8242821	0.5	1	8099726 143095
+23	4173474	0.5	1	4098232 75242
+24	1851794	0.5	1	1816003 35791
+25	1405909	0.5	1	1380961 24948
+26	1181812	0.5	1	1159996 21816
+27	972392	0.5	1	955321 17071
+28	464007	0.5	1	455979 8028
+29	180574	0.5	1	177296 3278
+30	57641	0.5	1	56498 1143
+31	30935	0.5	1	30305 630
+32	25264	0.5	1	24734 530
+33	26040	0.5	1	25491 549
+34	18812	0.5	1	18369 443
+35	15074	0.5	1	14730 344
+36	10750	0.5	1	10481 269
+37	6459	0.5	1	6280 179
+38	2831	0.5	1	2711 120
+39	1753	0.5	1	1688 65
+40	693	0.5	1	641 52
+41	331	0.5	1	295 36
+42	171	0.5	1	162 9
+43	159	0.5	1	129 30
+44	203	0.5	1	106 97
+45	108	0.5	1	87 21
+46	113	0.5	1	66 47
+47	90	0.5	1	67 23
+48	61	0.5	1	51 10
+49	99	0.5	1	61 38
+50	366	0.5	1	298 68
+51	54082	0.5	1	51565 2517

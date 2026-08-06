@@ -1,0 +1,83 @@
+This is cutadapt 5.2 with Python 3.13.14
+Command line parameters: -j 16 -a AGATCGGAAGAGC --trim-n --minimum-length 20 --maximum-length 40 -o /data/tmp/emalekos/heldout/mouse_gse155087_tcell_SRR12318328_457666/SRR12318328.trimmed.fastq.gz /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/heldout_raw/gse155087_tcell/fastq/SRR12318328.fastq.gz
+Processing single-end reads on 16 cores ...
+
+=== Summary ===
+
+Total reads processed:              28,346,186
+Reads with adapters:                28,305,829 (99.9%)
+
+== Read fate breakdown ==
+Reads that were too short:           1,249,386 (4.4%)
+Reads that were too long:               45,927 (0.2%)
+Reads written (passing filters):    27,050,873 (95.4%)
+
+Total basepairs processed: 1,445,655,486 bp
+Total written (filtered):    764,240,836 bp (52.9%)
+
+=== Adapter 1 ===
+
+Sequence: AGATCGGAAGAGC; Type: regular 3'; Length: 13; Trimmed: 28305829 times
+
+Minimum overlap: 3
+No. of allowed errors:
+1-9 bp: 0; 10-13 bp: 1
+
+Bases preceding removed adapters:
+  A: 15.3%
+  C: 32.4%
+  G: 38.4%
+  T: 13.8%
+  none/other: 0.1%
+
+Overview of removed sequences
+length	count	expect	max.err	error counts
+3	76	442909.2	0	76
+4	81	110727.3	0	81
+5	136	27681.8	0	136
+6	177	6920.5	0	177
+7	275	1730.1	0	275
+8	587	432.5	0	587
+9	1287	108.1	0	1275 12
+10	2951	27.0	1	2910 41
+11	5919	6.8	1	5813 106
+12	17246	1.7	1	16888 358
+13	23457	0.4	1	22904 553
+14	32848	0.4	1	32232 616
+15	48934	0.4	1	48017 917
+16	140399	0.4	1	137670 2729
+17	456742	0.4	1	448148 8594
+18	1359949	0.4	1	1334242 25707
+19	933014	0.4	1	916396 16618
+20	2235561	0.4	1	2195720 39841
+21	3359140	0.4	1	3299207 59933
+22	5561112	0.4	1	5462107 99005
+23	4294194	0.4	1	4214456 79738
+24	2693182	0.4	1	2640609 52573
+25	1563623	0.4	1	1535408 28215
+26	1102190	0.4	1	1080838 21352
+27	885799	0.4	1	869301 16498
+28	660732	0.4	1	648323 12409
+29	604576	0.4	1	593279 11297
+30	572221	0.4	1	561832 10389
+31	500035	0.4	1	489859 10176
+32	436063	0.4	1	427496 8567
+33	378884	0.4	1	370853 8031
+34	189428	0.4	1	185356 4072
+35	82140	0.4	1	80353 1787
+36	70940	0.4	1	69299 1641
+37	21158	0.4	1	20700 458
+38	13964	0.4	1	13535 429
+39	11439	0.4	1	11117 322
+40	6496	0.4	1	6306 190
+41	3560	0.4	1	3451 109
+42	2035	0.4	1	1971 64
+43	1410	0.4	1	1358 52
+44	904	0.4	1	837 67
+45	627	0.4	1	578 49
+46	379	0.4	1	330 49
+47	211	0.4	1	177 34
+48	83	0.4	1	71 12
+49	97	0.4	1	67 30
+50	182	0.4	1	113 69
+51	29386	0.4	1	27974 1412
