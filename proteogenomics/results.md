@@ -201,9 +201,16 @@ one does. That is the DB-design argument made directly.
 is ~140x larger. Unchanged from the old method and still the honest framing: the claim is discovery
 efficiency per sequence, never raw yield.
 
-**4. Calibration is doing real work.** model_poisson beats model_standard on density everywhere
-(7.62 vs 0.77, 7.16 vs 3.90, 6.17 vs 2.13) despite finding FEWER raw peptides on two of three lines.
-Both arms are reported per the standing two-arm rule so this is visible rather than asserted.
+**4. Calibration is doing real work, and by MORE than first reported.** model_poisson beats
+model_standard on density on every line. The theta = 1 numbers here were corrected on 2026-08-06:
+a NaN p-value was nulling entire extension arms (see methods.md), which had TRUNCATED the
+uncalibrated databases and so flattered them -- a smaller database pays a smaller FDR penalty.
+With the correct databases, DoHH2 model_standard is 30 peptides / 8,269 seqs (density 3.63, was
+28 / 5,448 = 5.14) and SU-DHL-4 is 5 / 10,854 (density 0.46, was 17 / 7,072 = 2.40). The Poisson
+advantage widens from 1.8x to 2.0x on DoHH2 and from 2.9x to 14.3x on SU-DHL-4.
+SU-DHL-4 losing 12 peptides while GAINING 3,782 database sequences is the decoy-load mechanism in
+its clearest form: the added sequences raise the class-specific threshold faster than they
+contribute identifications. Poisson arms were byte-identical before and after the fix.
 
 **5. ncStart is 1 for model_standard on DoHH2 and SU-DHL-4, 0 elsewhere.** Small, and honestly
 reported as small. `absent vs nc` is 0 throughout: nothing the model found lies outside the

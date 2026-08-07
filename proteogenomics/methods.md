@@ -160,6 +160,51 @@ auto-optimized parameters, so canonical counts and dPSM columns are not comparab
 and are being re-run. Novel-peptide counts and discovery densities are far more robust (the
 riboNT-vs-null_nc gap is three orders of magnitude), but the re-run supersedes them too.
 
+## CORRECTION: a NaN p-value silently zeroed four extension arms (found 2026-08-06)
+
+`pgx.seqtools.bh` sorted p-values with `np.argsort`, which places NaN LAST, then applied a REVERSE
+cumulative minimum. Since `np.minimum(NaN, x)` is NaN, the accumulate started on that NaN and
+propagated it through every element: **one NaN p-value nulled every q-value in the array**, so
+nothing could clear `q <= 0.05`.
+
+The NaN comes from a degenerate Wilcoxon on a flat extension region -- a legitimate edge case, not
+bad data. On B721/mamba4/standard: 4,473 tests, 2,785 with p < 0.05, exactly ONE NaN, and all 4,473
+q-values returned NaN.
+
+**This is the most dangerous failure shape in the project.** It does not crash or warn. It reports
+`passing: 0` beside `would_pass_whole_orf_f0_0.5: 4434`, which reads as a striking finding -- "the
+extension-region test rejects everything the crude criterion accepts" -- and is pure arithmetic.
+It surfaced only because two models disagreed on the same input (0 vs 4,122 extensions), so an
+internal inconsistency was visible.
+
+SCOPE, checked rather than assumed. `bh()` has exactly ONE caller (`pgx/extensions.py`), so only
+extension calling is affected: **4 of 48 arms, all `standard` (theta = 1)**. All 44 Poisson arms are
+clean, which means every headline result stands (density table, A549 zero-canonical-cost, CPAT/CPC2
+comparison, 12-population cross-subtype table -- all use the Poisson arm). The ORF-call evaluations
+are also unaffected: `ribocode_dropin.py` passes `pval_adj="fdr_bh"` to RiboCode's own
+`detectORF.main`, a separate statsmodels implementation, so drop-in F1 0.931 / 0.929, the 9-fold
+LOTO spread, depth crossover and the hepatocyte F1 0.90 never touched this code.
+
+| arm | tested | passing before | after | DB novel seqs before -> after |
+|---|--:|--:|--:|---|
+| DoHH2 / attn / standard | 5,261 | 0 | 2,840 | 5,448 -> 8,269 |
+| SU-DHL-4 / attn / standard | 7,757 | 0 | 3,805 | 7,072 -> 10,854 |
+| B721 / mamba4 / standard | 4,473 | 0 | 2,649 | 6,290 -> 8,921 |
+| macrophage BMDM / attn_union / standard | 9,788 | 0 | 4,445 | 5,991 -> 10,411 |
+
+Fixed in `bh()` (non-finite p-values are excluded from the correction and get NaN q-values back, so
+they can never pass a threshold and never poison neighbours), pinned by `test_bh_is_nan_safe`, and
+re-run via `pgx/redo_nan_arms.sh`. Post-fix pass rates sit in the normal band everywhere
+(standard 45-61%, poisson 68-85%); no arm reports `tested > 0, passing = 0`.
+
+**The correction makes the calibration argument STRONGER, which is worth stating explicitly rather
+than quietly folding in.** The bug had been flattering the uncalibrated arm: a truncated database
+pays a smaller FDR penalty. With the correct databases the theta = 1 arms get worse -- SU-DHL-4
+model_standard fell from 17 novel peptides to 5 while its database grew 7,072 -> 10,854, so density
+dropped 2.404 -> 0.461. model_poisson now beats model_standard on density by 2.0x on DoHH2
+(7.16 vs 3.63) and 14.3x on SU-DHL-4 (6.17 vs 0.46), against 1.8x and 2.9x before the fix. That is
+the same decoy-load mechanism the model-vs-null comparison rests on, operating within the model arms.
+
 ## Immunopeptidome runs: pgx configuration (2026-08-04)
 
 ### ORF selection is RiboCode-called, not f0-thresholded

@@ -160,15 +160,34 @@ def orf_class(crel, biotype):
 
 
 def bh(pvals):
-    """Benjamini-Hochberg q-values (monotone), same procedure RiboCode uses for adjusted_pval."""
+    """Benjamini-Hochberg q-values (monotone), same procedure RiboCode uses for adjusted_pval.
+
+    NaN-SAFE, and it must be. A single NaN p-value used to null EVERY q-value: numpy sorts NaN
+    last, and the reverse `np.minimum.accumulate` therefore starts on that NaN, which propagates
+    through the whole array because np.minimum(NaN, x) is NaN. One degenerate test (a zero-variance
+    Wilcoxon on a flat extension region) silently zeroed entire arms -- measured: B721/mamba4,
+    DoHH2/attn and SU-DHL-4/attn standard extension arms each reported 0 passing from 4,473 / 5,261
+    / 7,757 tested, while 4,434 / 5,179 / 7,678 of those would pass the whole-ORF f0 criterion.
+    It looks like a real biological result and is arithmetic.
+
+    NaN p-values are excluded from the correction (they are not tests) and get NaN q-values back,
+    so they can never pass a q threshold but also never poison their neighbours.
+    """
     import numpy as np
     p = np.asarray(pvals, dtype=float)
-    n = p.size
+    out = np.full(p.size, np.nan, dtype=float)
+    if p.size == 0:
+        return out
+    finite = np.isfinite(p)
+    n = int(finite.sum())
     if n == 0:
-        return p
-    order = np.argsort(p)
-    q = p[order] * n / (np.arange(n) + 1.0)
+        return out
+    idx = np.flatnonzero(finite)
+    pf = p[idx]
+    order = np.argsort(pf)
+    q = pf[order] * n / (np.arange(n) + 1.0)
     q = np.minimum.accumulate(q[::-1])[::-1]
-    out = np.empty(n, dtype=float)
-    out[order] = np.clip(q, 0.0, 1.0)
+    qf = np.empty(n, dtype=float)
+    qf[order] = np.clip(q, 0.0, 1.0)
+    out[idx] = qf
     return out

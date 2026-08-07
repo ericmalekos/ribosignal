@@ -244,6 +244,37 @@ def test_frozen_templates_disable_calibration():
         assert vals.get("fragment_mass_tolerance"), f"{f.name}: no fragment_mass_tolerance"
 
 
+def test_bh_is_nan_safe():
+    """One NaN p-value must not affect any other q-value.
+
+    PINS a silent zeroing bug. numpy sorts NaN last, so the reverse
+    `np.minimum.accumulate` in the old BH started on the NaN and propagated it through the entire
+    array (np.minimum(NaN, x) is NaN). A single degenerate test -- a zero-variance Wilcoxon on a
+    flat extension region -- therefore nulled every q-value in the arm. Measured on three arms:
+    B721/mamba4, DoHH2/attn, SU-DHL-4/attn standard extensions reported 0 passing from 4,473 /
+    5,261 / 7,757 tested, while 4,434 / 5,179 / 7,678 would pass the whole-ORF f0 criterion.
+    It reads as a real biological result and is pure arithmetic.
+    """
+    import math
+    from pgx.seqtools import bh
+
+    clean = [0.001, 0.01, 0.2, 0.5]
+    q_clean = bh(clean)
+    q_nan = bh(clean + [float("nan")])
+
+    assert all(math.isfinite(x) for x in q_clean), "clean input produced non-finite q"
+    for i, (a, b) in enumerate(zip(q_clean, q_nan)):
+        assert abs(a - b) < 1e-12, f"NaN row changed q[{i}]: {a} -> {b}"
+    assert math.isnan(q_nan[-1]), "the NaN p-value should get a NaN q, not a passing one"
+    assert sum(1 for x in q_nan if math.isfinite(x)) == len(clean)
+
+    # monotone, bounded, and a NaN can never pass a threshold
+    assert all(0.0 <= x <= 1.0 for x in q_clean)
+    assert not (q_nan[-1] <= 0.05), "NaN must not satisfy a q cutoff"
+    assert len(bh([])) == 0
+    assert all(math.isnan(x) for x in bh([float("nan")] * 3))
+
+
 def test_coding_potential_pool_matches_null_arm():
     """The CPAT/CPC2 candidate pool must EQUAL build_dbs' null_atg candidate set.
 
