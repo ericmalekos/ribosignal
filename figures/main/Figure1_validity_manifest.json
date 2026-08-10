@@ -1,0 +1,70 @@
+{
+  "figure": "Figure1_validity",
+  "caption": "the model predicts translation and generalizes",
+  "page_inches": [
+    7.2,
+    10.187
+  ],
+  "panels": [
+    {
+      "letter": "a",
+      "source": "figures/prediction_examples/prediction_examples.pdf",
+      "source_mtime": "2026-08-09T03:46:18",
+      "placed_inches": {
+        "x": 0.1,
+        "y_from_top": 0.1,
+        "w": 7.0,
+        "h": 4.723
+      },
+      "scale": 0.5218
+    },
+    {
+      "letter": "b",
+      "source": "figures/A2_ribocode_dropin/A2_ribocode_dropin.pdf",
+      "source_mtime": "2026-08-08T21:16:32",
+      "placed_inches": {
+        "x": 0.1,
+        "y_from_top": 4.963,
+        "w": 3.769,
+        "h": 1.68
+      },
+      "scale": 0.4661
+    },
+    {
+      "letter": "c",
+      "source": "figures/A1_localization_ceiling/A1_localization_ceiling.pdf",
+      "source_mtime": "2026-08-08T21:35:40",
+      "placed_inches": {
+        "x": 4.009,
+        "y_from_top": 4.963,
+        "w": 3.091,
+        "h": 1.726
+      },
+      "scale": 0.4921
+    },
+    {
+      "letter": "d",
+      "source": "figures/depth_crossover/depth_crossover.pdf",
+      "source_mtime": "2026-07-21T06:43:07",
+      "placed_inches": {
+        "x": 0.1,
+        "y_from_top": 6.829,
+        "w": 3.43,
+        "h": 3.258
+      },
+      "scale": 0.4087
+    },
+    {
+      "letter": "e",
+      "source": "figures/A3_loto_spread/A3_loto_spread.pdf",
+      "source_mtime": "2026-07-21T06:31:12",
+      "placed_inches": {
+        "x": 3.67,
+        "y_from_top": 6.829,
+        "w": 3.43,
+        "h": 1.437
+      },
+      "scale": 0.3692
+    }
+  ]
+}

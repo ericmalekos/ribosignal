@@ -17,6 +17,11 @@ import numpy as np
 NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model")
 ECH = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/"
            "expression_context_human")
+# This path names a pre-union run directory, but the file it reads is `real_collapsed.txt`: RiboCode
+# run on that pack's REAL counts. It is model-independent -- no checkpoint enters it -- so the
+# 2026-08-08 released-checkpoint sweep deliberately left it alone. What it IS tied to is that pack's
+# universe (Fibroblast, 36,668 tx) and the CTG-enabled call set, which only exists there. If this is
+# ever re-pointed, re-point it to another `real_collapsed.txt`, never to a `pred_*` one.
 DEFAULT_CALLS = NEW / "results/loto/orf_v2_attn_onehot_holdout_Hepatocytes/dropin_ctg/real_collapsed.txt"
 FASTA = ECH / "data/ribocode_annot/transcripts_sequence.fa"
 PWMJSON = NEW / "data/kozak_pwm.json"

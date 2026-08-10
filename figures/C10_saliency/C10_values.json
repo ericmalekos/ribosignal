@@ -4,26 +4,26 @@
     "label": "uORF",
     "ts": 147,
     "te": 183,
-    "start_saliency_rank": 8,
+    "start_saliency_rank": 3,
     "L": 2036,
-    "mean_in_orf_over_mean": 13.565153121948242
+    "mean_in_orf_over_mean": 8.690930366516113
   },
   "ENST00000429711.7": {
     "gene": "RPL32",
     "label": "CDS",
     "ts": 77,
     "te": 485,
-    "start_saliency_rank": 137,
+    "start_saliency_rank": 292,
     "L": 2094,
-    "mean_in_orf_over_mean": 3.5559589862823486
+    "mean_in_orf_over_mean": 3.3995423316955566
   },
   "ENST00000647872.1": {
     "gene": "LINC02693",
     "label": "lncRNA ORF",
     "ts": 258,
     "te": 924,
-    "start_saliency_rank": 15,
+    "start_saliency_rank": 10,
     "L": 7914,
-    "mean_in_orf_over_mean": 5.075328826904297
+    "mean_in_orf_over_mean": 4.617481231689453
   }
 }

@@ -20,10 +20,16 @@ is not explained by expression alone.
 Caveat captured in FIGURE_DATA_INPUTS.md: the model's DENSITY head does track RNA expression (by design);
 the FRAME head is the expression-orthogonal shape signal. All numbers read from localization_metrics.json,
 so this regenerates if the model is retrained (e.g. mm1 RNA-coverage ablation). cas12a env.
+
+MODEL (2026-08-08). Defaults to **mamba4**, per locked decision D1b (2026-07-31): main Figure 1 is
+`orf_v2_mamba4`, with `orf_v2_attn` moving to supplemental but staying shipped as the CPU inference
+path. This panel had been on attn -- D1b was applied to the plan but never to the generators. Switch
+with `FIG_MODEL=attn` for the supplemental variant; the chosen model is written into the values JSON.
 """
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import matplotlib
@@ -34,10 +40,17 @@ import numpy as np
 NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/riboseq_signal_model")
 HERE = NEW / "figures/B5_expression_independence"
-METR = NEW / "results/loto/orf_v2_attn_onehot_holdout_Hepatocytes/localization_metrics.json"
+MODEL = os.environ.get("FIG_MODEL", "mamba4")
+if MODEL not in ("mamba4", "attn"):
+    raise SystemExit(f"FIG_MODEL={MODEL!r}; want 'mamba4' (main, per D1b) or 'attn' (supplemental)")
+METR = (NEW / f"results/loto/orf_v2_{MODEL}_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes"
+        / "localization_metrics.json")
 
 MODEL_C, MAG_C, OBS_C = "#2C6FBB", "#C8A45B", "#B0B0B0"
 STRATA = [("all", "All ORFs"), ("noncanonical", "Non-canonical ORFs")]
+# Main figure (mamba4, per D1b) keeps the plain filename; the supplemental attn variant is suffixed,
+# so the two builds cannot overwrite each other.
+SUF = "" if MODEL == "mamba4" else f"_{MODEL}"
 SCORES = [
     ("auroc_pred_frame0_lengthctrl", "Predicted in-frame\nfraction (shape)", MODEL_C),
     ("auroc_pred_density_lengthctrl", "Predicted density\n(magnitude)", MAG_C),
@@ -83,14 +96,14 @@ def main():
                  fontsize=9.8)
     fig.tight_layout()
     for ext in ("pdf", "png"):
-        fig.savefig(HERE / f"B5_expression_independence.{ext}", dpi=300, bbox_inches="tight")
+        fig.savefig(HERE / f"B5_expression_independence{SUF}.{ext}", dpi=300, bbox_inches="tight")
 
     out = {s: {key: disc[s][key] for key, _, _ in SCORES} for s, _ in STRATA}
     for s, _ in STRATA:
         out[s]["shape_minus_best_magnitude"] = (
             disc[s]["auroc_pred_frame0_lengthctrl"]
             - max(disc[s]["auroc_pred_density_lengthctrl"], disc[s]["auroc_obs_density_ceiling"]))
-    (HERE / "B5_values.json").write_text(json.dumps(out, indent=2) + "\n")
+    (HERE / f"B5_values{SUF}.json").write_text(json.dumps(out, indent=2) + "\n")
     for s, lab in STRATA:
         print(f"  {lab}: shape {disc[s]['auroc_pred_frame0_lengthctrl']:.3f} vs "
               f"magnitude {disc[s]['auroc_pred_density_lengthctrl']:.3f}/"

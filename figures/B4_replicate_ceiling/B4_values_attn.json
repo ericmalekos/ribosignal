@@ -1,0 +1,39 @@
+{
+  "run": "orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes",
+  "ceiling_source": "results/replicate_concordance.json",
+  "model_source": "results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/extra_metrics.json",
+  "strata": [
+    {
+      "label": "PC whole-tx",
+      "ceiling_key": "pc_whole",
+      "model_key": "protein_coding",
+      "ceiling": 0.9520508629226636,
+      "model": 0.6699278573267087,
+      "pct_of_ceiling": 70.3668137299013
+    },
+    {
+      "label": "lncRNA whole-tx",
+      "ceiling_key": "lncRNA_whole",
+      "model_key": "lncRNA",
+      "ceiling": 0.8900837394395953,
+      "model": 0.458279039688977,
+      "pct_of_ceiling": 51.48718254054541
+    },
+    {
+      "label": "PC 5'UTR (uORF)",
+      "ceiling_key": "pc_uorf5",
+      "model_key": "uorf_5utr",
+      "ceiling": 0.9529558733851647,
+      "model": 0.5819193324090296,
+      "pct_of_ceiling": 61.06466717518515
+    },
+    {
+      "label": "PC 3'UTR (dORF)",
+      "ceiling_key": "pc_dorf3",
+      "model_key": "dorf_3utr",
+      "ceiling": 0.7492214112788295,
+      "model": 0.25473158158393855,
+      "pct_of_ceiling": 33.999506387456655
+    }
+  ]
+}

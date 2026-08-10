@@ -5,10 +5,18 @@ itself." Grouped bars: model-predicted vs observed-ceiling AUROC, for held-out H
 cross-study Ruiz-Orera, split into all ORFs and non-canonical ORFs. Length-controlled AUROC is the primary
 (fairer) metric; raw is annotated. Reusable: reads the two localization_metrics.json, so it regenerates if
 the model is retrained (e.g. the mm1 RNA-coverage ablation). cas12a env (matplotlib). Run: python make_...py
+
+MODEL (2026-08-08). Defaults to **mamba4**, per locked decision D1b (2026-07-31): main Figure 1 is
+`orf_v2_mamba4`, with `orf_v2_attn` moving to supplemental but staying shipped as the CPU inference
+path. This panel had been on attn -- the D1b supersession was applied to the plan but never to the
+generators. Two independent problems were present at once and are both fixed here: wrong MODEL (attn
+instead of mamba4) and stale CHECKPOINT (pre-nokozak / pre-mm1 / pre-union). Switch with
+`FIG_MODEL=attn` to build the supplemental variant; the chosen model is written into the values JSON.
 """
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import matplotlib
@@ -19,11 +27,21 @@ import numpy as np
 NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/riboseq_signal_model")
 HERE = NEW / "figures/A1_localization_ceiling"
+MODEL = os.environ.get("FIG_MODEL", "mamba4")
+if MODEL not in ("mamba4", "attn"):
+    raise SystemExit(f"FIG_MODEL={MODEL!r}; want 'mamba4' (main, per D1b) or 'attn' (supplemental)")
+RUN = NEW / f"results/loto/orf_v2_{MODEL}_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes"
 SOURCES = {
-    "Held-out\nHepatocytes": NEW / "results/loto/orf_v2_attn_onehot_holdout_Hepatocytes/localization_metrics.json",
-    "Cross-study\nRuiz-Orera": NEW / "results/heldout/human_ruizorera/onehot/localization_metrics_human_ruizorera.json",
+    "Held-out\nHepatocytes": RUN / "localization_metrics.json",
+    "Cross-study\nRuiz-Orera": (NEW / "results/heldout/human_ruizorera" /
+                               f"released_{MODEL}/localization_metrics_human_ruizorera.json"),
 }
 STRATA = [("all", "all ORFs"), ("noncanonical", "non-canonical")]
+# The MAIN figure (mamba4, per D1b) keeps the plain filename; the supplemental attn variant gets
+# an "_attn" suffix. Without this the two share one path and whichever ran last silently wins --
+# which happened once already, with the attn build overwriting the mamba4 PDF.
+SUF = "" if MODEL == "mamba4" else f"_{MODEL}"
+
 MODEL_C, OBS_C = "#2C6FBB", "#B0B0B0"
 
 
@@ -65,11 +83,14 @@ def main():
                  fontsize=9.5, pad=8)
     fig.tight_layout()
     for ext in ("pdf", "png"):
-        fig.savefig(HERE / f"A1_localization_ceiling.{ext}", dpi=300, bbox_inches="tight")
-    # dump the source numbers next to the figure for the caption
-    (HERE / "A1_values.json").write_text(json.dumps(
-        {n: data[n] for n in SOURCES}, indent=2) + "\n")
-    print("wrote A1_localization_ceiling.pdf/.png + A1_values.json")
+        fig.savefig(HERE / f"A1_localization_ceiling{SUF}.{ext}", dpi=300, bbox_inches="tight")
+    # dump the source numbers next to the figure for the caption, WITH the model and the exact source
+    # paths -- a panel that does not record which model it shows is how the D1b supersession went
+    # unapplied for a week.
+    (HERE / f"A1_values{SUF}.json").write_text(json.dumps(
+        {"model": MODEL, "sources": {n: str(p.relative_to(NEW)) for n, p in SOURCES.items()},
+         "values": {n: data[n] for n in SOURCES}}, indent=2) + "\n")
+    print(f"model={MODEL}; wrote A1_localization_ceiling.pdf/.png + A1_values.json")
     for n in SOURCES:
         for sk, sl in STRATA:
             v = data[n][sk]

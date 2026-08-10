@@ -59,3 +59,14 @@ ${prefix}.*
 # excluded, so these are tracked explicitly rather than via a negation pattern):
 #   data/packed_union/NAMING_WARNING.md      -- the bare-name/nokozak-content hazard
 #   data/packed_union/orf_track_v2_meta.json -- authoritative kozak setting for the released models
+
+# ---- other run logs ----
+# Same rule as the SLURM *.out/*.err above: fetch logs, adapter checks and Sphinx build output are
+# the on-disk run record, not repo content. They churn and would drown every diff.
+*.log
+
+# ---- plan/document backups ----
+# CLAUDE.md requires a timestamped backup before overwriting a plan. Those live next to the original
+# on disk; the repo keeps the current version and git keeps the history.
+*.bak
+*.bak.*

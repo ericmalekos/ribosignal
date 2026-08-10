@@ -19,7 +19,7 @@ ECH=$BASE/RNAZoo/experiments/biotype_probe/expression_context_human
 REF=$NEW/data/heldout_refs
 GSE=$NEW/proteogenomics/data/gse120762
 SIFDIR=/private/groups/carpenterlab/emalekos/singularity_cache
-ANNOT=$ECH/data/ribocode_annot_mouse                       # MOUSE annotation for the drop-in
+ANNOT="/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot"                       # MOUSE annotation for the drop-in
 RIBOPY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
 CASPY=/private/groups/carpenterlab/emalekos/conda_envs/cas12a/bin/python3
 MODEL=${MODEL:?set MODEL=attn_union|mamba4_union}

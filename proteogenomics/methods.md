@@ -29,6 +29,15 @@ query sample here: the model predicts translation from sequence + RNA-seq covera
    - **salmon** (decoy-aware `/private/groups/.../Salmon_indexes/salmon_index_decoy_v49`) -> per-tx TPM
      (defines the EXPRESSED universe; salmon always decoy-aware per project rule).
    RNA-seq strandedness confirmed per dataset before alignment (A549 ENCSR000CON = reverse/ISR).
+   **Library-chemistry gate** (`scripts/polya_check.py`, step 0 of every pilot prep): a Ribo-Zero
+   total-RNA library must not reach the model. It is NOT a biotype check -- the decoy-aware salmon
+   indexes hold pc + lncRNA only, so no library can ever show rRNA TPM and a biotype test would pass
+   everything. It gates on salmon mapping rate, universe size, and above all the single-transcript
+   TPM share, because the structural contaminants that do reach a pc+lncRNA index (7SL, tRNA-derived)
+   are typed `lncRNA` and survive every biotype filter. Calibrated on this project's known-bad
+   (GSE243134 totalRNA: 21.5% mapped, 4,451 tx, one transcript at 79.8%) and known-good libraries.
+   See `DATA_PROVENANCE.md` for the two earlier versions of this check that were silently wrong, and
+   for the Janich finding it produced.
 2. **Universe = the cell type's OWN expressed transcriptome** ("fresh universe"): every tx with TPM above
    threshold, capped at <= 10,000 nt (attention memory; the one-hot deployment model is O(L^2) in the
    mixer). Predicting on the cell type's own expressed tx, not the Fibroblast training universe, is the
@@ -62,8 +71,7 @@ query sample here: the model predicts translation from sequence + RNA-seq covera
 7. **Class-specific FDR + comparison** (`compare_model_vs_null.py`, generalized `compare_dbs.py`): a NOVEL
    peptide is a rank-1 PSM whose peptide maps ONLY to nuORF| ORFs (not shared with any canonical protein);
    its FDR is estimated against REV_nuORF| decoys ONLY (the honest per-class denominator, not the global
-   decoy pool -- per the expression_context_human "crazy FDR" lesson: a global FDR inflates novel discovery
-   ~10x). Reports per DB: novel peptides at 1% class FDR, discovery rate (pep / 1k ORFs), canonical target
+   decoy pool). Reports per DB: novel peptides at 1% class FDR, discovery rate (pep / 1k ORFs), canonical target
    PSMs (PC-churn -- do novel ORFs displace canonical IDs?), and the novel-peptide SET OVERLAP between DBs
    (model-only vs PRICE-only vs shared = does the model recover ORFs the experimental Ribo-seq DB missed?).
 
@@ -75,6 +83,32 @@ DROPPED -- the TMT10 fixed label mass 229.16 is unencodable by DeepLC and emptie
 set), `ms2rescore_hbl1.json` (basic + ms2pip immuno-HCD + DeepLC; label-free, so DeepLC calibrates fine).
 Rescoring reads the kept per-fraction pepXML. This is a sensitivity refinement; the headline model-vs-null
 result stands on raw-hyperscore class-specific FDR.
+
+## CORRECTION: "a global FDR inflates novel discovery ~10x" was too simple (measured 2026-08-07)
+
+That shorthand came from the expression_context_human "crazy FDR" lesson and was carried into this
+project as a fact. Measuring it directly on the four shipped searches (`figures/S_fdr_rigor/`) shows
+it is only half right: **a global 1% cut fails to control the non-canonical class in BOTH directions,
+and which way it errs is set by how much of the search the canonical class occupies.**
+
+| dataset | digestion | canonical peptides | global / class-specific novel |
+|---|---|--:|--:|
+| A549 | tryptic, TMT | 65,405 | **37.5x over-report** (null_atg: 375 vs 10) |
+| HBL-1 | nonspecific, HLA-I | 2,429 | 0.6x to 2.3x |
+| SU-DHL-4 | nonspecific, HLA-I | 813 | 0.4x to 1.0x |
+| DoHH2 | nonspecific, HLA-I | 1,507 | **0.2x under-report** (cpc2: 2 vs 8) |
+
+On A549 the canonical class is numerous and high-scoring, so it sets the global cut at hyperscore
+19.5, inside the novel decoy bulk (the class-specific cut is 30.3) -- hence the 37.5x. In the
+immunopeptidomes the canonical class is too sparse to dominate and the global cut lands STRICTER
+than the class-specific one, discarding real identifications.
+
+Database size does NOT predict the error: the four `null_atg` arms span 242k-369k novel sequences and
+give 37.5x / 1.9x / 0.8x / 2.2x. Canonical-class size does.
+
+The policy is unchanged (class-specific FDR for novel, global for canonical/dPSM) and is now
+justified by the stronger statement: a global cut is not merely anti-conservative here, it is
+uncontrolled, so no direction of bias can be assumed.
 
 ## Search parameters are FROZEN for cross-database comparison (2026-08-03)
 
@@ -160,7 +194,7 @@ auto-optimized parameters, so canonical counts and dPSM columns are not comparab
 and are being re-run. Novel-peptide counts and discovery densities are far more robust (the
 riboNT-vs-null_nc gap is three orders of magnitude), but the re-run supersedes them too.
 
-## CORRECTION: a NaN p-value silently zeroed four extension arms (found 2026-08-06)
+## CORRECTION: a NaN p-value silently zeroed five extension arms (found 2026-08-06)
 
 `pgx.seqtools.bh` sorted p-values with `np.argsort`, which places NaN LAST, then applied a REVERSE
 cumulative minimum. Since `np.minimum(NaN, x)` is NaN, the accumulate started on that NaN and
@@ -178,7 +212,7 @@ It surfaced only because two models disagreed on the same input (0 vs 4,122 exte
 internal inconsistency was visible.
 
 SCOPE, checked rather than assumed. `bh()` has exactly ONE caller (`pgx/extensions.py`), so only
-extension calling is affected: **4 of 48 arms, all `standard` (theta = 1)**. All 44 Poisson arms are
+extension calling is affected: **5 of 52 arms, all `standard` (theta = 1)**. Every Poisson arm is
 clean, which means every headline result stands (density table, A549 zero-canonical-cost, CPAT/CPC2
 comparison, 12-population cross-subtype table -- all use the Poisson arm). The ORF-call evaluations
 are also unaffected: `ribocode_dropin.py` passes `pval_adj="fdr_bh"` to RiboCode's own
@@ -191,11 +225,28 @@ LOTO spread, depth crossover and the hepatocyte F1 0.90 never touched this code.
 | SU-DHL-4 / attn / standard | 7,757 | 0 | 3,805 | 7,072 -> 10,854 |
 | B721 / mamba4 / standard | 4,473 | 0 | 2,649 | 6,290 -> 8,921 |
 | macrophage BMDM / attn_union / standard | 9,788 | 0 | 4,445 | 5,991 -> 10,411 |
+| macrophage BMDM / genetype attn / standard | 9,882 | 0 | 4,455 | 6,124 -> 10,554 |
+
+**Finding the fifth arm took three passes, and how it was found is the transferable part.** The
+first two scans were scoped to "the datasets currently in hand" and returned the arms already
+suspected. The third enumerated EVERY `extension_summary.json` under `proteogenomics/data` (52 arms)
+and filtered mechanically on `mtime < fix && tested > 0 && passing == 0`. Scope a blast-radius scan
+by artifact type across the whole tree and let the signature decide which arms are hit; scoping it
+by recent attention finds what you already suspect.
+
+That last arm was not bookkeeping. The gene_type table compares attn against mamba4, and attn's
+`model_standard` database was missing its entire N-terminal-extension class (6,124 novel sequences
+vs mamba4's 10,558) while mamba4's was intact -- so the apparent model difference in that table was
+an artifact of the bug, not of the models. The gene_type tree additionally predates the frozen search
+parameters (`calibrate_mass = 2`, 0.6 Da fragment tolerance), so it was re-searched under
+`fragger_macro_lfq_frozen.params` rather than patched one arm at a time.
 
 Fixed in `bh()` (non-finite p-values are excluded from the correction and get NaN q-values back, so
 they can never pass a threshold and never poison neighbours), pinned by `test_bh_is_nan_safe`, and
-re-run via `pgx/redo_nan_arms.sh`. Post-fix pass rates sit in the normal band everywhere
-(standard 45-61%, poisson 68-85%); no arm reports `tested > 0, passing = 0`.
+re-run via `pgx/redo_nan_arms.sh` (pilots) or in place (the two macrophage arms, which need
+per-population profile and universe paths the pilot-shaped loop does not carry). Post-fix pass rates
+sit in the normal band everywhere (standard 45-61%, poisson 68-85%); no arm reports
+`tested > 0, passing = 0`.
 
 **The correction makes the calibration argument STRONGER, which is worth stating explicitly rather
 than quietly folding in.** The bug had been flattering the uncalibrated arm: a truncated database
@@ -255,6 +306,95 @@ have found this peptide" is still answered.
 (`fragger_macro_lfq_frozen.params`, `fragger_hbl1_hla_frozen.params`). pgx exists to compare
 databases, so an unfrozen template -- which re-derives search parameters per database -- is never the
 right default there. `pgx.run --template` overrides it to reproduce a pre-2026-08-04 run.
+
+## CPAT / CPC2 coding-potential arms (decision D3, added 2026-08-06)
+
+The comparator that makes the model's selection rule falsifiable. `pgx/coding_potential.py` builds
+two extra arms per population:
+
+1. **Enumerate the identical candidate pool as `null_atg`** -- `enumerate_pool(uni_fa, cds_of,
+   biotype_of, min_aa, starts, canon_seqs)`, same universe, same start codons, same minimum length,
+   same `or prot in canon_seqs` clause. This equality is the whole point: it makes the arms differ
+   only in WHICH ORFs are kept, never in what was available to keep. Pinned by
+   `tests/test_invariants.py::test_coding_potential_pool_matches_null_arm`, because a silent drift
+   here would turn a selection-rule comparison into a pipeline comparison without any error.
+2. Score the pool's parent transcripts with CPAT (hexamer usage + Fickett TESTCODE + ORF size, logit
+   model) and CPC2 (adds isoelectric point and ORF integrity), keep the coding-classified ones, and
+   emit `db_cpat.fasta` / `db_cpc2.fasta` plus class maps in the same format as every other arm.
+
+Both tools are run on their own default human models; no re-training or threshold tuning was done,
+so this is the out-of-the-box baseline a reader would apply. They see sequence only -- no RNA-seq,
+no Ribo-seq, no translation model -- which is exactly what makes them the right control for the
+claim that per-nucleotide translation prediction adds something over sequence composition.
+
+Searched and reported through the unchanged pipeline (frozen params, class-specific FDR for novel,
+global FDR for canonical/dPSM). Results in `results.md`; figure `figures/D12_cpat_cpc2/`.
+
+## B721.221 drop-in: scoring predicted ORF calls against MEASURED translation (2026-08-07)
+
+Every other comparison in this pilot scores the model against a null or another selection rule.
+This one scores it against ORFs that are demonstrably translated in the same cell line.
+
+- **Predicted side:** `scripts/ribocode_dropin.py --variant pred_preddepth` on
+  `pred_{mamba4,attn}/pred_profiles.npz`, two arms per model (theta = 1 deterministic, and Poisson at
+  that model's own calibrated theta, so the arm matches the database that was built from it).
+  `--min_aa 5 --pval 0.05`. Driver: `proteogenomics/scripts/dropin_b721.sbatch`.
+- **Measured side:** RiboCode over all 7 pooled B721 Ribo-seq BAMs (327 M unique footprints),
+  `proteogenomics/scripts/ribocode_b721.sbatch`, same prepared v49 annotation used in training.
+- **Scoring:** `proteogenomics/scripts/compare_b721_dropin.py`, keyed genomically by
+  `(gene_id, ORF_gstop)` and restricted to the genes in the model's universe.
+
+Two methodological points that decide whether the numbers mean anything:
+
+**Genomic keying, not transcript keying.** The two call sets are NOT made over the same transcript
+space: the measured calls come from the full prepared annotation (21,974 calls), the predicted ones
+only from the model's 30,075-transcript universe. RiboCode's collapse keeps the longest ORF per
+genomic stop, so restricting the transcript set reshuffles which isoform carries a call. Keying by
+`(gene_id, ORF_gstop)` is invariant to that; keying by `(transcript_id, ORF_tstart)` would score
+isoform bookkeeping as disagreement.
+
+**The reference is restricted to the model's gene space** (21,974 -> 16,331 calls), and both counts
+are reported. Scoring against all 21,974 would charge the model for genes it was never given. This
+follows the standing rule that an ORF-call evaluation must state its transcript space; the O2
+incident showed an unrestricted evaluation reading non-canonical performance at 13% of ceiling where
+the restricted one read 50%.
+
+### The split-half ceiling (the control that makes the F1 interpretable)
+
+An F1 of 0.67 means something entirely different if RiboCode reproduces its own calls at 0.95 than
+if it reproduces them at 0.70. `proteogenomics/scripts/ribocode_b721_halves.sbatch` calls RiboCode
+independently on two disjoint halves of the SAME Ribo-seq, so the two call sets differ only by
+sampling noise and depth, and scores them with the same script, thresholds and keying.
+
+The split is **by HLA allele**, so each half holds complete biological libraries:
+half A = A0101 x2 + A3303 x1, half B = B1501 x2 + B4402 x2. Splitting technical re-sequencings of
+one library across halves would make the two halves more similar than two independent measurements
+and understate the noise. This anchors the drop-in the same way the O2 calibration was anchored:
+against the reproducibility ceiling of the assay, not against a perfect oracle.
+
+## Input ablation: does the model actually use the RNA-seq? (2026-08-07)
+
+The cell-type-specificity claim is load-bearing for the whole application. If the model reached the
+same accuracy with the coverage channel zeroed, it would be a sequence-only ORF prior whose output is
+identical for every cell type, and no "cell-type-specific discovery" claim would survive.
+
+`scripts/train_union_inputablation.sbatch` clones `train_loto_union.sbatch` line for line and changes
+only `--input_mode`:
+
+| arm | what the model sees | reference |
+|---|---|---|
+| `both` | sequence + ORF track + coverage | the DEPLOYED run, not retrained |
+| `emb` | sequence + ORF track, **coverage zeroed** | "no RNA-seq" |
+| `cov` | coverage only, **sequence + ORF track zeroed** | symmetric counterpart |
+
+`RiboDataset.__getitem__` implements the zeroing directly on the feature matrix, so the model shape,
+parameter count and optimisation are identical across arms and only the information content differs.
+The `both` arm is deliberately NOT retrained: it exists as the deployed run, and retraining it would
+add seed noise to the contrast for nothing.
+
+`scripts/train_loto_ablation.sbatch` already accepted `INPUT_MODE` but is pinned to the older
+Fibroblast-universe configuration (no union pack, different ORF track), so ablating there would
+contrast against a model that is not the one shipped.
 
 ## Key parameters
 

@@ -167,3 +167,249 @@ Before ANY alignment, per the standing Ribo-seq rules:
 4. **Check the unique-mapping rate before trusting the library.** HBL-1's Ribo-seq was abandoned at
    ~2% unique (~98% rRNA); a large BAM does not mean usable reads. This dataset is the replacement
    for that abandoned arm, so the same check decides whether it is usable.
+
+### BLOCKER: MassIVE FTP is unreachable from prism (2026-08-07)
+
+The B721.221 immunopeptidome MS lives only on MassIVE (MSV000084172 Sarkizova mono-allelic,
+MSV000080527 Abelin 2017). Both datasets resolve via the MassIVE proxi API over HTTPS and are
+confirmed OPEN, but the FILES are only served over FTP and **port 21 is filtered from this cluster**:
+
+  massive.ucsd.edu:21   no connection (filtered)
+  massive.ucsd.edu:443  open  (metadata API works; no file-listing endpoint)
+  ENA / PRIDE :443      200   (control -- both fine)
+
+Tried and failed: `proxi/v0.1/files` (404), `QueryDatasets` (400), `DownloadResult` (405),
+ftp v01/v02/v06 paths (all timeout), ProteomeCentral PX mirror (no record for either MSV).
+
+CONSEQUENCE: B721 stays a Ribo-seq VALIDATION dataset (327M footprints, 26,920 measured ORF calls)
+and does NOT join the immunopeptidome panel. The panel remains HBL-1 / DoHH2 / SU-DHL-4 + THP-1
+once pulled, i.e. 4 of the 6 in locked decision D2.
+
+TO UNBLOCK, any one of: (a) a network exception for massive.ucsd.edu:21, (b) download on a host with
+FTP egress and copy to the group fs, (c) ask the authors for an HTTPS/S3 copy. Not actionable from
+inside this session.
+
+## THP-1 PULLED (2026-08-07) -- 4th immunopeptidome, both sides on disk
+
+| id | what | source | tier | size | integrity |
+|---|---|---|---|---|---|
+| thp1-rna | THP-1 RNA-seq, 3 paired-end runs (SRR13279451/52/53) | ENA PRJNA686824 | OPEN | 6.7 GB (6 files) | **md5 verified against ENA `fastq_md5`, 6/6 OK, 0 failed** |
+| thp1-imp | THP-1 BB7.2 immunopeptidome, 15 raw files | PRIDE PXD015039 | OPEN | 15.6 GB | see below -- PRIDE publishes no md5 |
+
+Both from the same THP-1 (AML) line, so RNA-seq and immunopeptidome are matched at the cell-line
+level. Downloaded SERIALLY on the head node per the standing rule, single stream per file.
+
+**BB7.2 was chosen over the 21 W6/32 files in the same submission, deliberately.** W6/32 is a
+pan-HLA class-I antibody and BB7.2 is HLA-A*02:01-specific. The narrower antibody gives a cleaner,
+single-allele peptide population, which matches how the other three immunopeptidomes in the panel
+were generated and avoids mixing allele specificities inside one search. The cost is fewer files
+(15 vs 21) and therefore fewer spectra.
+
+**Integrity: PRIDE publishes no per-file checksum**, so the download could only be size-checked, and
+a size match is not sufficient (the ENA incident on SRR10846529 produced a correct-size, wrong-md5
+14.5 GB file). The compensating check is the raw -> mzML conversion: a truncated `.raw` fails to
+parse rather than silently yielding a short mzML. All **15/15 converted cleanly** (ThermoRawFileParser
+2.0, `-f 2` indexed, default centroiding -- same settings as the macrophage and HBL-1 arms so search
+results stay comparable), 4.2 GB of mzML, smallest 188 MB, 36,864 spectra in the first file. The
+conversion job (`proteogenomics/scripts/thp1_raw2mzml.sbatch`) fails any file whose mzML is under
+1 MB, so a silent partial conversion cannot pass.
+
+**Poly(A) status is being verified empirically, not assumed** (standing rule: SRA
+`library_selection=cDNA` does not prove poly(A) selection, and a Ribo-Zero total-RNA arm crushed the
+GSE243134 liver universe to 3,321 transcripts). `process_rnaseq_thp1.sbatch` reports the fraction of
+salmon TPM landing in rRNA / Mt / misc / sn(o)RNA biotypes; poly(A)-selected libraries sit in the low
+single digits and total-RNA libraries run much higher.
+
+## The poly(A) gate is now a real check, and it found something (2026-08-07)
+
+`proteogenomics/scripts/polya_check.py`, run as step 0 of every pilot prep. **Two earlier versions
+were silently wrong**, which is why this is a standalone script with calibrated thresholds rather
+than an inline heredoc:
+
+- **v1** looked `quant.sf`'s `Name` up in `tx2biotype.tsv`. Salmon carries the full pipe-delimited
+  GENCODE header (`ENST00000641515.2|ENSG...|...`); the table is keyed on the bare versioned id.
+  Every lookup missed, the junk total stayed 0.0, and it printed **"0.00%"** -- indistinguishable
+  from a flawless library. A total-RNA arm would have printed the same thing.
+- **v2** fixed the key split and added a "was enough TPM assigned a biotype" guard (97.8% assigned),
+  and STILL reported 0.00%. Also meaningless: **the decoy-aware v49/vM38 salmon indexes contain
+  pc + lncRNA transcripts ONLY.** There is no rRNA / snRNA / snoRNA / misc_RNA / Mt_rRNA / Mt_tRNA in
+  the index, so no library can put TPM there. The biotype approach cannot detect total RNA through
+  this index and would have stamped POLY(A)-SELECTED on a Ribo-Zero library.
+
+**What actually discriminates** (calibrated on this project's known-good and known-bad libraries):
+salmon mapping rate against the pc+lncRNA index; universe size at TPM >= 1; and above all the
+**single-transcript TPM share**, because the structural contaminants that DO reach a pc+lncRNA index
+are typed `lncRNA` and survive every biotype filter.
+
+| library | mapped | tx TPM>=1 | max single-tx share | verdict |
+|---|--:|--:|--:|---|
+| GSE243134 liver totalRNA (known bad) | 21.5% | 4,451 | **79.8%** (`n-TKctt14`) | REJECT |
+| Janich liver (in use) | 37-44% | 9,613-13,147 | **44-56%** (`Gm59647`) | **AMBIGUOUS** |
+| Wang liver | 92.8% | 14,185 | 11.1% (`Alb`) | poly(A) |
+| GSE302188 liver | 92.5% | 18,677 | 3.2% | poly(A) |
+| THP-1 | 81.4% | 41,702 | 1.0% (`MT-CO3`) | poly(A) |
+
+### The Janich flag is REAL, and chasing it down found a pipeline property worth knowing
+
+All 7 Janich liver RNA replicates put **52-70% of salmon TPM into the same two transcripts that got
+GSE243134 rejected**: `Gm59647` (a 7SL/SRP duplicate, 44-56%) and `n-TKctt14` (tRNA-derived, 7-15%).
+Both are typed `lncRNA`, so no biotype filter removes them. Mapping rate is 37-44% throughout.
+
+**But the model input is CLEAN.** In `data/packed_heldout_mouse_janich_liver`, both transcripts are
+present and both are empty: `Gm59647` mean depth 7, `n-TKctt14` mean depth 0, together **0.000% of
+the pack's 5.26e9 coverage mass**. The pack's top transcripts are Alb (4.5%), Trf, Apoe, Serpina3k --
+ordinary liver mRNA.
+
+The reason is the difference between the two quantification paths:
+
+- **salmon** has no multimapper filter and uses EM, so it piles the reads from massively multi-copy
+  structural loci (7SL, tRNA) onto these few transcripts, and TPM is length-normalised, which
+  further amplifies short ones.
+- **the pack coverage** comes from STAR with `--outFilterMultimapNmax 1` plus the ncRNA-locus filter,
+  which removes essentially all of those reads before they reach the model.
+
+**Consequence, stated precisely:** the contamination distorts Janich's UNIVERSE SELECTION (those two
+transcripts made the TPM >= 1 cut carrying no real unique-mapping signal, and the TPM ranking of
+everything else is depressed by ~50%), but it does NOT reach the per-nucleotide coverage the model
+consumes. No trained model or prediction is affected. The flag is worth recording because **salmon
+TPM and pack coverage can disagree by orders of magnitude on multi-copy loci**, so a library that
+looks contaminated by TPM may still be fine as a model input, and the two must be checked separately
+rather than one being taken as a proxy for the other.
+
+### FIXED by read-level decontamination + re-quantification (2026-08-07)
+
+`scripts/janich_decontam_quant.sbatch`: bowtie2 `--very-sensitive-local` against a 2-sequence index
+(Gm59647 302 nt, n-TKctt14 100 nt), keep the non-aligning reads, re-run salmon against the
+**unchanged shared** decoy-aware vM38 index. Output: `data/salmon_quant_janich_liver_decontam/`.
+
+Reads were filtered rather than the index edited, because CLAUDE.md keeps one canonical index per
+(tool, species, annotation) and a Janich-specific index would make its TPMs non-comparable with Wang
+and GSE302188, the other two arms of the three-way liver ORF-call comparison. `--very-sensitive-local`
+rather than end-to-end because a read may only partially overlap a 100 nt transcript.
+
+| quantity | before | after |
+|---|--:|--:|
+| reads removed | -- | 6.2-11.0% |
+| contaminant share of TPM | 52.4-70.4% | **0.0-4.9 TPM of 1e6** (~0.0003%) |
+| top transcript | `Gm59647` (7SL) 44-56% | `Alb` / `Mup7` **6.2-7.6%** |
+| transcripts at TPM >= 1 (mean) | 11,532 | **16,379** |
+
+The top transcripts are now Alb, Mup7 and Mup14, i.e. ordinary highly-expressed mouse liver mRNA,
+and the single-transcript share (6.2-7.6%) is in family with Wang liver's Alb at 11.1%. **The
+corrected universe (16,379) now sits between Wang (14,185) and GSE302188 (18,677)**, where before it
+was below both.
+
+Only **6-11% of READS** carried **52-70% of TPM**, because TPM is length-normalised and these are
+100-302 nt transcripts: a modest read count over a tiny effective length produces an enormous TPM.
+
+**Cross-check against pure renormalisation.** Dropping the two rows from the original `quant.sf` and
+rescaling to 1e6 predicts 16,469 transcripts at TPM >= 1; the read-level fix gives 16,379, a
+difference of 39-144 transcripts per replicate (0.5-0.9%). So reads ambiguously mapping between a
+contaminant and a real transcript are negligible here, and the cheap renormalisation would have been
+a sound estimate. The read-level fix is still the one to keep, because it is exact and it also
+removes those reads from the library-size denominator.
+
+**What this did NOT fix, and could not.** Salmon mapping rate is 41.8% -> 40.0% and 37.2% -> 34.1%
+across the fix, i.e. essentially unchanged (slightly lower, since the removed reads were ones that
+DID map). The 34-42% rate is an independent property of the Janich library -- most plausibly
+rRNA-depleted total RNA retaining intronic pre-mRNA that cannot map to a transcriptome index -- and
+`polya_check.py` still flags the decontaminated quants on that axis alone. That flag is correct and
+should stay; it is a statement about library chemistry, not about the contamination.
+
+**PENDING DECISION (not actioned):** using the corrected universe means rebuilding
+`data/packed_heldout_mouse_janich_liver` (10,431 tx -> ~15-16k), re-predicting both released models
+on it, and re-running the three-way Wang/Janich/GSE243134 liver ORF-call comparison. That cascade
+touches published comparisons and was left for an explicit go-ahead.
+
+## Mouse immunopeptidome (D2, 6th dataset): candidates CHECKED and REJECTED (2026-08-07)
+
+Recorded so these are not re-checked. The binding requirement is **matched RNA-seq of the same
+sample**, because the model's input IS the query sample's own per-nucleotide RNA coverage; importing
+another study's RNA-seq would reproduce the Söllner coverage-bias artefact that
+`feedback_never_reuse_universe_across_datasets` exists to prevent.
+
+| candidate | MS raw | matched RNA-seq | verdict |
+|---|---|---|---|
+| **PXD008733** (Schuster 2018, tissue-based murine MHC-I map, PMC6080492) | YES, 39 `.raw` + 60 mzXML, public 2018-06-19, C57BL/6 H2-Db/Kb, 19 tissues + 4 tumour lines | **NO** -- MS only, authors generated no transcriptome | **REJECTED**: no RNA-seq. Would require importing another study's mouse tissue RNA-seq. |
+| **Rospo 2023** (MMRd CT26 colorectal, PMC10797964; H-2Kd/Dd/Ld) | **NO accession** -- data availability points only to "Additional file 2" (a processed peptide table) | YES, ENA PRJEB58630 | **REJECTED**: no raw MS. Scientifically the best fit (non-canonical antigens are its subject); worth an author request if the mouse point becomes required. |
+| PXD020620 | n/a | n/a | **NOT MOUSE** (human DLBCL; it is the SU-DHL-4 / DoHH2 source already in the panel). |
+
+CONSEQUENCE: the panel stands at 4 of the 6 in D2 (A549 tryptic + HBL-1 / SU-DHL-4 / DoHH2 HLA-I,
+plus THP-1 landing). B721 is blocked on MassIVE FTP (above) and the mouse point has no verified
+candidate. The FIGURES_PLAN lists the cross-species immunopeptidome as a **stretch** goal, so this
+does not gate Fig 2; it should be stated as a limitation rather than left looking un-attempted.
+
+---
+
+## Three new human Ribo-seq datasets (2026-08-09, tasks 72-74)
+
+All 22 FASTQs downloaded serially on the head node, single stream, **every one md5-verified against
+ENA's published `fastq_md5`, 0 failures**. Manifests with per-run md5/bytes/layout at
+`data/external/<dataset>/manifest.tsv`; fetch script `data/external/fetch_human_2026_08.sh`.
+
+| dataset | GEO | runs | raw | arm composition |
+|---|---|--:|--:|---|
+| `GSE208041_thp1` | GSE208041 | 9 | 43.1 GB | 5 RPF + 4 RNA (paired) |
+| `GSE39561_thp1` | GSE39561 | 3 | 11.5 GB | 3 RPF, **no RNA** |
+| `GSE304796_cart` | GSE304796 | 6 | 16.6 GB | 3 RPF + 3 RNA |
+
+### Library chemistry, established empirically -- each dataset needed a DIFFERENT recipe
+
+Every one of these would have produced a plausible-looking BAM under the project's default
+(`cutadapt -a AGATCGGAAGAGC`), and two of them would have been silently wrong.
+
+**GSE208041 RPF -- N-PADDED, not pre-trimmed.** 99.54% of reads are exactly 35 nt with 0% TruSeq
+adapter, which reads as "submitter already trimmed". They did trim, then **padded back to a fixed 35 nt
+with N**: 34% of reads end in 8 Ns, 24% in 7. Aligning as-is charges every pad N as a mismatch.
+Stripping the trailing N run recovers a textbook footprint distribution -- **84.4% in 26-34 nt, sharp
+mode at 28 nt**. Recipe: strip trailing N, then `--minimum-length 20 --maximum-length 40`.
+
+**GSE39561 -- POLY(A)-TAILED, not adapter-ligated.** 50 nt reads, 0% TruSeq adapter, so a naive check
+calls them "not RPF-like". Wrong probe: the dominant 12-mer at read position 29 is `AAAAAAAAAAAA`
+(59% of reads). This is the 2012-era Ingolia protocol, which poly(A)-tails the footprint before
+reverse transcription. Cutting at the first poly-A run gives **69.6% in 26-34 nt, mode 26-27** --
+genuinely Ribo-seq. Recipe: poly-A trim (`-a "A{6}"`), then the same length window. Standard TruSeq
+trimming would have left the poly-A attached.
+
+**GSE304796 -- the GEO labels ARE wrong, confirmed empirically.** GEO titles all six samples
+"Ribo-seq", three as "RNA 1/2/3". After TruSeq trimming:
+
+| samples | adapter read-through | 20-40 nt inserts | full-length 72 nt | verdict |
+|---|--:|--:|--:|---|
+| GSM9157460-62 ("RPF") | 72-75% | **51.7%** | 26.1% | ribosome footprints |
+| GSM9157454-56 ("RNA") | 7-8% | 0.7% | **92.6%** | RNA-seq |
+
+Decisive, and it matches the user's correction.
+
+### Open issue: GSE304796 RPF inserts are 38-39 nt, not 28-31
+
+The submitter's own GEO data-processing note says "**Unique molecular identifiers (UMIs) were pruned
+from read sequences using UMI-tools**" (Eclipsebio pipeline v1) -- but SRA carries the RAW reads, so
+the UMIs are still attached, and GEO does not state their length or position. 38-39 minus a ~10 nt UMI
+lands on 28-29, which fits.
+
+Per-position base composition and Shannon entropy over the first/last 12 nt of the insert do NOT
+localise the UMI: entropy is 1.87-1.99 bits everywhere, in the RNA library as well as the RPF, so
+composition cannot separate a random UMI block from aggregate genomic sequence. **To be resolved
+empirically by 3-nt periodicity**, which is ground truth for Ribo-seq: trim a small grid of UMI
+lengths and keep the one that maximises periodicity in the RiboCode metaplot. Do not guess.
+
+### RNA chemistry: one arm is poly(A), one is NOT
+
+- **GSE208041 RNA: poly(A)-selected.** Protocol states "Poly(A)-purified mRNA-seq libraries" via
+  TruSeq Stranded mRNA. Paired 2x101. This is the only clean RNA of the three.
+- **GSE304796 RNA: rRNA-DEPLETED total RNA**, not poly(A) -- "Both sample types were taken through
+  rRNA depletion and RNA-seq samples were heat fragmented". This is the chemistry that crushed the
+  GSE243134 liver universe to 3,321 tx (feedback_rnaseq_must_be_polya): Ribo-Zero total RNA retains
+  tRNA and 7SL, which are typed `lncRNA` and so survive the biotype filter. **Run the poly(A) gate
+  before packing and expect it may fail.**
+- **GSE39561 has no RNA at all.** Its other three samples (GSM971691-93) are `THP-1_puro`, puromycin
+  TIS-mapping, not RNA. The only route is pairing its cycloheximide RPFs with GSE208041's THP-1 RNA:
+  same cell line, but a **CROSS-STUDY RNA/Ribo pairing** that must be labelled wherever its numbers
+  appear, exactly like the GSE243134 Ribo + GSE302188 RNA arm.
+
+### Disk
+
+Group ceph was at 92.4% of its 15 TB quota (1.15 TB free) when the download started and 10.51 TB used
+/ 4.49 TB free after -- other users freed space concurrently. Quota overflow kills SLURM jobs silently
+with exit 120 (feedback_group_ceph_15tb_quota), so delete these 71 GB of FASTQ once the packs exist.

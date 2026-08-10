@@ -398,6 +398,288 @@ Caveat: the frozen tolerance (200 ppm) was derived on Microglia against GENCODE 
 12 populations on the assumption of one instrument and one study. Consistent per-population
 behaviour is compatible with that; it has not been re-derived per population.
 
+## CPAT / CPC2 coding-potential baseline, all 4 MS datasets (2026-08-06, decision D3)
+
+This closes the biggest scientific gap in the pilot. Every earlier comparison scored the model
+against naive enumeration (`null_atg` / `null_nc`), which only establishes "better than listing every
+ORF". CPAT and CPC2 are the standard sequence-only coding-potential selectors, so they are the
+honest competitor: they shrink the search space by the same order of magnitude as the model
+(7.6k-21k novel sequences vs the model's 8k-10k standard / 1.6k-2.4k Poisson) using sequence
+features alone, with no RNA-seq and no translation model.
+
+Both arms enumerate from exactly the same candidate pool as `null_atg` (verified by a regression
+test: `test_coding_potential_pool_matches_null_arm`), so the only difference between the CPAT/CPC2
+arms and the null arm is *which* ORFs are kept. Released mamba4, frozen search params, same FDR
+policy as every other row.
+
+Novel peptides at 1% class-specific FDR (distinct sequences; DB novel-sequence count in brackets):
+
+| dataset | digestion | cpat | cpc2 | model_standard | model_poisson | null_atg |
+|---|---|--:|--:|--:|--:|--:|
+| A549 | tryptic, TMT | **25** [21,450] | 23 [20,708] | 9 [10,312] | 11 [2,404] | 10 [368,908] |
+| HBL-1 | nonspecific, HLA-I | 3 [15,810] | 10 [15,250] | 8 [10,345] | **14** [1,837] | 20 [276,698] |
+| SU-DHL-4 | nonspecific, HLA-I | 7 [8,269] | 14 [8,380] | **22** [10,351] | 10 [1,621] | 28 [259,701] |
+| DoHH2 | nonspecific, HLA-I | 4 [7,592] | 8 [7,717] | **32** [8,198] | 14 [1,955] | 13 [242,512] |
+
+**The result splits cleanly by assay, and the split is the interesting part.**
+
+- On the **tryptic whole proteome** (A549), CPAT and CPC2 BEAT the model on raw count (25 / 23 vs 11).
+- On all three **immunopeptidomes**, the best model arm beats the best CPAT/CPC2 arm: 14 vs 10, 22 vs
+  14, 32 vs 8. In DoHH2 the margin is 4x.
+
+This reproduces, on an independent pipeline and independent datasets, the pattern already recorded
+for the human MS work in the biotype-probe project (tryptic: FM ~ CPAT; HLA: FM > CPAT). Two
+non-overlapping lines of evidence now say the same thing, which is worth more than either alone.
+
+The mechanism is visible in the DB sizes. CPAT and CPC2 score a *transcript's* coding potential from
+sequence composition, so they keep long, codon-biased, ORF-like sequences -- exactly the population a
+tryptic digest samples well and exactly the population that is least novel. The model scores
+*per-nucleotide translation* from the sample's own RNA-seq, so it keeps short, non-canonical,
+cell-type-specific ORFs, which is the population HLA-I presentation actually samples. The two methods
+are not competing on the same axis; the assay decides which axis matters.
+
+Canonical cost (`dPSM` / `dPeptide`, 1% global FDR vs the `gencode` baseline) is small for every
+small database and is not what separates them: cpat/cpc2 cost -140/-100 and -196/-145 on A549 and
+essentially nothing on the immunopeptidomes; `model_poisson` costs exactly zero on all four;
+`model_standard` costs -265/-191 on A549 and -71/-22 on HBL-1 but GAINS +140/+63 on DoHH2. `null_atg`
+is the expensive one (-4,109 PSMs on A549), which is the database-size penalty the small arms avoid.
+
+Caveat, stated plainly: these are single-digit-to-low-double-digit peptide counts. The direction is
+consistent across three independent immunopeptidomes, but no individual dataset carries the claim.
+That is exactly why the panel is being expanded (decision D2).
+
+## B721.221 drop-in: predicted vs MEASURED ORF calls (2026-08-07)
+
+The first model-vs-measured-translation comparison in the project. Every result above scores the
+model against a null or against another sequence-only selector -- none of it asks whether the ORFs
+the model calls are the ones actually being translated. B721.221 supplies both arms in one cell line:
+Sarkizova RNA-seq drives the prediction, and Ouspenskaia Ribo-seq (327 M unique footprints over 7
+runs) gives the measured calls. The model never sees the Ribo-seq.
+
+Scoring is genomic-keyed `(gene_id, ORF_gstop)` and restricted to the 11,527 genes in the model's
+30,075-transcript universe, because the two call sets are not made over the same transcript space
+(standing rule). `n_ref` = 21,974 measured calls genome-wide, 16,331 inside the model's gene space.
+`pval_combined <= 0.05`, ORF length >= 90 nt.
+
+| arm | n_pred | matched | precision | recall | F1 | recall canonical | recall non-canonical | precision non-canonical |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|
+| mamba4 theta=1 | 12,151 | 9,476 | 0.780 | 0.580 | 0.665 | 0.754 | 0.241 | 0.371 |
+| mamba4 Poisson | 9,304 | 8,256 | 0.887 | 0.506 | 0.644 | 0.714 | 0.099 | 0.424 |
+| attn theta=1 | 12,699 | 9,669 | 0.761 | 0.592 | **0.666** | 0.759 | 0.267 | 0.362 |
+| attn Poisson | 8,732 | 8,017 | **0.918** | 0.491 | 0.640 | 0.705 | 0.074 | 0.485 |
+
+Read honestly, three things come out of this:
+
+1. **The two-arm framework behaves exactly as designed on real data.** Poisson calibration buys
+   precision (0.78 -> 0.89 mamba4, 0.76 -> 0.92 attn) and pays recall (0.58 -> 0.51, 0.59 -> 0.49).
+   That is the documented trade, now confirmed against measured translation rather than against a
+   null. It is the strongest independent support the calibration dial has.
+2. **mamba4 and attn are again indistinguishable** (F1 0.665 vs 0.666). Third independent
+   replication of that finding, after the macrophage cross-subtype run and the 4-dataset MS panel.
+3. **Canonical recall (0.70-0.76) is far above non-canonical recall (0.07-0.27).** The class the
+   proteogenomics work depends on is the class the model recovers worst. Non-canonical precision
+   (0.36-0.49) is a lower bound, since the measured set has its own detection limit -- but the recall
+   gap is not explained away by that.
+
+Two caveats that cap this comparison regardless: the RNA-seq and the Ribo-seq come from *differently
+HLA-transduced* B721.221 sub-lines (C0401/C0701 vs A0101/A3303/B1501/B4402), so this is
+same-parental-line but not same-sample; and B721.221 is a lymphoblastoid line, far outside the
+Chothani training tissues.
+
+### The split-half ceiling: what these numbers mean
+
+An F1 of 0.67 is uninterpretable without knowing what RiboCode achieves against an INDEPENDENT
+measurement of the same cells. RiboCode was therefore run separately on two disjoint halves of the
+same B721 Ribo-seq, split by HLA allele so each half holds complete biological libraries (A:
+A0101 x2 + A3303, 18,907 calls; B: B1501 x2 + B4402 x2, 24,538 calls), and scored with the same
+script, keying, thresholds and gene restriction.
+
+The ceiling is taken as the **shallower half predicting the deeper half**, because that is the
+geometry the model faces: one measurement scored against a larger reference (ceiling n_ref = 15,703
+vs the model's 16,331, so the two references are comparable in size).
+
+| | F1 | precision | recall | recall canon | recall non-canon | precision non-canon |
+|---|--:|--:|--:|--:|--:|--:|
+| **CEILING** (half A vs half B) | **0.889** | 0.965 | 0.824 | 0.973 | **0.498** | 0.846 |
+| mamba4 theta=1 | 0.665 | 0.780 | 0.580 | 0.754 | 0.241 | 0.371 |
+| attn theta=1 | 0.666 | 0.761 | 0.592 | 0.759 | 0.267 | 0.362 |
+
+As a fraction of the ceiling:
+
+| arm | F1 | precision | recall | recall canon | recall non-canon | precision non-canon |
+|---|--:|--:|--:|--:|--:|--:|
+| mamba4 theta=1 | 75% | 81% | 70% | 77% | 48% | 44% |
+| attn theta=1 | **75%** | 79% | 72% | **78%** | **54%** | 43% |
+| mamba4 Poisson | 72% | 92% | 61% | 73% | 20% | 50% |
+| attn Poisson | 72% | **95%** | 60% | 72% | 15% | **57%** |
+
+**This substantially reframes the non-canonical gap flagged above.** Two independent measurements of
+the same cells at half depth agree on only **49.8%** of each other's non-canonical calls. Non-canonical
+ORF calling is intrinsically noisy at this depth, so the model's 0.24-0.27 sits against a denominator
+of ~0.50, not 1.0 -- it reaches roughly **half** of what the assay achieves on itself, not a quarter
+of perfect. The gap is real and should still be stated, but as "the model recovers about half the
+non-canonical signal a replicate Ribo-seq experiment would" rather than as a near-total failure.
+
+The canonical picture is stronger: the assay reproduces its own annotated calls at 0.973 and the
+model reaches 0.754-0.759, i.e. **77-78% of ceiling, using no Ribo-seq at all.**
+
+Overall the model attains **75% of the assay's own reproducibility ceiling on F1**. For a prediction
+made from RNA-seq alone, against a reference built from 327 M measured footprints, that is the
+headline number, and it is a fairer one than the raw 0.666.
+
+Ceiling metrics: `dropin_compare/ceiling_AvsB/` and `ceiling_BvsA/`. Both directions are reported
+because precision and recall swap between them (F1 is symmetric at 0.889); the deeper-predicts-
+shallower direction gives recall 0.965 / non-canonical recall 0.846, which is NOT the right
+comparator for the model and is recorded only to show the asymmetry is depth, not bias.
+
+### Sensitivity to the one free parameter (minimum ORF length)
+
+90 nt is a convention inherited from the earlier drop-in work, not a fitted value, so it was swept
+before any of the above got quoted. Every qualitative conclusion holds across the full range:
+
+| min_len | n_ref | mamba4 th=1 F1 | mamba4 pois F1 | attn th=1 F1 | attn pois F1 | rec canon (m/a) | rec non-canon (m/a) |
+|--:|--:|--:|--:|--:|--:|---|---|
+| 0 | 20,537 | 0.599 | 0.563 | 0.602 | 0.556 | 0.755 / 0.759 | 0.261 / 0.307 |
+| 30 | 19,881 | 0.611 | 0.575 | 0.614 | 0.568 | 0.755 / 0.759 | 0.261 / 0.302 |
+| **90** | **16,331** | **0.665** | **0.644** | **0.666** | **0.640** | **0.754 / 0.759** | **0.241 / 0.267** |
+| 150 | 13,846 | 0.723 | 0.707 | 0.724 | 0.704 | 0.754 / 0.759 | 0.228 / 0.244 |
+
+- **Poisson trades recall for precision at every threshold** (e.g. at min_len 0: 0.706 -> 0.870
+  mamba4, 0.674 -> 0.910 attn). The calibration result does not depend on the cut.
+- **mamba4 and attn are tied at every threshold** (F1 differs by 0.001-0.003, attn marginally ahead
+  each time). The tie is not an artifact of one length window.
+- **Canonical recall is essentially INVARIANT** (0.754-0.755 mamba4, 0.759 attn, at all four cuts).
+  Annotated CDSs are long, so the filter never touches them; the whole F1 gain with min_len comes
+  from removing short non-canonical ORFs from the reference, not from the model doing better.
+- **Non-canonical recall falls slightly as min_len rises** (0.261 -> 0.228). The model is relatively
+  BETTER on short non-canonical ORFs than long ones, which is the opposite of what a
+  "longer = easier" intuition predicts and is worth a sentence in the manuscript.
+
+So the honest summary is that raising min_len flatters the headline F1 by shrinking the hard part of
+the reference, and 90 nt sits mid-range. The non-canonical recall gap is not a thresholding artifact.
+
+Metrics: `proteogenomics/data/B721_pilot/dropin_compare/b721_dropin_metrics.json`.
+Script: `proteogenomics/scripts/compare_b721_dropin.py`.
+
+## Macrophage gene_type BMDM re-run: frozen params + corrected attn DB (2026-08-07, task 50)
+
+Two defects were fixed at once here, so the table below supersedes the earlier gene_type table
+entirely: the attn `model_standard` database had lost its whole N-terminal-extension class to the BH
+NaN bug (6,124 -> 10,554 novel sequences), and the whole tree predated the frozen search parameters
+(`calibrate_mass = 2`, 0.6 Da fragment tolerance). All 7 arms re-searched against one mzBIN cache
+under `fragger_macro_lfq_frozen.params`; 18 fractions, tryptic, mouse.
+
+| arm | novel PSMs | novel pept | DB novel seqs | pept / 1k seqs | GENCODE PSMs | dPSM | dPept |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| gencode | 0 | 0 | 0 | -- | 332,215 | +0 | +0 |
+| attn model_standard | 104 | 39 | 10,554 | 3.70 | 331,402 | -813 | -172 |
+| **attn model_poisson** | 93 | 33 | 1,285 | **25.68** | 332,136 | **-79** | -19 |
+| mamba4 model_standard | 109 | 43 | 10,558 | 4.07 | 331,485 | -730 | -160 |
+| **mamba4 model_poisson** | 110 | **40** | 1,562 | **25.61** | 332,157 | **-58** | -12 |
+| null_atg | 317 | 87 | 259,889 | 0.33 | 323,484 | -8,731 | -1,762 |
+| null_nc | 903 | 259 | 2,735,495 | 0.09 | 301,895 | -30,320 | -5,620 |
+
+**Discovery density: the model's Poisson arm beats `null_atg` by 77x and `null_nc` by 270x.**
+
+### Freezing the search parameters was not cosmetic, and it cut BOTH ways
+
+Comparing each arm against its own gencode baseline, before (calibrate_mass = 2) and after (frozen):
+
+| arm | dPSM cal2 -> frozen | direction |
+|---|---|---|
+| mamba4 model_poisson | -216 -> **-58** | cost fell 3.7x |
+| attn model_poisson | -200 -> **-79** | cost fell 2.5x |
+| mamba4 model_standard | -859 -> -730 | cost fell |
+| null_atg | -10,987 -> -8,731 | cost fell |
+| **null_nc** | -17,116 -> **-30,320** | **cost nearly DOUBLED** |
+
+Every compact database got cheaper and the 2.7-million-sequence database got much more expensive.
+That is the `calibrate_mass = 2` artifact seen from the other side: re-deriving six search parameters
+from a first-pass against whichever database is handed in partially RESCUES a bloated database, by
+retuning the scoring regime to fit its own noise. Freezing removes the rescue, and the true
+decoy-load penalty of a giant null becomes visible.
+
+This matters for how the pilot's central claim is stated. The compact-database argument was
+previously supported by numbers that were, if anything, flattering to the nulls. Under identical
+frozen scoring the gap is larger, not smaller.
+
+### attn vs mamba4, now that both databases are correct
+
+mamba4 leads on raw count in both arms (43 vs 39 standard, 40 vs 33 Poisson) but the per-sequence
+discovery density is **indistinguishable** (25.61 vs 25.68 per 1,000 in the Poisson arm, and mamba4's
+database is the larger one at 1,562 vs 1,285). Same conclusion as every other head-to-head in this
+project: **more ORFs called, not better ORFs called.** The earlier gene_type table appeared to show
+attn losing on the standard arm (30 vs 33); that was the NaN bug removing attn's extension class, not
+a model difference.
+
+Reports: `pgx_genetype/{attn,mamba4}/BMDM/report/table_frozen.{md,json}`. The mamba4 report reads its
+two model arms from its own search root and `gencode`/`null_atg`/`null_nc` from the attn root via
+`search_frozen_view/` symlinks, because those three databases are md5-identical between the models
+and were searched once. The symlinks make the reuse visible on disk rather than implied.
+
+## THP-1: the 4th immunopeptidome (2026-08-07, decision D2)
+
+PRIDE PXD015039 BB7.2 (HLA-A*02:01-specific, 15 raw files) + PRJNA686824 RNA-seq, same AML line.
+Poly(A) verified empirically before use (81.4% salmon mapping, 41,702 tx at TPM >= 1, top transcript
+1.0%). Universe 37,070 tx. Released models, frozen HLA template, nonspecific digestion so `null_nc`
+is auto-dropped and `null_atg` is the null.
+
+| arm | novel PSMs | novel pept | DB novel seqs | pept / 1k seqs | dPSM | dPept |
+|---|--:|--:|--:|--:|--:|--:|
+| gencode | 0 | 0 | 0 | -- | +0 | +0 |
+| **attn model_poisson** | 42 | **15** | 1,650 | **9.09** | **+0** | +0 |
+| attn model_standard | 18 | 8 | 9,318 | 0.86 | +0 | +0 |
+| mamba4 model_poisson | 11 | 3 | 1,711 | 1.75 | +0 | +0 |
+| mamba4 model_standard | 14 | 5 | 8,414 | 0.59 | +0 | +0 |
+| null_atg | 1 | 1 | 301,855 | 0.003 | -31 | -6 |
+
+**The null found ONE peptide from 301,855 sequences and paid 31 canonical PSMs for it; every model
+arm cost exactly zero.** The attn Poisson density ratio over the null is 2,744x, the largest in the
+panel. This is the cleanest single demonstration of the compact-database argument so far.
+
+### Why THP-1's absolute yield is low, checked rather than assumed
+
+THP-1 returns 1,415 canonical PSMs from ~46,700 rank-1 hits, a 3.0% pass rate against 24-43% for the
+other three datasets. That was suspicious enough to chase before using the numbers.
+
+**It is not a search error.** Ruled out in order:
+
+- *Wrong fragment-tolerance regime?* No. THP-1 is an LTQ Orbitrap Fusion (vs HBL-1's Q Exactive HF,
+  which is where the frozen 7 ppm came from), so the instrument genuinely differs -- but its MS2 is
+  36,867 FTMS scans against 4 ITMS, i.e. high-resolution, so ppm is the right regime. Widening the
+  fragment window 7 -> 30 ppm raised raw PSM rows only 10,708 -> 13,186 on a test fraction, and raw
+  rows are the wrong metric anyway (they measure spectra absorbed).
+- *Poor target/decoy separation?* No. Median hyperscore target 15.2 / decoy 12.7, against HBL-1's
+  16.1 / 12.6 and DoHH2's 16.7 / 12.5. Comparable.
+
+**The actual cause is the FDR cutoff, which THP-1 drives much higher:**
+
+| dataset | 1% FDR cutoff | targets passing | of total |
+|---|--:|--:|--:|
+| DoHH2 | 17.4 | 2,875 | 43.1% |
+| SU-DHL-4 | 17.9 | 1,423 | 29.9% |
+| HBL-1 | 18.2 | 5,527 | 30.8% |
+| **THP-1** | **23.5** | 1,415 | 3.7% |
+
+THP-1 has by far the most rank-1 hits (46,705 vs 21,216 for HBL-1) and a higher decoy/target ratio
+(0.23 vs 0.18), i.e. a fast-scanning Fusion acquired many more marginal MS2 spectra. Those generate
+decoy hits, which forces the threshold to 23.5 to hold 1% FDR, and most targets fall below it.
+
+**This does not compromise the comparison.** Every THP-1 arm is searched under identical conditions
+and the class-specific FDR is computed within THP-1, so the model-vs-null contrast is internally
+valid. The confident yield (1,415 PSMs / 629 peptides) is in family with SU-DHL-4 (1,423 / 813),
+which is already in the panel. What it does mean is that THP-1 should not be compared to the others
+on ABSOLUTE counts, only on within-dataset ratios.
+
+### The attn vs mamba4 gap here is not evidence of a model difference
+
+attn's Poisson arm finds 15 novel peptides to mamba4's 3. That is the largest split between the two
+models anywhere in this project, and it contradicts the B721 drop-in (F1 0.665 vs 0.666), the
+4-dataset MS panel (49 vs 48 total), and the 12-population macrophage run, all of which are ties.
+At 3 to 15 peptides on the dataset with the strictest FDR cutoff in the panel, this is what the
+existing caveat predicts ("not powered to detect a small real difference in either direction").
+Report it as noise unless a second dataset reproduces the direction.
+
 ## Status
 
 - Macrophage cross-subtype 12 x 6 under frozen params: DONE (supersedes the calibrate_mass=2 run).
@@ -410,12 +692,18 @@ behaviour is compatible with that; it has not been re-derived per population.
 
 ### Open / blocking
 
-- Immunopeptidome panel is 3 of 6 (missing B721.221, THP-1, one mouse) -- FIGURES_PLAN flags Fig 2's
-  statistical power as the key weakness. The density separation is now large and consistent
-  (105x / 134x / 57x), but on 3 datasets with single-digit-to-low-double-digit peptide counts.
-- No CPAT/CPC2 coding-potential baseline yet (locked decision D3). Still the biggest scientific gap:
-  "beats a naive AUG enumeration" is much weaker than "beats CPAT-selected ORFs".
+- Immunopeptidome panel is 4 of 6 -- FIGURES_PLAN flags Fig 2's statistical power as the key
+  weakness. The density separation is large and consistent (105x / 134x / 57x), but on 3 datasets
+  with single-digit-to-low-double-digit peptide counts. THP-1 (PRIDE PXD015039, BB7.2) is in
+  progress as the 4th; a mouse immunopeptidome is still unidentified.
+- **B721.221 MS is BLOCKED**, not merely pending: `massive.ucsd.edu:21` is filtered from prism, so
+  neither MSV000084172 (Sarkizova) nor MSV000080527 (Abelin) can be pulled. Port 443 is open and
+  ENA/PRIDE respond normally, so this is MassIVE-specific. Three unblock routes are recorded in
+  `DATA_PROVENANCE.md`. B721 still contributes the drop-in ground-truth check above, which needs no
+  MS at all.
 - The PRICE comparison (UC-B original) has not been re-run on the released model.
+- Non-canonical recall against measured translation is 0.07-0.27 (B721 drop-in). This is the honest
+  ceiling on the discovery claim and should be stated in the manuscript rather than buried.
 
 ### Resolved since 2026-08-03
 
@@ -433,3 +721,32 @@ behaviour is compatible with that; it has not been re-derived per population.
 - **Both released models now run on all 4 MS datasets.** mamba4 and attn are indistinguishable for
   proteogenomic discovery (49 vs 48 novel peptides total, sign of the density difference flips by
   dataset), reproducing the macrophage result. The CPU release is a genuine equivalent here.
+- **CPAT/CPC2 baseline (D3) DONE** on all 4 datasets. Model wins all three immunopeptidomes, loses
+  the tryptic whole proteome. See the section above.
+- **B721 drop-in DONE** -- first check of the model's calls against measured translation rather than
+  against a null.
+- **BH q-value NaN bug fixed and its blast radius closed.** One degenerate zero-variance Wilcoxon
+  produced a NaN p-value; numpy sorts NaN last, so the reverse `np.minimum.accumulate` in the BH
+  step started on it and propagated NaN through every q-value in the array. Affected arms reported 0
+  passing N-terminal extensions from thousands tested. It read as a biological result and was
+  arithmetic. Fixed in `pgx/seqtools.bh` (NaN excluded from the correction, returned as NaN), with a
+  regression test (`test_bh_is_nan_safe`).
+
+  **The scan took three passes and the last one mattered.** Scoping to "the datasets I was working
+  on" found the arms already suspected. Enumerating every `extension_summary.json` under
+  `proteogenomics/data` (52 arms) and filtering on the signature `mtime < fix && tested > 0 &&
+  passing == 0` found **five**, all `standard` arms; every `poisson` arm was clean:
+
+  | # | arm | tested | passing before -> after |
+  |---|---|--:|---|
+  | 1 | DoHH2 / attn | 5,261 | 0 -> 2,840 |
+  | 2 | SU-DHL-4 / attn | 7,757 | 0 -> 3,805 |
+  | 3 | B721 / mamba4 | 4,473 | 0 -> 2,649 |
+  | 4 | macrophage `pgx_attn_union` / BMDM | 9,788 | 0 -> 4,445 |
+  | 5 | macrophage `pgx_genetype` / attn / BMDM | 9,882 | 0 -> 4,455 |
+
+  Arm 5 was not just bookkeeping. The gene_type table compares attn against mamba4, and attn's
+  `model_standard` database was missing its entire N-terminal-extension class (6,124 novel sequences
+  vs mamba4's 10,558) while mamba4's was intact. That table's model difference was an artifact. Its
+  database was rebuilt (novel 6,124 -> 10,554) and all 7 arms were re-searched under frozen
+  parameters, which it also predates.

@@ -128,13 +128,42 @@ credible pattern for a brief communication.
 
 ## Decisions (LOCKED 2026-07-20)
 
-- D1: **Main Fig 1 = deployed TRANSFORMER `orf_v2_attn`, one-hot.** Mamba mixer -> Supp 1-2.
+- ~~D1: **Main Fig 1 = deployed TRANSFORMER `orf_v2_attn`, one-hot.** Mamba mixer -> Supp 1-2.~~
+  **SUPERSEDED 2026-07-31 by D1b** (original text kept above for provenance).
+- D1b (user decision 2026-07-31, replaces D1): **Main Fig 1 = `orf_v2_mamba4`, one-hot.** It wins the
+  3-seed union comparison on held-out profile Pearson with non-overlapping seed ranges (mean 0.6799 vs
+  0.6595; mamba4's worst seed 0.6753 beats attn's best 0.6603). `orf_v2_attn` moves to supplemental
+  but stays maintained and shipped, because it is the only one of the two that runs without a GPU
+  (mamba-ssm needs CUDA kernels) and it is therefore the released CPU inference path.
+
+  **State the scope of mamba4's win honestly in the caption.** The +0.0204 Pearson edge is real on
+  per-nucleotide profile shape and does NOT carry into any downstream task measured so far:
+  B721.221 drop-in ORF calling is a tie (F1 0.665 mamba4 vs 0.666 attn, and the same tie in
+  precision/recall trade), the 4-dataset MS panel is a tie (49 vs 48 novel peptides, with the sign of
+  the difference flipping by dataset), and the 12-population macrophage run is a tie. Where mamba4
+  does lead on discovery (BMDM, 40 vs 33 novel peptides) it is by calling MORE ORFs (1,533 vs 1,244
+  sequences) at indistinguishable per-sequence density (26.1 vs 26.5 per 1,000), not by better
+  per-ORF discrimination. Also note mamba4 is ~5x noisier across seeds (spread 0.0098 vs 0.0018), so
+  a single-seed mamba4 number must never be quoted without the spread.
 - D2: **MHC-I expansion = HBL-1 (have) + DoHH2 + SU-DHL-4 + Ouspenskaia B721.221 + THP-1 AML + one mouse**
   (6 total). Start order: DoHH2/SU-DHL-4, then B721.221, THP-1, mouse. 30-min data-access cap per dataset.
 - D3: **Include CPAT/CPC2 coding-potential baseline** in the ORF-selection comparison (A549 + immunopeptidomes).
+  **DONE 2026-08-06, all 4 datasets, figure `figures/D12_cpat_cpc2/`.** Both arms enumerate from the
+  identical candidate pool as `null_atg` (regression-tested), so only the selection rule differs. The
+  result splits by assay: CPAT/CPC2 win the tryptic whole proteome (25 / 23 novel peptides vs the
+  model's 11), the model wins all three HLA-I immunopeptidomes (14 vs 10, 22 vs 14, 32 vs 8). On
+  discovery efficiency the model's Poisson arm leads all four. Fig 2 must present the split, not just
+  the immunopeptidome half of it.
 - D4: **Depth-crossover in Main Fig 1.** PRICE dropped from Fig 2 (may keep a one-line caveat in supp).
 - D5 (new): **Add Ribo-seq quality metagene plots (ribotish) as supplemental figures** for every study used
   that has Ribo-seq (HBL-1, Ouspenskaia B721.221 if acquired, Chothani training tissues for reference).
+  **DONE 2026-08-07 as `figures/S_riboseq_qc/`, built from RiboCode `metaplots` output rather than
+  ribotish.** ribotish needs a GENOME BAM plus a GTF; this project keeps transcriptome BAMs for
+  everything except the training set, so honouring the letter of D5 would have meant re-aligning a
+  dozen studies to regenerate quantities already on disk. `metaplots` had already been run on every
+  dataset and writes the same three axes (per-read-length P-site offset, frame sums at annotated
+  start codons, periodicity test), so reading those files gave a LARGER panel (all 16 library groups)
+  at zero compute. See that folder's FIGURE_DATA_INPUTS.md.
 
 ## Execution status (task list #17-24)
 
@@ -146,3 +175,57 @@ credible pattern for a brief communication.
 - #22 CPAT/CPC2 baseline
 - #23 ribotish metagene QC supp figs
 - #24 consolidate multi-dataset model/null (Fig 2b) + pick highlight PSMs (Fig 2c)
+
+================================================================================
+AMENDMENT 2026-08-08 -- numbers above are pre-union; panel structure is unchanged
+================================================================================
+
+APPENDED, NOT EDITED. Nothing above this line was altered; the pre-amendment file is preserved at
+`FIGURES_PLAN.md.bak.2026-08-08`. Read this section before quoting any figure from the plan above.
+
+### Why
+
+Every held-out drop-in number in this plan was measured on `orf_v2_attn_onehot_holdout_Hepatocytes`,
+the pre-nokozak / pre-mm1 / pre-union checkpoint, not on the shipping union models. Run directories are
+named for the DATASET rather than the CHECKPOINT, so the staleness was invisible from the path -- it
+lives only in the npz `meta` field. It was found by scanning every figure generator, which showed five
+of the six Fig 1 panels in the same state.
+
+### Corrected numbers (released models, attn / mamba4)
+
+| where the plan says | actual, on the released models |
+|---|---|
+| "drop-in F1 ~0.92" (Fig 1a) | Hepatocytes standalone F1 **0.909** (attn) |
+| "Ruiz-Orera, F1 0.931" (Fig 2a) | shape (`pred_obsdepth`) 0.929 / 0.934 holds; **standalone `pred_preddepth` 0.876 / 0.880** |
+| "Wang, F1 0.929" (Fig 2a) | shape 0.923 / 0.927 holds; **standalone 0.867 / 0.867** |
+| "onehot 0.923 vs rinalmo 0.915 vs orthrus 0.916" (Fig 1d) | pre-union values; the one-hot >= FM conclusion is a within-checkpoint comparison and is unaffected, but the three absolute numbers must not appear beside released-model numbers |
+
+The pattern: the SHAPE claim survived intact everywhere; the STANDALONE claim (predicted shape AND
+predicted depth) dropped 0.05 because the count head over-calls on the 84,472-tx union universe. Any
+standalone F1 in a caption must now be stated with its calling arm (theta=1 or Poisson theta*).
+
+### Panel structure: unchanged, with three additions
+
+The proposed Fig 1 (a-d) and Fig 2 (a-c) structure still stands. Additions from work since the plan:
+
+- **New candidate panel, B6 `figures/B6_input_ablation/`** -- the input ablation on the deployed
+  recipe. It is the direct evidence for the cell-type-specificity claim that Fig 2 rests on, and it
+  NARROWS that claim: sequence-only recovers 98.5% of profile shape, so the specificity lives in the
+  count head (-0.193 count Pearson without RNA-seq), not in the shape. Wherever the manuscript says
+  the model is cell-type-specific, it must mean "which ORFs clear the depth threshold", and cite
+  -0.193. Do not write "cell-type-specific profile shape" -- it is measurably close to false.
+- **Both calling arms, always** (feedback_two_arm_orf_calling). `results/released_two_arm_orf_calls.json`
+  has all 16 rows. Poisson raises precision on all 8 dumps but improves F1 on only ONE of four datasets
+  (Wang) and halves non-canonical F1 every time, so a figure that shows only the Poisson arm overstates
+  the method for discovery use and only the theta=1 arm overstates it for precision use.
+- **Fig 1a caveat.** A3 (LOTO spread) is the one panel still on the pre-union recipe -- there is no
+  union 9-fold and building one is nine retrains. Its CLAIM (that the fold spread tracks held-out
+  target periodicity at r=0.81, rather than being a generalization gradient) is a property of the
+  design and survives; its absolute Pearson values are checkpoint-dependent. Label the panel.
+
+### Status of the two gates named in the plan
+
+- Fig 2b power fix: DONE. `figures/F2b_discovery_forest/`, 5 datasets x 2 models x 2 arms = 20 points,
+  all above 1.0.
+- Fig 2c (D14 highlighted PSMs): still the only MS-gated item. B721.221 MS is blocked (MassIVE FTP
+  unreachable from prism); the immunopeptidome panel is at 4 of the 6 datasets decision D2 asked for.

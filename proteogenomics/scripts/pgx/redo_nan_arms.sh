@@ -7,8 +7,25 @@
 # whole arm -- reported as "passing: 0" beside "would_pass_whole_orf_f0_0.5: 4434", which reads as a
 # finding rather than arithmetic. Fixed in pgx.seqtools.bh; pinned by test_bh_is_nan_safe.
 #
-# Affected (tested>0, passing=0): DoHH2/attn, SUDHL4/attn, B721/mamba4 -- all `standard` arms.
-# Every poisson arm was unaffected, so the headline results do not move.
+# FULL BLAST RADIUS (2026-08-07). Scanned EVERY extension_summary.json under proteogenomics/data --
+# 52 arms -- for the signature `mtime < fix && tested > 0 && passing == 0`. Five arms were affected,
+# all of them `standard`; every `poisson` arm was clean, so the headline results do not move.
+#
+#   1-3. DoHH2/attn, SUDHL4/attn, B721/mamba4        -- fixed by the loop below
+#   4.   macrophage pgx_attn_union/BMDM/standard      -- fixed 2026-08-06 (found on the second pass)
+#   5.   macrophage pgx_genetype/attn/BMDM/standard   -- fixed 2026-08-07 (found on the THIRD pass,
+#        by scanning the whole tree instead of the pilots). 0 -> 4,455 passing of 9,882 tested; its
+#        db_model_standard.fasta went 126,700 -> 135,560 entries (novel 6,124 -> 10,554).
+#        This one mattered beyond bookkeeping: the genetype table compared attn against mamba4, and
+#        attn's model_standard database was missing its ENTIRE N-terminal-extension class while
+#        mamba4's was not. That comparison was not a model difference.
+#
+# LESSON, recorded because it cost three passes: scoping a blast-radius scan to "the datasets I was
+# just working on" finds the arms you already suspected. Enumerate the artifact type across the
+# whole tree and let the signature decide.
+#
+# The two macrophage arms are NOT re-run by this script; they were fixed in place because they need
+# per-population profile/universe paths that this pilot-shaped loop does not carry.
 set -uo pipefail
 NEW=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
 PD=$NEW/proteogenomics/data

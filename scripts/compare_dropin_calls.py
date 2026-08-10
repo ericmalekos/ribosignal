@@ -155,10 +155,59 @@ def compare(pred, real, label):
     return out
 
 
+def build_loader(profiles, key="genomic", tx2gene=TX2GENE, max_pval=0.05, min_len=90,
+                 min_enrichment=0.5):
+    """Return (lc, keep_tx, keep_genes) for one dump's pred_profiles.npz.
+
+    `lc(path, is_pred=False)` loads a *_collapsed.txt under THIS dump's filtering: restricted to the
+    model's test transcripts (or their genes), pval <= max_pval, ORF >= min_len nt, and -- on the
+    predicted side only -- mean predicted density over the ORF >= min_enrichment x uniform.
+
+    Factored out of main() so other scorers can reuse the exact same filtering rather than reimplement
+    it. Two tables that disagree because one of them quietly skipped the enrichment filter is a
+    manuscript-level hazard, and copying the constants across files does not prevent it.
+    """
+    npz = np.load(profiles, allow_pickle=False)
+    keep_tx = set(npz["tx_ids"].tolist())
+    _lengths = npz["lengths"]
+    _pflat = npz["pred_flat"]
+    _off = np.concatenate([[0], np.cumsum(_lengths)])
+    _idx = {str(t): i for i, t in enumerate(npz["tx_ids"])}
+
+    def enrich(tx, a, e):
+        i = _idx.get(str(tx))
+        if i is None:
+            return float("nan")
+        p = _pflat[_off[i]:_off[i + 1]]
+        if a < 0 or e > len(p) or e <= a:
+            return float("nan")
+        return float(p[a:e].mean() * len(p))
+
+    keep_genes = None
+    if key == "genomic":
+        t2g = load_tx2gene(tx2gene)
+        keep_genes = {t2g[t] for t in keep_tx if t in t2g}
+        if keep_tx and not keep_genes:
+            raise SystemExit(
+                f"ERROR: 0 of {len(keep_tx):,} test tx matched the tx2gene map {tx2gene}. It is "
+                "likely for the wrong assembly (e.g. the human map against mouse tx). Pass the "
+                "matching tx2gene, or use key='transcript'.")
+
+    def lc(path, is_pred=False):
+        return load_calls(path, key, keep_tx, keep_genes, max_pval, min_len,
+                          enrich if is_pred else None, min_enrichment)
+
+    return lc, keep_tx, keep_genes
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dropin_dir", required=True)
-    ap.add_argument("--official", required=True)
+    # Optional: not every held-out dataset has a call set from RiboCode run over the FULL observed
+    # data outside the pack. Wang and GSE243134 liver do; Janich does not. The two *_vs_official rows
+    # are harness validation, not the primary metric -- pred_* vs real is self-contained -- so omitting
+    # official drops those two rows rather than blocking the comparison.
+    ap.add_argument("--official", default=None)
     ap.add_argument("--profiles", required=True)
     ap.add_argument("--out", default=None)
     ap.add_argument("--max_pval", type=float, default=0.05,
@@ -185,56 +234,34 @@ def main():
     out = Path(args.out) if args.out else d
     out.mkdir(parents=True, exist_ok=True)
 
-    npz = np.load(args.profiles, allow_pickle=False)
-    keep_tx = set(npz["tx_ids"].tolist())
-    _lengths = npz["lengths"]
-    _pflat = npz["pred_flat"]
-    _off = np.concatenate([[0], np.cumsum(_lengths)])
-    _idx = {str(t): i for i, t in enumerate(npz["tx_ids"])}
-
-    def enrich(tx, a, e):
-        i = _idx.get(str(tx))
-        if i is None:
-            return float("nan")
-        p = _pflat[_off[i]:_off[i + 1]]
-        if a < 0 or e > len(p) or e <= a:
-            return float("nan")
-        return float(p[a:e].mean() * len(p))
-
-    keep_genes = None
+    lc, keep_tx, keep_genes = build_loader(
+        args.profiles, key=args.key, tx2gene=args.tx2gene, max_pval=args.max_pval,
+        min_len=args.min_len, min_enrichment=args.min_enrichment)
     if args.key == "genomic":
-        t2g = load_tx2gene(args.tx2gene)
-        keep_genes = {t2g[t] for t in keep_tx if t in t2g}
         print(f"test tx: {len(keep_tx):,}; test genes: {len(keep_genes):,} "
               f"(tx2gene={args.tx2gene})", file=sys.stderr)
-        if keep_tx and not keep_genes:
-            raise SystemExit(
-                f"ERROR: 0 of {len(keep_tx):,} test tx matched the tx2gene map "
-                f"{args.tx2gene}. It is likely for the wrong assembly (e.g. the human map "
-                "against mouse tx). Pass the matching --tx2gene, or use --key transcript.")
     else:
         print(f"test transcripts (model inference set): {len(keep_tx):,}", file=sys.stderr)
-
-    def lc(path, is_pred=False):
-        return load_calls(path, args.key, keep_tx, keep_genes, args.max_pval, args.min_len,
-                          enrich if is_pred else None, args.min_enrichment)
     real = lc(d / "real_collapsed.txt")
     pred_obs = lc(d / "pred_obsdepth_collapsed.txt", is_pred=True)
     pred_pred = lc(d / "pred_preddepth_collapsed.txt", is_pred=True)
-    official = lc(args.official)
+    official = lc(args.official) if args.official else None
+    off_str = (f"official={len(official):,}" if official is not None
+               else "official=NONE (--official not given; the two *_vs_official rows are skipped)")
     print(f"calls (key={args.key}, pval<={args.max_pval}, len>={args.min_len}nt, "
           f"pred enrichment>={args.min_enrichment}): real={len(real):,} "
           f"pred_obsdepth={len(pred_obs):,} pred_preddepth={len(pred_pred):,} "
-          f"official={len(official):,}", file=sys.stderr)
+          f"{off_str}", file=sys.stderr)
 
     res = {
         "test_tx": len(keep_tx), "max_pval": args.max_pval, "min_len": args.min_len,
         "key": args.key, "min_enrichment": args.min_enrichment,
-        "real_vs_official": compare(real, official, "real_vs_official"),
         "pred_obsdepth_vs_real": compare(pred_obs, real, "pred_obsdepth_vs_real"),
         "pred_preddepth_vs_real": compare(pred_pred, real, "pred_preddepth_vs_real"),
-        "pred_obsdepth_vs_official": compare(pred_obs, official, "pred_obsdepth_vs_official"),
     }
+    if official is not None:
+        res["real_vs_official"] = compare(real, official, "real_vs_official")
+        res["pred_obsdepth_vs_official"] = compare(pred_obs, official, "pred_obsdepth_vs_official")
     (out / "dropin_metrics.json").write_text(json.dumps(res, indent=2))
 
     print("\n=== RiboCode drop-in: predicted-density ORF calls vs real-density calls "
@@ -243,7 +270,9 @@ def main():
           f"{'prec':>6} {'recall':>7} {'F1':>6} {'logpR':>6} {'typeConc':>8}")
     for key in ("real_vs_official", "pred_obsdepth_vs_real", "pred_preddepth_vs_real",
                 "pred_obsdepth_vs_official"):
-        c = res[key]
+        c = res.get(key)
+        if c is None:      # no --official: those two rows were not computed
+            continue
         print(f"{key:<28} {c['n_pred']:>7,} {c['n_real']:>7,} {c['n_match']:>7,} "
               f"{c['precision']:>6.3f} {c['recall']:>7.3f} {c['f1']:>6.3f} "
               f"{c.get('matched_logp_pearson', float('nan')):>6.2f} "

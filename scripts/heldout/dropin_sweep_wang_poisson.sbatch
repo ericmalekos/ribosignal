@@ -20,7 +20,7 @@ rm -rf "$OUT"; mkdir -p "$OUT" "$NEW/logs/o2_liver"
 echo "wang Poisson theta=$TH -> $OUT"
 "$PY" "$NEW/scripts/ribocode_dropin.py" \
   --profiles "$NEW/results/o2_liver/wang_nokozak/pred_profiles.npz" \
-  --annot "$ECH/data/ribocode_annot_mouse" --variant pred_preddepth \
+  --annot "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot" --variant pred_preddepth \
   --pred_scale "$TH" --pred_poisson --seed 0 \
   --out "$OUT" --min_aa 5 --pval 0.05
 echo "done theta=$TH: $(($(wc -l < "$OUT/pred_preddepth_collapsed.txt")-1)) calls"

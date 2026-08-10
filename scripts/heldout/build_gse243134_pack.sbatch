@@ -126,7 +126,7 @@ echo "  ribo BAMs (GSE243134): $(echo "$RIBOBAMS" | wc -l)   rna coverage (GSE30
   --rna-coverage $COVS \
   --universe-tx "$REF/mouse_gse243134_universe_tx.txt" \
   --fasta "$REF/mouse_gse243134_universe.fa" \
-  --annot "$ECH/data/ribocode_annot_mouse" \
+  --annot "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot" \
   --ncrna-tx "$ECH/data/phase31/mouse_ncrna_tx.txt" \
   --tx-to-gene "$NEW/data/heldout_refs/mouse_tx_to_gene.tsv" \
   --tx2biotype "$NEW/data/tx2biotype_mouse.tsv" \

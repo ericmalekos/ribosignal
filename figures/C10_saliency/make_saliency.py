@@ -14,7 +14,13 @@ Panel per exemplar: (left) per-nt sequence saliency along the transcript with th
 (right) zoom on +/- 30 nt around the start codon, saliency bars colored by frame, start codon marked.
 
 CPU-only (~5M params). Reuses the project's PackedStore / RiboDataset / RiboSignalModel. cas12a env
-(torch 2.x CPU). Deployed model = results/loto/orf_v2_attn_onehot_holdout_Hepatocytes/best.pt.
+(torch 2.x CPU).
+
+CHECKPOINT (repointed 2026-08-08) = the released union attn model. This previously read
+`orf_v2_attn_onehot_holdout_Hepatocytes` with `orf_track_v2.npy`. BOTH had to change, together: the
+released models trained on the no-Kozak track (feedback_kozak_never_set), so pairing a released
+checkpoint with the Kozak-heuristic track would feed the model an input channel it never saw and the
+saliency map would be an artifact of that mismatch rather than of the model.
 """
 from __future__ import annotations
 
@@ -32,10 +38,16 @@ import torch
 NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/riboseq_signal_model")
 HERE = NEW / "figures/C10_saliency"
-RUN = NEW / "results/loto/orf_v2_attn_onehot_holdout_Hepatocytes"
-# deployed orf_v2_attn uses the shared 5-channel non-AUG ORF track (Fibroblast pack; the LOTO
-# tissue packs share the same 36,668-tx universe + offsets, verified, so it aligns to Hepatocytes).
-os.environ.setdefault("RIBO_ORF_TRACK", str(NEW / "data/packed/orf_track_v2.npy"))
+RUN = NEW / "results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes"
+# THREE env vars, set together, exactly as train_loto_union.sbatch set them. They all name the same
+# universe, so any one of them left at its default silently swaps the universe out from under the
+# other two. dataset.py defaults are the FIBROBLAST universe (`fibroblast_universe.fa`, unsuffixed
+# packs), and data/packed/orf_track_v2_nokozak.npy is ALSO kozak=none -- so a Fibroblast-track run
+# is internally consistent, produces a plausible saliency map, and passes a kozak check. `setdefault`
+# is deliberate: an explicit env var from the caller still wins.
+os.environ.setdefault("RIBO_PACK_SUFFIX", "union")
+os.environ.setdefault("RIBO_ORF_TRACK", str(NEW / "data/packed_union/orf_track_v2.npy"))
+os.environ.setdefault("RIBO_ONEHOT_FASTA", str(NEW / "data/union_universe.fa"))
 sys.path.insert(0, str(NEW / "scripts"))
 from dataset import BACKENDS, PackedStore, RiboDataset, tissue_pack_dir  # noqa: E402
 from model import RiboSignalModel  # noqa: E402

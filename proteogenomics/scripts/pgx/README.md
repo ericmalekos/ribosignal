@@ -47,11 +47,11 @@ $PY -m pgx.run --species mouse --label BMDM --profiles <...> --out <...>/pgx/BMD
 Run `pgx.run` itself on a compute node: the calibration sweep is several RiboCode passes.
 Every step is skip-if-done, so a rerun resumes rather than repeats.
 
-## The four databases
+## The databases
 
 All share one GENCODE proteome base plus inline `REV_` decoys, so they differ ONLY in novel
-content and the comparison isolates the selection rule. The nulls use the SAME expressed universe
-as the model arm (TPM >= 1, protein_coding + lncRNA, no chrM, <= 10 kb).
+content and the comparison isolates the selection rule. Every arm uses the SAME expressed universe
+(TPM >= 1, protein_coding + lncRNA, no chrM, <= 10 kb).
 
 | database | novel content | role |
 |---|---|---|
@@ -59,9 +59,20 @@ as the model arm (TPM >= 1, protein_coding + lncRNA, no chrM, <= 10 kb).
 | `db_model_<arm>` | significant RiboCode calls + N-terminal extensions | the model's selection |
 | `db_null_atg` | every ATG..stop ORF on the universe | naive AUG-only pipeline |
 | `db_null_nc` | every ATG-or-near-cognate ORF, same universe | naive near-cognate pipeline |
+| `db_cpat` / `db_cpc2` | the null_atg pool filtered by a coding-potential classifier | sequence-only comparator |
 
 `db_null_atg` is a strict subset of `db_null_nc`, so the increment between them is exactly the
 cost of naive non-AUG enumeration. Measured on BMDM: 1,533 / 218,715 / 2,306,644 novel sequences.
+
+**The coding-potential arms are the comparator that makes the model's selection falsifiable.**
+`null_atg` only establishes "better than enumerating everything"; CPAT and CPC2 shrink the space by
+the same order of magnitude as the model from sequence composition alone, with no RNA-seq and no
+translation model. `coding_potential.py` therefore enumerates from **exactly** the `null_atg` pool
+(same universe, start codons, minimum length, and the `or prot in canon_seqs` clause) and then
+applies each tool's own default human classifier, so the arms differ only in WHICH ORFs are kept.
+That equality is pinned by `tests/test_invariants.py::test_coding_potential_pool_matches_null_arm`;
+without it a silent drift would turn a selection-rule comparison into a pipeline comparison with no
+error raised. Built separately from `run.py` via `coding_potential.sbatch`.
 
 ## Why RiboCode instead of a `pred_frame0` threshold
 
@@ -166,7 +177,8 @@ pipeline ever have found this", vs `nc` answers "would even naive near-cognate e
 | `calibrate.py` | Poisson/theta sweep + CDS anchoring (`sweep_theta.sbatch` fans it out) |
 | `call_orfs.py` | two-arm RiboCode calling on the predicted signal |
 | `extensions.py` | N-terminal extension scan (runs in the `ribocode` env) |
-| `build_dbs.py` | the four databases + class maps |
+| `build_dbs.py` | the gencode / model / null databases + class maps |
+| `coding_potential.py` | the CPAT and CPC2 comparator arms (same pool as `null_atg`, different filter) |
 | `search.py` / `search.sbatch` | MSFragger templating, hash cache, staging |
 | `report.py` | FDR control + the output table |
 | `run.py` | end-to-end orchestrator |

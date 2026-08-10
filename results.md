@@ -1145,6 +1145,11 @@ Original CPU chain (35314728 ...) hit short-wall timeouts; re-run as self-contai
   the real-held-out-profile-vs-official F1 (0.878, same for all backends): the model's denoised profile
   reproduces the deep official RiboCode calls BETTER than the shallow real Ruiz-Orera data (depth 743)
   does. The Ribo-seq refinement use case validates itself on independent data.
+  **Checkpoint caveat (added 2026-08-08):** these three backends were run on
+  `orf_v2_*_onehot_holdout_Hepatocytes`, not on the shipping union models. On the released models the
+  0.931 is a `pred_obsdepth` number and holds (0.929 attn / 0.934 mamba4), but the *standalone*
+  (`pred_preddepth`) arm falls to 0.876/0.880. See "Released-model re-run (2026-08-08)" below. The
+  backend-comparison conclusion in this bullet is unaffected -- it is a within-checkpoint comparison.
 - **Localization (full set, all 3 backends) -- LANDED 2026-07-16.** 827,551 candidate ORFs (10,071
   translated positives / 817,480 negatives; `min_orf_nt` 30, in-frame CDS collapsed). Predicted-frame0
   AUROC (does the predicted 3-nt periodicity discriminate a translated ORF from a candidate?), by ORF
@@ -1191,6 +1196,11 @@ guard that aborts when 0 tx match the map (so this can't silently recur), built 
 from the vM38 GTF (278,326 tx, via the now-parameterized `build_tx2biotype.py --gtf/--out`), and reran.
 Now `test genes: 11,617`.
 
+> **SUPERSEDED 2026-08-08 -- see "Released-model re-run" immediately below.** The table and bullets in
+> this subsection came from `orf_v2_attn_onehot_holdout_Hepatocytes`, a pre-nokozak / pre-mm1 /
+> pre-union checkpoint, on the pre-decontamination Janich universe. They are kept as the historical
+> record. The shape conclusion survived the re-run; the standalone-depth number did not.
+
 Mouse drop-in, one-hot, genomic key (min_len 90, pred enrichment >= 0.5):
 
 | comparison | nPred | nReal | F1 | precision | recall |
@@ -1222,6 +1232,46 @@ AUROC 0.945, beating the observed-profile ceiling 0.908). The cross-species head
 ORF-calling F1 (mouse Wang 0.929, Task 16/19) rather than a mouse profile-Pearson shape number; that
 per-nt mouse profile-Pearson assembly remains the one un-collated secondary metric (low priority -- the
 drop-in F1 is the stronger cross-species statement).
+
+### Released-model re-run (2026-08-08): shape held, standalone depth did not
+
+Every cross-study drop-in number quoted above and in the human cross-study section was measured on
+`orf_v2_attn_onehot_holdout_Hepatocytes`. The project ships `*_union_noBrain_nokozak_mm1_*`. Directory
+names encode the DATASET, not the CHECKPOINT, so the staleness was invisible until the npz `meta` field
+was read. Re-dumped both released models over all four held-out sets
+(`scripts/dump_liver_released.sbatch`, `scripts/ruizorera_released_dumps.sbatch`) and re-scored through
+the same `compare_dropin_calls.py`, genomic key.
+
+| dataset | arm | attn F1 | mamba4 F1 | previously reported |
+|---|---|--:|--:|--:|
+| Ruiz-Orera (human iPSC-CM) | pred_obsdepth  | 0.929 | 0.934 | 0.931 |
+| Ruiz-Orera (human iPSC-CM) | pred_preddepth | 0.876 | 0.880 | 0.930 |
+| Wang liver (mouse)         | pred_obsdepth  | 0.923 | 0.927 | 0.929 |
+| Wang liver (mouse)         | pred_preddepth | 0.867 | 0.867 | 0.919 |
+| Janich liver (mouse)       | pred_obsdepth  | 0.919 | 0.926 | not run on released |
+| Janich liver (mouse)       | pred_preddepth | 0.898 | 0.893 | not run on released |
+| GSE243134 liver (mouse)    | pred_obsdepth  | 0.919 | 0.921 | not run on released |
+| GSE243134 liver (mouse)    | pred_preddepth | 0.895 | 0.896 | not run on released |
+
+- **The shape claim is intact.** `pred_obsdepth` moves by at most 0.006 in either direction on both the
+  human and the mouse set that had a prior number. The profile the model predicts is as good on the
+  released checkpoints as it was on the old one, and it is now confirmed on two additional independent
+  mouse-liver studies that were never scored before.
+- **The standalone claim was overstated.** `pred_preddepth` drops 0.052-0.054 on the two datasets with a
+  prior number. The mechanism is visible in the counts: the standalone arm predicts MORE ORFs than the
+  reference has (Ruiz-Orera 14,641 vs 13,147 real), so the loss is entirely precision (0.942 -> 0.832 on
+  Ruiz-Orera) while recall actually rises. The count head over-calls on the union universe -- expected,
+  since union is 84,472 tx against a much smaller earlier universe, and the extra transcripts are
+  low-expression ones where predicted depth is least constrained.
+- **"Count-head resolution holds cross-species" needs qualifying.** The obsdepth-to-preddepth gap is no
+  longer ~0.010; it is -0.024 to -0.062 (mean -0.039 across the six mouse arms). The count head still
+  transfers, but it costs real precision, and the Ribo-seq-free Poisson calibration (below) is the lever
+  for it rather than an optional refinement.
+- **attn and mamba4 are interchangeable on every one of these**, max separation 0.007 F1. Consistent with
+  the 3-seed union comparison.
+
+Per-dataset tables with class-level recall, and the checkpoint string behind every row, are generated
+into the tutorial by `tutorial/make_heldout_{human,mouse}.py`.
 
 ### Infrastructure note (the timeout re-run)
 
@@ -1442,6 +1492,15 @@ pilot's 56M was interpolated across a gap; the curve is convex near full depth).
 
 
 ## Task 19: non-AUG (ATG + CTG) drop-in -- does the model help call CTG-initiated ORFs, or only ATG? (2026-07-16, LANDED)
+
+> **CHECKPOINT NOTE (added 2026-08-08).** This whole section is on
+> `orf_v2_*_onehot_holdout_Hepatocytes` and the ATG+CTG ORF track -- pre-nokozak / pre-mm1 /
+> pre-union. It was not re-run: the CTG track is a separate ORF track from the one the released
+> models trained on (`--kozak none`, ATG-only), so re-running is a new experiment rather than a
+> refresh, and it sits on the OPEN-elective list. The comparisons here are internally consistent
+> (all arms share one checkpoint), so the conclusions stand as stated. Do not quote the absolute
+> numbers -- including the "ATG F1 0.929" reference point below -- next to released-model numbers;
+> on the released models the corresponding Wang figure is 0.923 (attn) / 0.927 (mamba4).
 
 Every RiboCode call in Tasks 14-18 was ATG-only (verified: 100.0% of real and predicted calls, all
 categories incl. the non-annotated uORF/dORF/novel classes, start with ATG). So the "non-canonical"
@@ -2217,3 +2276,466 @@ slightly lower canonical cost (-361 vs -390), so it is the better arm overall. B
 discovery density is indistinguishable -- **26.1 vs 26.5 peptides per 1,000 DB sequences** -- so the
 advantage comes from calling MORE ORFs (1,533 vs 1,244), not from better per-ORF discrimination.
 State it that way; this dataset does not show mamba4 is the better discriminator.
+
+## Tasks 60 / 63 / 66: the comparators, the QC panels, and the first ground-truth check (2026-08-07, LANDED)
+
+Detail and full tables live in `proteogenomics/results.md`; this is the model-level summary.
+
+### Task 60 -- CPAT / CPC2 close the "beats a naive enumeration" gap (decision D3)
+
+The honest comparator. CPAT and CPC2 shrink the search space by the same order of magnitude as the
+model, from sequence composition alone, and both arms enumerate from the identical candidate pool as
+`null_atg` (pinned by `test_coding_potential_pool_matches_null_arm`), so only the selection rule
+differs. Novel peptides, 1% class-specific FDR, released mamba4, frozen params:
+
+| dataset | substrate | CPAT | CPC2 | model theta=1 | model Poisson |
+|---|---|--:|--:|--:|--:|
+| A549 | tryptic | **25** | 23 | 9 | 11 |
+| HBL-1 | HLA-I | 3 | 10 | 8 | **14** |
+| SU-DHL-4 | HLA-I | 7 | 14 | **22** | 10 |
+| DoHH2 | HLA-I | 4 | 8 | **32** | 14 |
+
+**The result splits by assay and the split is the finding.** CPAT/CPC2 win the tryptic whole
+proteome; the model wins all three immunopeptidomes. On discovery efficiency (peptides per 1,000 DB
+sequences) the Poisson arm leads all four (4.58 / 7.62 / 6.17 / 7.16 vs 0.03-0.11 for the null).
+Coding-potential tools score a TRANSCRIPT's composition, so they keep long codon-biased sequences --
+what a tryptic digest samples well and the least novel population available. The model scores
+per-nucleotide translation from the sample's own RNA-seq, so it keeps short non-canonical
+cell-type-specific ORFs, which is what HLA-I presentation samples. Figure `figures/D12_cpat_cpc2/`.
+
+### Task 66 -- B721.221: predicted vs MEASURED ORF calls, the first non-null benchmark
+
+Every earlier comparison scored the model against a null or another selection rule. B721.221 has
+both arms in one line: Sarkizova RNA-seq drives the prediction, Ouspenskaia Ribo-seq (327 M unique
+footprints) gives the measured calls. The model never sees the Ribo-seq. Genomic keying, restricted
+to the model's 11,527-gene space (21,974 measured calls genome-wide -> 16,331 in scope).
+
+| arm | precision | recall | F1 | recall canonical | recall non-canonical |
+|---|--:|--:|--:|--:|--:|
+| mamba4 theta=1 | 0.780 | 0.580 | 0.665 | 0.754 | 0.241 |
+| mamba4 Poisson | 0.887 | 0.506 | 0.644 | 0.714 | 0.099 |
+| attn theta=1 | 0.761 | 0.592 | **0.666** | 0.759 | 0.267 |
+| attn Poisson | **0.918** | 0.491 | 0.640 | 0.705 | 0.074 |
+
+Three readings. (1) **The two-arm framework behaves as designed on real data**: Poisson buys
+precision (0.78 -> 0.89, 0.76 -> 0.92) and pays recall, now confirmed against measured translation
+rather than against a null -- the strongest independent support the calibration dial has. (2) mamba4
+and attn are indistinguishable AGAIN (F1 0.665 vs 0.666), a third replication after the macrophage
+cross-subtype run and the 4-dataset MS panel. (3) **Canonical recall (0.70-0.76) far exceeds
+non-canonical recall (0.07-0.27)** -- the class the proteogenomics work depends on is the one the
+model recovers worst. That belongs in the manuscript, not in a footnote.
+
+**The split-half ceiling LANDED and it reframes reading (3).** RiboCode run independently on two
+disjoint halves of the same Ribo-seq (split by HLA allele so each half holds complete libraries;
+A = 18,907 calls, B = 24,538) reproduces its own calls at **F1 0.889**, canonical recall 0.973, and
+non-canonical recall **0.498**, scored by the same code on a comparable reference (n_ref 15,703 vs
+the model's 16,331). As a fraction of that ceiling the model reaches:
+
+| arm | F1 | recall canon | recall non-canon |
+|---|--:|--:|--:|
+| attn theta=1 | **75%** | **78%** | **54%** |
+| mamba4 theta=1 | 75% | 77% | 48% |
+| Poisson arms | 72% | 72-73% | 15-20% |
+
+So two independent measurements of the SAME cells agree on only half of each other's non-canonical
+calls. The model's 0.24-0.27 non-canonical recall sits against a denominator of ~0.50, not 1.0: it
+recovers about **half the non-canonical signal a replicate Ribo-seq experiment would**, not a quarter
+of perfect. The gap is real and stays in the manuscript, but stated against the right denominator.
+On canonical ORFs the model reaches 77-78% of the assay's self-agreement using no Ribo-seq at all,
+and **75% of the ceiling on overall F1** is the fair headline for a prediction made from RNA-seq
+alone against a reference built from 327 M measured footprints.
+
+### Task 63 -- three supplemental QC panels, all built from bytes already on disk
+
+- **`figures/S_riboseq_qc/`** (closes D5): all 16 Ribo-seq library groups the study uses -- 9
+  Chothani training tissues, 5 held-out, 2 proteogenomics cell lines -- on read-length, 3-nt
+  periodicity and P-site-offset consistency. **Every library clears the bar**: f0 74.8-87.9% against
+  a 33% floor, footprints 28-31 nt, offset 12 nt in most. Two honest observations: HBL-1 is the
+  weakest on two axes at once (34 nt mode, 128,641 P-sites at CDS, lowest f0) which is a reason to
+  weight its proteogenomics result below the others; B721.221 is by far the deepest (18.8 M), which
+  is what makes it usable as the measured-translation reference. Built from RiboCode `metaplots`
+  output rather than ribotish, which would have required re-aligning a dozen studies to regenerate
+  quantities already on disk.
+- **`figures/S_fdr_rigor/`** (replaces the gated B8): **a global 1% FDR fails to control the
+  non-canonical class in BOTH directions.** 37.5x over-report on A549 (tryptic, 65,405 canonical
+  peptides set the cut at hyperscore 19.5, inside the novel decoy bulk; the class-specific cut is
+  30.3) down to a 0.2x UNDER-report on DoHH2. The error tracks canonical-class size, not database
+  size -- the four `null_atg` arms span 242k-369k sequences and give 37.5x / 1.9x / 0.8x / 2.2x.
+  This corrects the project's earlier "global inflates ~10x" shorthand: it is not merely
+  anti-conservative, and in the immunopeptidomes it discards real identifications.
+- **`figures/S_rescore_substrate/`** (closes rigor point 4): MS2Rescore helps HLA-I and hurts
+  tryptic because mokapot is semi-supervised and needs a learnable target class. The intuitive
+  metric points the WRONG way (A549 has 15.1% novel-touching PSMs vs 4.0-4.7% for the
+  immunopeptidomes); the metric that matters is CONFIDENT novel targets per 1,000 novel-touching
+  PSMs, where A549 sits at 0.16 against 21.9-100.7. Measured, not assumed -- the guess was wrong.
+
+---
+
+## Released-model held-out re-run, both calling arms (2026-08-08, LANDED)
+
+Three things landed together here, because they turned out to be the same problem: the held-out
+numbers, the calibration arm, and the scoring convention had each drifted independently.
+
+### 1. Every held-out number is now on the shipping models
+
+Run directories are named for the DATASET, not the CHECKPOINT, so a stale checkpoint is invisible from
+the path -- it lives only in the npz `meta` field. Four held-out sets were re-dumped on both released
+models and re-scored: Ruiz-Orera (human), Wang / Janich-decontaminated / GSE243134 (mouse liver). The
+detailed tables with class-level recall are generated into the tutorial by
+`tutorial/make_heldout_{human,mouse}.py`, which prints the source checkpoint beside every row so this
+class of staleness cannot recur silently. Headline: shape (`pred_obsdepth`) held to within 0.006;
+standalone (`pred_preddepth`) fell 0.052-0.054 on the two sets that had a prior number. See
+"Released-model re-run (2026-08-08)" above for the mechanism.
+
+### 2. Both calling arms, on a Ribo-seq-FREE anchor
+
+`scripts/liver_calibrate_freeanchor.sbatch` runs `pgx.calibrate --cds-recall 0.90 --recall-mode
+relative` per dump. The anchor is annotated-CDS relative recall -- reachable without any Ribo-seq for
+the query sample -- rather than a match to an observed between-experiment ceiling, which would require
+the very data the standalone claim says is unnecessary.
+
+`scripts/score_released_two_arm.py`, genomic key, min_len 90, pred enrichment >= 0.5:
+
+| dump | arm | nPred | nRef | P | R | F1 | ncP | ncR | ncF1 |
+|---|---|--:|--:|--:|--:|--:|--:|--:|--:|
+| attn/Wang | theta=1 | 9,873 | 8,552 | 0.809 | 0.934 | 0.867 | 0.229 | 0.454 | 0.305 |
+| attn/Wang | Poisson th=0.02 | 7,998 | 8,552 | 0.917 | 0.858 | **0.887** | 0.254 | 0.127 | 0.170 |
+| mamba4/Wang | theta=1 | 9,832 | 8,552 | 0.810 | 0.932 | 0.867 | 0.227 | 0.441 | 0.299 |
+| mamba4/Wang | Poisson th=0.02 | 7,869 | 8,552 | 0.918 | 0.844 | **0.879** | 0.271 | 0.135 | 0.180 |
+| attn/Janich | theta=1 | 10,263 | 9,850 | 0.880 | 0.917 | **0.898** | 0.467 | 0.530 | 0.497 |
+| attn/Janich | Poisson th=0.05 | 8,367 | 9,850 | 0.960 | 0.816 | 0.882 | 0.570 | 0.176 | 0.269 |
+| mamba4/Janich | theta=1 | 9,731 | 9,850 | 0.899 | 0.888 | **0.893** | 0.493 | 0.446 | 0.468 |
+| mamba4/Janich | Poisson th=0.1 | 8,267 | 9,850 | 0.948 | 0.796 | 0.865 | 0.516 | 0.162 | 0.246 |
+| attn/GSE243134 | theta=1 | 12,200 | 11,761 | 0.879 | 0.912 | **0.895** | 0.461 | 0.483 | 0.472 |
+| attn/GSE243134 | Poisson th=0.05 | 10,093 | 11,761 | 0.950 | 0.815 | 0.878 | 0.543 | 0.134 | 0.216 |
+| mamba4/GSE243134 | theta=1 | 12,177 | 11,761 | 0.881 | 0.912 | **0.896** | 0.466 | 0.481 | 0.473 |
+| mamba4/GSE243134 | Poisson th=0.05 | 10,238 | 11,761 | 0.946 | 0.823 | 0.880 | 0.516 | 0.139 | 0.218 |
+| attn/Ruiz-Orera | theta=1 | 14,641 | 13,147 | 0.832 | 0.926 | **0.876** | 0.385 | 0.551 | 0.453 |
+| attn/Ruiz-Orera | Poisson th=0.05 | 11,329 | 13,147 | 0.930 | 0.801 | 0.861 | 0.448 | 0.154 | 0.229 |
+| mamba4/Ruiz-Orera | theta=1 | 14,614 | 13,147 | 0.836 | 0.929 | **0.880** | 0.402 | 0.567 | 0.470 |
+| mamba4/Ruiz-Orera | Poisson th=0.05 | 11,464 | 13,147 | 0.926 | 0.808 | 0.863 | 0.459 | 0.167 | 0.245 |
+
+- **Poisson is a precision lever, not a free win.** Overall precision rises on all eight dumps (+0.07
+  to +0.11, up to 0.960), but overall F1 improves on only ONE of the four datasets -- Wang, the one
+  where theta=1 was over-calling badly (precision 0.809). On Janich, GSE243134 and Ruiz-Orera the
+  calibrated arm is 0.013-0.028 F1 WORSE. The earlier project shorthand that Poisson is "the winning
+  calibration lever" was generalised from the Wang-like case; it does not hold at 3 of 4 datasets.
+- **It costs non-canonical recall by roughly 3x, every time.** ncR falls 0.454 -> 0.127, 0.530 ->
+  0.176, 0.483 -> 0.134, 0.551 -> 0.154. Non-canonical F1 drops on all eight, typically by half.
+  Non-canonical *precision* does improve (0.467 -> 0.570 on attn/Janich), so the dial is real -- it
+  simply sits at a point tuned for annotated CDS, which is what the anchor is made of.
+- **Practical reading:** use the calibrated arm when reporting canonical-CDS agreement or building a
+  proteogenomics database where precision dominates; use theta=1 when the goal is non-canonical
+  discovery and a downstream filter (the O3 FP-filter) will do the pruning. Report both, always.
+- attn and mamba4 remain interchangeable: max separation 0.008 F1 at theta=1, and the two models even
+  pick different theta* on Janich (0.05 vs 0.1) while landing within 0.017 F1 of each other.
+
+### 3. One scoring convention, enforced by imports rather than by care
+
+The first version of `score_released_two_arm.py` loaded the collapsed files directly and reported
+attn/Wang theta=1 at F1 0.725, against 0.867 from the established path -- same dump, same arm. The
+difference was entirely convention: `compare_dropin_calls.py` restricts to the dump's test
+transcripts, drops ORFs under 90 nt, and requires predicted calls to reach 0.5x uniform mean density,
+and none of that was reimplemented. Rather than copy the three constants, the loader was extracted
+from `compare_dropin_calls.main()` into `compare_dropin_calls.build_loader()` and imported. Copied
+constants drift; an import cannot.
+
+### 4. The same staleness was in five of the six main Figure 1 panels
+
+Finding the held-out numbers stale prompted a scan of EVERY figure generator rather than the ones that
+seemed likely (feedback_blast_radius_scan_by_artifact: enumerate the artifact, not the datasets you
+remember). Five of the six Fig 1 panels read `orf_v2_attn_onehot_holdout_Hepatocytes`. Only
+`arch_attn` was on a released model.
+
+| panel | state before | now |
+|---|---|---|
+| A1 localization ceiling | stale | rebuilt from `eval_localization_released.sbatch` |
+| A2 drop-in | stale, F1 0.923 | released, F1 **0.909**; asserts the npz `meta` tag before plotting |
+| A3 LOTO spread | pre-union 9-fold | **unchanged, labelled** -- no union 9-fold exists, redoing it is 9 retrains |
+| B4 replicate ceiling | hardcoded pre-union dict | reads the released run's `extra_metrics.json` |
+| B5 expression independence | stale | rebuilt from the released `localization_metrics.json` |
+| C10 saliency | stale ckpt + Kozak track | released ckpt + union no-Kozak track (both had to move together) |
+| prediction_examples | stale | released |
+
+C10's conclusion survived the move (start-codon saliency rank 3/2036 uORF and 10/7914 lncRNA on the
+released config, against 8 and 15 before -- it got slightly stronger).
+
+**A second-order error, worth recording because the guard looked right.** The first attempt at the
+released localization eval passed `data/packed/orf_track_v2_nokozak.npy` and asserted `kozak: none`.
+The assertion PASSED -- that file is kozak=none. It is also the FIBROBLAST-universe track (979,634,968
+bytes) rather than the union one (2,126,471,848). The guard tested the correct property on the wrong
+axis, and both tracks are self-consistent with their own packs, so a mis-tracked run would have
+produced a plausible number rather than an error. Both jobs were cancelled and resubmitted with the
+pack suffix, ORF track and one-hot FASTA moved together, plus a byte-size assertion against the
+training track. The same defect was present in C10 and was fixed there too.
+
+The durable rule, now in `figures/README.md`: a generator that quotes a model number either asserts
+the checkpoint tag or reads it from a file and prints it. Hardcoded model numbers are how this
+happened, and directory names cannot be trusted because they encode the dataset, not the checkpoint.
+
+Two smaller fixes in the same pass:
+
+- `compare_dropin_calls.py --official` is now optional. It was `required=True`, but only Wang and
+  GSE243134 have a call set from RiboCode over the full observed data outside the pack; Janich does
+  not. The two `*_vs_official` rows are harness validation, not the primary metric, so omitting
+  official now drops those rows instead of blocking the whole comparison.
+- **Figure B4 compared two different quantities.** Its third bar put a per-codon CDS *elongation*
+  ceiling (0.9501) against a *periodicity* score (0.526); `replicate_concordance.py` records the model
+  side of that stratum as `None` / "our per-codon TBD", so it had never been computed and the derived
+  "55% of ceiling" was meaningless. Replaced with the two strata the concordance script was written to
+  pair with the eval (`pc_uorf5` / `pc_dorf3`). The model values are also no longer hardcoded: B4 now
+  reads them from the released run's `extra_metrics.json` and writes the run name into
+  `B4_values.json`. Released numbers: 70% (pc whole-tx), 51% (lncRNA), 61% (uORF 5'UTR), 34% (dORF
+  3'UTR) of the reproducible ceiling. The dORF ceiling is itself only 0.749, so part of the weak dORF
+  result is the assay, not the model.
+
+## Task 61: the no-RNA-seq ablation on the DEPLOYED recipe (2026-08-08, LANDED)
+
+`scripts/train_union_inputablation.sbatch`, two arms, cloned line-for-line from
+`train_loto_union.sbatch` with `--input_mode` the only difference. The `both` arm is the deployed run
+itself, not a re-train, so the contrast carries no extra seed noise. Held-out Hepatocytes, n=70,883
+scored transcripts in all three.
+
+| input_mode | pc profile r | lncRNA profile r | pc count r | pc periodicity (pred) |
+|---|--:|--:|--:|--:|
+| **both** (deployed) | 0.6699 | 0.4583 | 0.8990 | 0.3359 |
+| **emb** -- sequence + ORF track, RNA-seq ZEROED | 0.6601 | 0.4462 | **0.7063** | 0.3704 |
+| **cov** -- RNA-seq only, sequence + ORF ZEROED | 0.1226 | 0.0838 | 0.8078 | -0.0155 |
+
+The double dissociation from Task 17A reproduces on the union recipe, but **sharper, and it revises
+what the cell-type-specificity claim should say**:
+
+- **Profile SHAPE is essentially sequence-borne.** Zeroing RNA-seq costs 0.0098 of pc profile Pearson:
+  sequence-only recovers **98.5%** of the deployed model's shape (0.6601 of 0.6699). On the pre-union
+  recipe that figure was 91%; the bigger universe made the model *more* sequence-driven, not less.
+  Periodicity is not merely preserved without RNA-seq, it sharpens (0.3704 vs 0.3359) -- the coverage
+  channel contributes a smooth envelope that slightly dilutes fine periodicity.
+- **Sequence alone cannot do magnitude.** Count Pearson falls 0.8990 -> 0.7063 (**-0.193**) when RNA-seq
+  is removed, and RNA-seq ALONE reaches 0.8078 -- better per-transcript depth than sequence alone.
+- **RNA-seq alone cannot do shape at all.** 0.1226 pc profile Pearson with periodicity destroyed
+  (-0.0155): a smooth magnitude signal cannot express a periodic one.
+
+### What this means for the cell-type-specificity claim
+
+The ablation was set up to test whether the model is a cell-type-invariant sequence prior in disguise.
+The answer is not a clean yes or no, and the manuscript wording has to follow the measurement:
+
+**The model's cell-type specificity runs through the count head, not the profile shape.** Handed a
+different cell type's RNA-seq, the predicted SHAPE over a given transcript barely moves (98.5% of it is
+recoverable with no RNA-seq at all), while the predicted DEPTH moves a lot (-0.193 count Pearson
+without it). That is still a genuine cell-type-specific mechanism for ORF CALLING -- a transcript not
+expressed in the query cell type gets low predicted depth, fails the caller's significance test, and is
+not called -- but it is a claim about which ORFs clear threshold, not about the shape of the signal
+over them.
+
+So: "the model predicts cell-type-specific translation" is supportable; "the model predicts a
+cell-type-specific profile shape" is not, and should not be written. The proteogenomics argument
+depends on the former, so it stands; it should cite the count-head number (-0.193), not a shape number.
+
+Recorded as the direct evidence for FIGURES_PLAN item 1. Both ablation runs are at
+`results/ablation/orf_v2_attn_onehot_union_nokozak_input_{emb,cov}_holdout_Hepatocytes`.
+
+## Task 68: does better RNA-seq change ORF-call precision and recall? (2026-08-08, LANDED)
+
+Ribo-seq held FIXED across all three arms (the same 5 Janich P-site hd5, read out of arm a's
+provenance so the arms cannot drift); only the RNA-seq changes. Design and the PRJEB34766/PRJEB86747
+comparator reasoning are in methods.md 5S. Scored by `scripts/score_rna_quality_factorial.py` through
+the same `compare_dropin_calls.build_loader` filtering as every other drop-in number.
+
+| arm | model | variant | nTx | nPred | nRef | P | R | F1 | ncP | ncR | ncF1 |
+|---|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| a Janich/Janich | attn | obsdepth | 14,887 | 9,518 | 9,850 | 0.935 | 0.904 | 0.919 | 0.599 | 0.493 | 0.541 |
+| a Janich/Janich | attn | preddepth | 14,887 | 10,263 | 9,850 | 0.880 | 0.917 | 0.898 | 0.467 | 0.530 | 0.497 |
+| a Janich/Janich | mamba4 | obsdepth | 14,887 | 9,476 | 9,850 | 0.944 | 0.908 | 0.926 | 0.643 | 0.499 | 0.562 |
+| a Janich/Janich | mamba4 | preddepth | 14,887 | 9,731 | 9,850 | 0.899 | 0.888 | 0.893 | 0.493 | 0.446 | 0.468 |
+| b Janich/34766 | attn | obsdepth | 14,887 | 9,315 | 9,850 | 0.952 | 0.900 | 0.925 | 0.677 | 0.471 | 0.555 |
+| b Janich/34766 | attn | preddepth | 14,887 | 10,127 | 9,850 | 0.891 | 0.916 | 0.903 | 0.497 | 0.519 | 0.508 |
+| b Janich/34766 | mamba4 | obsdepth | 14,887 | 9,290 | 9,850 | 0.955 | 0.901 | 0.927 | 0.693 | 0.461 | 0.553 |
+| b Janich/34766 | mamba4 | preddepth | 14,887 | 10,112 | 9,850 | 0.891 | 0.915 | 0.903 | 0.498 | 0.513 | 0.506 |
+| c 34766/34766 | attn | obsdepth | 16,474 | 10,866 | 11,547 | 0.953 | 0.897 | 0.924 | 0.673 | 0.457 | 0.544 |
+| c 34766/34766 | attn | preddepth | 16,474 | 11,840 | 11,547 | 0.896 | 0.919 | 0.907 | 0.511 | 0.530 | 0.520 |
+| c 34766/34766 | mamba4 | obsdepth | 16,474 | 10,863 | 11,547 | 0.956 | 0.899 | 0.927 | 0.686 | 0.453 | 0.546 |
+| c 34766/34766 | mamba4 | preddepth | 16,474 | 11,768 | 11,547 | 0.900 | 0.917 | 0.908 | 0.521 | 0.519 | 0.520 |
+
+### The COVERAGE path (a vs b) buys precision, and it is small
+
+Universe held byte-identical, so this is a clean like-for-like contrast. All four model-by-variant
+cells move the same way on precision and barely at all on F1:
+
+| model | variant | dF1 | dPrecision | dRecall | d nc-F1 |
+|---|---|--:|--:|--:|--:|
+| attn | obsdepth | +0.006 | +0.017 | -0.004 | +0.014 |
+| attn | preddepth | +0.005 | +0.010 | -0.001 | +0.011 |
+| mamba4 | obsdepth | +0.001 | +0.011 | -0.007 | -0.008 |
+| mamba4 | preddepth | +0.010 | -0.007 | +0.027 | +0.037 |
+
+**Swapping to 15x deeper, paired, poly(A) RNA-seq coverage is worth +0.001 to +0.010 F1.** That is a
+real but modest effect, and it is concentrated in precision (+0.010 to +0.017 on three of four cells).
+The one cell that gains through recall instead, mamba4 preddepth, is also the one that started worst
+(0.888 recall, the lowest of the eight arm-a numbers), so it had the most to recover.
+
+This is the result the B6 input ablation predicts. B6 showed the coverage channel drives MAGNITUDE and
+not shape (sequence alone recovers 98.5% of profile Pearson; the count head loses 0.193 without
+RNA-seq). If shape is nearly RNA-independent, then improving the coverage track cannot move the shape
+much -- and it does not: the obsdepth arm, which borrows real depth and therefore isolates shape,
+moves +0.001 to +0.006.
+
+### The UNIVERSE path is where the volume is
+
+| | arm b | arm c | change |
+|---|--:|--:|--:|
+| scored transcripts | 14,887 | 16,474 | +1,587 (+10.7%) |
+| reference ORF calls | 9,850 | 11,547 | +1,697 (**+17.2%**) |
+| model predictions (preddepth, mamba4) | 10,112 | 11,768 | +1,656 |
+
+Better RNA-seq reveals **17% more real ORFs** while adding only 10.7% more transcripts -- the
+transcripts a deeper poly(A) library rescues from below the TPM >= 1 cut are ORF-denser than average.
+The model keeps pace: +1,656 predictions against +1,697 new references. Arm c's F1 is NOT comparable
+to arm b's (the reference set changed with the universe), which the scorer prints as a separate block
+so the delta is not read as an effect size.
+
+### The two models converge once the RNA is good
+
+Full swap, a -> c, standalone arm:
+
+| model | F1 | non-canonical F1 |
+|---|---|---|
+| attn | 0.898 -> 0.907 (+0.009) | 0.497 -> **0.520** (+0.023) |
+| mamba4 | 0.893 -> 0.908 (+0.015) | 0.468 -> **0.520** (+0.052) |
+
+Both land on the same non-canonical F1 to three decimals, having started 0.029 apart. On this axis
+**RNA quality is a larger lever than the architecture choice**, and mamba4's larger gain is recovery,
+not superiority. This is worth stating next to decision D1b, whose own caveat is that mamba4's
+profile-Pearson edge does not carry into downstream tasks: here neither model's identity survives a
+change of RNA-seq.
+
+### Practical reading
+
+- If the goal is non-canonical discovery, spend effort on the RNA-seq library before the architecture:
+  paired poly(A) at depth adds 17% more findable ORFs and +0.023 to +0.052 non-canonical F1.
+- The gain arrives mostly through the UNIVERSE (what is scoreable at all), not through the coverage
+  track the model reads. A cheaper library that still clears TPM >= 1 on the same transcripts would
+  capture most of the coverage-path benefit, which is small.
+- Do not expect better RNA-seq to improve the predicted profile SHAPE. It does not, and B6 explains
+  why.
+
+## Tasks 62 and 64: the immunopeptidome panel is closed at 5, and the main figures are assembled (2026-08-09)
+
+### Task 62 SUPERSEDED at 5 of 6 datasets
+
+Closed by user instruction rather than completed. Locked decision D2 asked for 6 immunopeptidome
+datasets; **5 were delivered** (A549 tryptic, plus HBL-1 / SU-DHL-4 / DoHH2 / THP-1 HLA-I), all on the
+released models with frozen search parameters. Five is enough for the Fig 2a forest plot to demonstrate
+a reproducible pattern rather than a one-off: 5 datasets x 2 models x 2 arms = 20 points, every one
+above 1.0, median 93.6x.
+
+The two not delivered are blocked on **data availability, not effort**, and both were checked:
+
+- **B721.221 MS** -- MassIVE FTP port 21 is filtered from prism; three unblock routes are recorded in
+  DATA_PROVENANCE.md. B721 is not wasted: it supplies the drop-in GROUND-TRUTH check (F1 0.666 = 75% of
+  the 0.889 split-half reproducibility ceiling), which is the more valuable use of that dataset anyway,
+  since it is the only place in the project where predicted ORF calls meet measured ones.
+- **A mouse immunopeptidome** -- candidates rejected 2026-08-07: PXD008733 (Schuster murine tissue map)
+  has 39 raw files but NO matched RNA-seq; Rospo CT26 MMRd has ENA RNA-seq but NO raw MS accession.
+  Matched RNA-seq is non-negotiable because it IS the model input.
+
+**Consequence, and it must be stated in the manuscript rather than left implicit:** Figure 2 has no
+cross-species MS arm. FIGURES_PLAN always listed that as a stretch goal. The cross-species claim rests
+on Ribo-seq -- the mouse Wang / Janich / GSE243134 drop-ins -- and not on mass spectrometry.
+
+### Task 64: main figures assembled
+
+`figures/main/make_main_figures.py` composites the per-panel PDFs vector-preserving (pypdf; panels are
+placed as scaled PDF pages, not re-rastered) and writes a manifest naming every source panel and its
+mtime. Layout is a data structure, so re-specifying a figure is a one-list edit.
+
+- **Figure 1 (validity)**, 7.20 x 10.19 in, 5 panels: (a) observed-vs-predicted profile exemplars,
+  (b) drop-in ORF calling F1 0.913, (c) localization AUROC vs the observed Ribo-seq ceiling, (d) depth
+  crossover, (e) 9-fold LOTO spread.
+- **Figure 2 (utility)**, 7.20 x 8.67 in, 3 panels: (a) discovery-density forest across 5 datasets,
+  (b) model vs CPAT/CPC2 split by assay, (c) DB-design tradeoff.
+
+Deviations from the plan, all deliberate: the plan's Fig 1d ("one-hot ~= token-emb") is omitted because
+no standalone panel was ever built for it and its plan numbers are pre-union; A2 takes that slot. Fig 2
+has no D14 highlighted-PSM panel, which was gated behind task 62.
+
+Five known limitations are written into `figures/main/FIGURE_DATA_INPUTS.md` rather than left for a
+reader to discover -- the most important being that **panel 1e is still on the pre-union recipe** (no
+union 9-fold exists; building one is nine retrains) and that **Figure 1 at 10.2 in exceeds one printed
+page**, so either the format grows or a panel moves to supplemental. That is a layout decision, not a
+data one, and is left open.
+
+While assembling, one more instance of the D1b problem surfaced and was fixed: `prediction_examples`
+(panel 1a) was still on attn. It only READS the dump, so switching it to mamba4 needed no GPU despite
+mamba4 inference requiring CUDA. It now takes `FIG_MODEL` like the other four.
+
+## Mouse-liver 3x3 factorial (COMPLETE, 2026-08-10)
+
+3 Ribo-seq datasets x 3 RNA-seq inputs x 2 models, all pooled from BAMs through ONE pipeline onto one
+shared universe (22,974 tx). 18/18 cells, both prediction arms each. Genomic keying
+(gene_id, ORF_gstop), `compare_dropin_calls.build_loader` filtering. Tables:
+`results/mouse_liver_3x3/scored/`.
+
+Observed call sets (post-filter): janich 12,804 | gse243134 13,145 | wang 12,104.
+
+**Construction self-check PASSES.** `real` calls are identical across each Ribo row whatever RNA sat
+in the pack, and `pred_preddepth` is identical down each RNA column. Both follow from the design and
+are asserted, not assumed.
+
+### A. Ribo-vs-Ribo ceiling (no model involved)
+
+| reference | compared | precision | recall | F1 all-class | F1 annotated |
+|---|---|---|---|---|---|
+| janich | gse243134 | 0.941 | 0.966 | 0.954 | 0.995 |
+| janich | wang | 0.971 | 0.918 | 0.944 | 0.993 |
+| gse243134 | wang | 0.975 | 0.898 | 0.935 | 0.992 |
+
+Two real experiments agree at F1 0.935-0.954 all-class but 0.992-0.995 on annotated ORFs. Essentially
+all cross-experiment disagreement is in non-canonical ORFs.
+
+### B. Model vs observed (n=18 cells per arm)
+
+| arm | F1 all-class | F1 annotated |
+|---|---|---|
+| pred_obsdepth (predicted shape, reference depth) | 0.895-0.926 | 0.984-0.992 |
+| pred_preddepth (standalone, no Ribo-seq at inference) | 0.864-0.880 | 0.974-0.987 |
+
+On annotated ORFs the model sits at the experimental ceiling (0.984-0.992 vs 0.992-0.995). The fully
+standalone arm is within ~0.02 of two real experiments agreeing with each other. Arm structure is
+consistent throughout: obsdepth precision-heavy (P~0.93 / R~0.89), preddepth recall-heavy
+(P~0.85 / R~0.90) -- the documented standalone over-calling.
+
+### C. Does matching the RNA input to the Ribo dataset help? No.
+
+Mean delta **+0.0030 F1**, range **-0.0057 to +0.0079**, positive in 10 of 12 rows, every
+|delta| < 0.008. Negative for mamba4/Wang in both arms.
+
+| model | ribo reference | arm | F1 matched | F1 mismatched (mean) | delta |
+|---|---|---|---|---|---|
+| mamba4 | gse243134 | pred_obsdepth | 0.9126 | 0.9047 | +0.0079 |
+| mamba4 | janich | pred_obsdepth | 0.9194 | 0.9128 | +0.0066 |
+| attn | gse243134 | pred_obsdepth | 0.9054 | 0.9002 | +0.0053 |
+| attn | janich | pred_obsdepth | 0.9106 | 0.9070 | +0.0037 |
+| attn | wang | pred_obsdepth | 0.9173 | 0.9153 | +0.0020 |
+| mamba4 | wang | pred_obsdepth | 0.9189 | 0.9246 | **-0.0057** |
+
+Substituting an unrelated experiment's RNA-seq costs essentially nothing. This reproduces Task 68's
+coverage-path finding (+0.001-0.010 F1) across three independent experiments on a shared universe,
+which is much harder to attribute to one unlucky pairing.
+
+The one real RNA effect is input QUALITY, not matching (mean F1 obsdepth over refs and models):
+
+| RNA input | n samples | mean F1 |
+|---|---|---|
+| janich | 7 | 0.9148 |
+| gse243134 | 19 | 0.9143 |
+| wang | 2 | 0.9064 |
+
+Wang's 2-sample RNA costs ~0.008 F1 against any reference. Depth past ~7 samples buys nothing
+(19-sample GSE243134 does not beat 7-sample Janich).
+
+### Limitation
+
+metaplots re-derives periodic read lengths per sample, so the rebuilt Janich pack differs ~1.7% from
+its historical one. These nine cells are internally consistent but NOT comparable to pre-2026-08-10
+Janich numbers, which are archived at `results/_archive_pre_2026_08_10_janich_pack/`.

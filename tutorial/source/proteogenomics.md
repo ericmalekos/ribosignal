@@ -48,10 +48,68 @@ expressed universe as the model arm (TPM >= 1, protein_coding + lncRNA, no chrM,
 * - `db_null_nc`
   - 2,512,388
   - every ATG-or-near-cognate ORF -- the naive non-AUG pipeline
+* - `db_cpat` / `db_cpc2`
+  - 7.6k-21k
+  - the `null_atg` pool filtered by a coding-potential classifier
 ```
 
 `db_null_atg` is a strict subset of `db_null_nc`, so the increment between them is exactly the cost of naive
 non-AUG enumeration. Numbers are BMDM, mouse, `mamba4` union model.
+
+### The coding-potential arms are what make the selection rule falsifiable
+
+Beating `null_atg` only establishes "better than enumerating everything". CPAT and CPC2 are the standard
+sequence-only coding-potential selectors, and they shrink the search space by the *same order of magnitude* as
+the model using sequence composition alone -- no RNA-seq, no translation model. That makes them the honest
+comparator.
+
+`pgx/coding_potential.py` enumerates from **exactly** the `null_atg` pool (same universe, start codons,
+minimum length, and the `or prot in canon_seqs` clause), then applies each tool's own default human
+classifier. So the arms differ only in *which* ORFs are kept. That equality is pinned by
+`tests/test_invariants.py::test_coding_potential_pool_matches_null_arm` -- without it a silent drift would
+turn a selection-rule comparison into a pipeline comparison, with no error raised.
+
+**The result splits by assay, and the split is the finding.** Novel peptides at 1% class-specific FDR:
+
+| dataset | substrate | CPAT | CPC2 | model $\theta$=1 | model Poisson |
+|---|---|--:|--:|--:|--:|
+| A549 | tryptic | **25** | 23 | 9 | 11 |
+| HBL-1 | HLA-I | 3 | 10 | 8 | **14** |
+| SU-DHL-4 | HLA-I | 7 | 14 | **22** | 10 |
+| DoHH2 | HLA-I | 4 | 8 | **32** | 14 |
+
+CPAT/CPC2 win the tryptic whole proteome; the model wins all three HLA-I immunopeptidomes. The mechanism is
+visible in what each keeps: coding-potential tools score a *transcript's* composition, so they retain long,
+codon-biased, ORF-like sequences -- exactly what a tryptic digest samples well, and the least novel population
+available. The model scores *per-nucleotide translation* from the sample's own RNA-seq, so it retains short,
+non-canonical ORFs that are translated in **this** cell type, which is what HLA-I presentation samples.
+
+```{admonition} Where the cell-type specificity actually comes from
+:class: important
+The input ablation (Task 61) measured this rather than assuming it, and the answer is narrower than
+"the model is cell-type-specific". Zeroing the RNA-seq channel and retraining the deployed recipe
+costs almost nothing in profile SHAPE -- sequence alone recovers 98.5% of it (pc profile Pearson
+0.6601 of 0.6699) -- but costs a lot in MAGNITUDE: count Pearson falls 0.8990 to 0.7063.
+
+So the specificity runs through the **count head**. A transcript not expressed in the query cell type
+gets low predicted depth, fails the caller's significance test, and never enters the database. That is
+a real cell-type-specific mechanism for deciding *which* ORFs are called, and it is what this
+comparison rests on. It is not a claim that the predicted profile shape differs between cell types --
+it largely does not, and that should not be written anywhere.
+```
+
+```{figure} /img/B6_input_ablation/B6_input_ablation.png
+:alt: Input-modality ablation on the deployed recipe
+:width: 100%
+
+Retraining the deployed recipe with one input zeroed. **Left:** zeroing RNA-seq costs almost nothing
+in profile shape (0.660 of 0.670, 98.5%), and RNA-seq alone cannot produce a shape at all (0.123).
+**Right:** the count head loses 0.193 Pearson without RNA-seq, and RNA-seq alone (0.808) beats
+sequence alone (0.706) at per-transcript depth. Generator `figures/B6_input_ablation/`.
+```
+
+Figure `figures/D12_cpat_cpc2/`. Caveat: single-digit to low-double-digit counts throughout; the direction is
+consistent across three independent immunopeptidomes but no single dataset carries the claim.
 
 ## Why the ORF caller, and not a score threshold
 
@@ -142,19 +200,69 @@ the 236 that RiboCode labelled: its most-5'-start choice is unsupported roughly 
 
 A class-specific FDR on the canonical side is confounded: a large novel space cannibalises canonical
 **decoys** faster than canonical targets, deflating the estimate until a junk database appears to *gain*
-canonical identifications. A global FDR on the novel side inflates non-canonical discovery ~10-13x. Raw rank-1
-counts are never reported -- they measure spectra *absorbed*, which scales with database size.
+canonical identifications. Raw rank-1 counts are never reported -- they measure spectra *absorbed*, which
+scales with database size.
+
+```{admonition} A global cut does not merely inflate the novel class -- it fails in BOTH directions
+:class: important
+The project carried "a global FDR inflates non-canonical discovery ~10x" as a rule of thumb for a long time.
+Measured directly on the four shipped searches, it is only half right, and which way it errs depends on how
+much of the search the **canonical** class occupies:
+
+| dataset | digestion | canonical peptides | global / class-specific novel |
+|---|---|--:|--:|
+| A549 | tryptic, TMT | 65,405 | **37.5x over-report** |
+| HBL-1 | nonspecific, HLA-I | 2,429 | 0.6x to 2.3x |
+| SU-DHL-4 | nonspecific, HLA-I | 813 | 0.4x to 1.0x |
+| DoHH2 | nonspecific, HLA-I | 1,507 | **0.2x under-report** |
+
+On A549 the canonical class is numerous and high-scoring, so it drags the global cut down to hyperscore 19.5
+-- inside the novel **decoy** bulk (the class-specific cut is 30.3). In the immunopeptidomes the canonical
+class is too sparse to dominate, the global cut lands *stricter*, and real identifications are discarded.
+
+Database size does **not** predict the error: the four `null_atg` arms span 242k-369k novel sequences and give
+37.5x / 1.9x / 0.8x / 2.2x. Canonical-class size does. So a global cut is not conservative-by-default here; it
+is uncontrolled, and no direction of bias can be assumed. Figure: `figures/S_fdr_rigor/`.
+```
 
 **No double counting.** MSFragger reports every protein containing a peptide, so a peptide occurring in any
 GENCODE protein is counted as canonical, never novel. This is not rare: 3,489 of 191,358 BMDM rank-1 PSMs map
 to both a novel ORF and a GENCODE protein.
 
-```{admonition} MSFragger delimits `proteins` with `;`, not `,`
+```{admonition} MSFragger delimits the protein list with a semicolon, not a comma
 :class: warning
 Splitting on the wrong character collapses the protein list into a single token. The classification then
 survives only because MSFragger happens to list the canonical protein first -- correct by luck, not by
 construction. `pgx.report` splits on both.
 ```
+
+## Is the advantage reproducible, or one lucky dataset?
+
+The single-dataset version of this result was the weakest part of the story. It is now **5 datasets x 2
+released models x 2 threshold arms = 20 points, every one above 1.0**, median **93.6x**, range 10.7x to
+2,744x.
+
+```{figure} /img/F2b_discovery_forest/F2b_discovery_forest.png
+:width: 100%
+
+Discovery-density ratio, model / naive AUG null. Every point favours the model. The Poisson arm leads
+$\theta$=1 in every dataset -- the calibration result restated on a fifth independent axis.
+```
+
+The metric is a **rate ratio, not a count**, and that choice is load-bearing. On raw count the unselected null
+actually *wins* HBL-1 (20 vs 14) and SU-DHL-4 (28 vs 22) -- while carrying 25x to 180x more sequences and
+paying a canonical-ID cost the model arms do not. Density asks the question that matters for search-space
+selection: per sequence you commit to searching, how much do you find?
+
+Two honest notes for reading the figure:
+
+- **THP-1's 2,744x should not anchor the claim.** Its null found a single novel peptide from 301,855
+  sequences, so the denominator is one count away from undefined. THP-1 also has the strictest FDR cut in the
+  panel (23.5 vs 17.4-18.2), because a fast-scanning Orbitrap Fusion produced many marginal MS2 spectra that
+  generate decoy hits. Quote the median.
+- **No error bars, deliberately.** These are single-search point estimates, not replicated measurements. The
+  honest uncertainty statement is the peptide count printed beside each point (7 to 16). A Poisson interval on
+  those counts would imply a replication structure that does not exist.
 
 ## Result: a bigger database destroys discovery it contains
 

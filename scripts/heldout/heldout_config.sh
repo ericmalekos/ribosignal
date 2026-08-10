@@ -29,7 +29,7 @@ case "${DATASET:?set DATASET}" in
     RNA_SRRS="SRR5262874 SRR5262875"  # 2 P42 liver mRNAseq (SE); re-fetch via download (deleted earlier)
     ADAPTER_MODE=truseq       # raw TruSeq: -a AGATCGGAAGAGC, footprint 20-40 nt
     STAR_INDEX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_grcm39_vM38
-    ANNOT="$ECH/data/ribocode_annot_mouse"
+    ANNOT="/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot"
     NCRNA_TX="$ECH/data/phase31/mouse_ncrna_tx.txt"
     TX_TO_GENE="$NEW/data/heldout_refs/mouse_tx_to_gene.tsv"
     ;;
@@ -40,7 +40,7 @@ case "${DATASET:?set DATASET}" in
     RNA_SRRS="SRR7956038 SRR7956039 SRR7956040"       # BMDM WT/NT RNA-seq rep1-3 (PE)
     ADAPTER_MODE=truseq       # raw TruSeq: -a AGATCGGAAGAGC, footprint 20-40 nt (97.7% adapter-bearing)
     STAR_INDEX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_grcm39_vM38
-    ANNOT="$ECH/data/ribocode_annot_mouse"
+    ANNOT="/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot"
     NCRNA_TX="$ECH/data/phase31/mouse_ncrna_tx.txt"
     TX_TO_GENE="$NEW/data/heldout_refs/mouse_tx_to_gene.tsv"
     ;;
@@ -51,7 +51,7 @@ case "${DATASET:?set DATASET}" in
     RNA_SRRS="SRR7956041 SRR7956042"                  # BMDM LPS RNA-seq rep1,2 (PE; rep3 SRR7956043 dropped, md5-flaky, 2 reps pool fine)
     ADAPTER_MODE=truseq
     STAR_INDEX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_grcm39_vM38
-    ANNOT="$ECH/data/ribocode_annot_mouse"
+    ANNOT="/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot"
     NCRNA_TX="$ECH/data/phase31/mouse_ncrna_tx.txt"
     TX_TO_GENE="$NEW/data/heldout_refs/mouse_tx_to_gene.tsv"
     ;;
@@ -62,7 +62,7 @@ case "${DATASET:?set DATASET}" in
     RNA_SRRS="SRR12318320 SRR12318321 SRR12318322"                            # WT/control mRNA Ctrl 1-3 (SE)
     ADAPTER_MODE=truseq       # raw TruSeq: -a AGATCGGAAGAGC, footprint 20-40 nt (97.8% adapter-bearing, confirmed)
     STAR_INDEX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_grcm39_vM38
-    ANNOT="$ECH/data/ribocode_annot_mouse"
+    ANNOT="/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot"
     NCRNA_TX="$ECH/data/phase31/mouse_ncrna_tx.txt"
     TX_TO_GENE="$NEW/data/heldout_refs/mouse_tx_to_gene.tsv"
     ;;

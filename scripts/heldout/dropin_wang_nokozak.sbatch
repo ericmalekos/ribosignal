@@ -17,5 +17,5 @@ OUT=$NEW/results/o2_liver/wang_nokozak/dropin; mkdir -p "$OUT"
 export PYTHONNOUSERSITE=1
 "$PY" "$NEW/scripts/ribocode_dropin.py" \
   --profiles "$NEW/results/o2_liver/wang_nokozak/pred_profiles.npz" \
-  --annot "$ECH/data/ribocode_annot_mouse" --variant "$V" --out "$OUT" --min_aa 5 --pval 0.05
+  --annot "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot" --variant "$V" --out "$OUT" --min_aa 5 --pval 0.05
 echo "wang dropin $V -> $OUT/${V}_collapsed.txt"

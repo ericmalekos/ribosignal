@@ -1,0 +1,7 @@
+arm	threshold	orf_class	tx_space	n_tx_in_space	wang_only	janich_only	model_only	wang_janich	wang_model	janich_model	all_three	wang_total	janich_total	model_total	single_experiment_orfs	model_recovers_of_those
+wang	calib	annotated	INTERSECTION of TPM>=1	8632	403	251	719	488	181	374	3742	4814	4855	5016	1209	555
+wang	calib	uORF	INTERSECTION of TPM>=1	8632	87	260	504	186	36	184	323	632	953	1047	567	220
+wang	calib	novel	INTERSECTION of TPM>=1	8632	39	67	337	62	11	30	40	152	199	418	147	41
+wang	calib	annotated	UNION of TPM>=1	17209	684	439	1126	722	294	659	5254	6954	7074	7333	2076	953
+wang	calib	uORF	UNION of TPM>=1	17209	155	416	802	294	50	301	471	970	1482	1624	922	351
+wang	calib	novel	UNION of TPM>=1	17209	104	181	1533	126	29	84	98	357	489	1744	398	113

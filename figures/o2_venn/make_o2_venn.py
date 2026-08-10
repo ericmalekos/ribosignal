@@ -134,6 +134,9 @@ def main():
                 print(f"  skip {arm}/{op}: {path.name} not present yet", file=sys.stderr)
                 continue
             mo = load(path)
+            # Per-region set sizes for the whole 2x3 grid, written beside the figure. A Venn is the
+            # least readable place to recover a number from, so the seven regions are tabulated.
+            venn_rows = []
             fig, axes = plt.subplots(2, 3, figsize=(11.4, 8.0), facecolor="white")
             fig.suptitle(f"Wang vs Janich vs {cfg['label']}   |   {key}",
                          fontsize=11.5, fontweight="bold", y=0.985)
@@ -147,6 +150,15 @@ def main():
                     venn3(axes[r][c], A, B, C,
                           ["Wang obs", "Janich obs", "model"], [C_W, C_J, C_M],
                           f"{cname}  --  {sp_lab}", sub)
+                    venn_rows.append({
+                        "arm": arm, "threshold": op, "orf_class": cls, "tx_space": sp_lab,
+                        "n_tx_in_space": len(keep),
+                        "wang_only": len(A - B - C), "janich_only": len(B - A - C),
+                        "model_only": len(C - A - B), "wang_janich": len((A & B) - C),
+                        "wang_model": len((A & C) - B), "janich_model": len((B & C) - A),
+                        "all_three": len(A & B & C),
+                        "wang_total": len(A), "janich_total": len(B), "model_total": len(C),
+                        "single_experiment_orfs": tot1, "model_recovers_of_those": only1})
                 axes[r][0].text(-0.13, 0.5, f"{sp_lab}\n({len(keep):,} tx)", rotation=90,
                                 ha="center", va="center", fontsize=8, fontweight="bold",
                                 color="#33415C", transform=axes[r][0].transAxes)
@@ -160,7 +172,12 @@ def main():
             for ext in ("pdf", "png"):
                 fig.savefig(HERE / f"{name}.{ext}", dpi=300, bbox_inches="tight")
             plt.close(fig)
-            print(f"  wrote {name}.pdf / .png", file=sys.stderr)
+            cols = list(venn_rows[0]) if venn_rows else []
+            with open(HERE / f"{name}.tsv", "w") as fh:
+                fh.write("\t".join(cols) + "\n")
+                for row in venn_rows:
+                    fh.write("\t".join(str(row[c]) for c in cols) + "\n")
+            print(f"  wrote {name}.pdf / .png / .tsv ({len(venn_rows)} regions)", file=sys.stderr)
 
 
 if __name__ == "__main__":

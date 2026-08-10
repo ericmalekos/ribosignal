@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import os
 
 import matplotlib
 
@@ -23,7 +24,15 @@ from matplotlib.patches import Patch  # noqa: E402
 NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model")
 ECH = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/"
            "expression_context_human")
-NPZ = NEW / "results/loto/orf_v2_attn_onehot_holdout_Hepatocytes/dropin/pred_profiles.npz"
+# Default mamba4 per locked decision D1b: main Figure 1 is orf_v2_mamba4, attn is supplemental
+# (and remains the shipped CPU inference path). This only READS the dump, so no GPU is needed
+# even though mamba4 inference itself requires CUDA. FIG_MODEL=attn builds the supplemental one.
+MODEL = os.environ.get("FIG_MODEL", "mamba4")
+if MODEL not in ("mamba4", "attn"):
+    raise SystemExit(f"FIG_MODEL={MODEL!r}; want 'mamba4' (main, per D1b) or 'attn'")
+SUF = "" if MODEL == "mamba4" else f"_{MODEL}"
+NPZ = (NEW / f"results/loto/orf_v2_{MODEL}_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes"
+       / "dropin/pred_profiles.npz")
 CALLS = ECH / "data/ribocode_per_tissue/Hepatocytes/Hepatocytes_collapsed.txt"
 OBS_C = "#1f77b4"
 PRED_C = "#d62728"
@@ -229,7 +238,8 @@ def main():
     ap.add_argument("--auto", action="store_true",
                     help="re-select the best uORF / CDS / lncRNA exemplar for THIS dump")
     ap.add_argument("--title", default=None, help="override the figure suptitle")
-    ap.add_argument("--out", default=str(NEW / "figures/prediction_examples/prediction_examples.png"))
+    ap.add_argument("--out", default=str(
+        NEW / f"figures/prediction_examples/prediction_examples{SUF}.png"))
     args = ap.parse_args()
 
     z = np.load(args.npz, allow_pickle=False)
@@ -256,6 +266,19 @@ def main():
         p = pred[off[j]:off[j + 1]].astype(np.float64)
         c = obs[off[j]:off[j + 1]].astype(np.float64)
         return p, c, c / c.sum()
+
+    # Per-nt dump of exactly what gets drawn. The figures are restyled in other tools and a PDF is
+    # not a data source; this is the same contract as every other figure's values file.
+    tsv_rows = []
+
+    def collect(kind, tx, p, c, ra, rb, zlo, zhi):
+        gn = bio[tx][0] if tx in bio else "NA"
+        q = c / c.sum() if c.sum() else c
+        pn = p / p.sum() if p.sum() else p
+        for i in range(len(c)):
+            tsv_rows.append((kind, tx, gn, i, int(ra <= i < rb), int(zlo <= i < zhi),
+                             int((i - ra) % 3) if ra <= i < rb else -1,
+                             int(c[i]), float(p[i]), float(q[i]), float(pn[i])))
 
     def draw(ax, lo, hi, p, q, title, xlab=True):
         x = np.arange(lo, hi)
@@ -308,6 +331,7 @@ def main():
         ax.axvline(ua, color="#b36b00", ls="--", lw=0.9)
     if uz0 < ue <= uz1:
         ax.axvline(ue, color="#b36b00", ls=":", lw=0.9)
+    collect("uORF", tx, p, c, ua, ue, uz0, uz1)
 
     # ---- Row 2: CDS (RPL32) ----
     tx = args.cds_tx; p, c, q = get(tx); gn = bio[tx][0]
@@ -323,6 +347,7 @@ def main():
     zlo, zhi = best_zoom(c, cds0, cds1)
     draw_periodicity(axes[1, 1], zlo, zhi, p, q, cds0,
                      f"CDS zoom [{zlo}, {zhi}) -- predicted P-sites colored by frame", xlab=False)
+    collect("CDS", tx, p, c, cds0, cds1, zlo, zhi)
 
     # ---- Row 3: lncRNA (LINC02693) ----
     tx = args.lnc_tx; p, c, q = get(tx); gn = bio[tx][0]
@@ -338,9 +363,10 @@ def main():
     zlo, zhi = best_zoom(c, oa, oe)
     draw_periodicity(axes[2, 1], zlo, zhi, p, q, oa,
                      f"ORF zoom [{zlo}, {zhi}) -- predicted P-sites colored by frame")
+    collect("lncRNA", tx, p, c, oa, oe, zlo, zhi)
 
     fig.suptitle(args.title or ("Observed vs predicted Ribo-seq P-site profile -- held-out "
-                                "Hepatocytes (one-hot orf_v2_attn, tissue never seen in training)"),
+                                f"Hepatocytes (one-hot orf_v2_{MODEL}, tissue never seen in training)"),
                  fontsize=11, y=1.0)
     fig.tight_layout(rect=(0, 0, 1, 0.985))
     out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
@@ -351,6 +377,14 @@ def main():
     if pdf != out:
         fig.savefig(pdf, bbox_inches="tight")
         print(f"wrote {pdf}")
+    tsv = out.with_suffix(".tsv")
+    cols = ["panel", "tx_id", "gene", "position_nt", "in_region", "in_zoom_window",
+            "frame_rel_region", "obs_psites", "pred_raw", "obs_frac", "pred_frac"]
+    with open(tsv, "w") as fh:
+        fh.write("\t".join(cols) + "\n")
+        for r in tsv_rows:
+            fh.write("\t".join(f"{v:.8g}" if isinstance(v, float) else str(v) for v in r) + "\n")
+    print(f"wrote {tsv} ({len(tsv_rows):,} nt rows)")
 
 
 if __name__ == "__main__":

@@ -857,6 +857,20 @@ without retraining.
   cross-study 0.931, and the count-head resolution holds across species. This required fixing a
   hardcoded human tx->gene map in `compare_dropin_calls.py` (added `--tx2gene` + a loud 0-match guard;
   built `data/mouse_tx2biotype.tsv` from vM38 via the now-parameterized `build_tx2biotype.py --gtf/--out`).
+- **AMENDED 2026-08-08.** Everything in the bullet above was measured on
+  `orf_v2_*_onehot_holdout_Hepatocytes`, not on the shipping union models, and the staleness was
+  invisible because run directories are named for the DATASET rather than the CHECKPOINT. Re-dumped both
+  released models over Ruiz-Orera and three mouse-liver studies and re-scored identically. The
+  `pred_obsdepth` (shape) numbers survive: Ruiz-Orera 0.929/0.934, Wang 0.923/0.927 for attn/mamba4,
+  against 0.931 and 0.929 before. The **`pred_preddepth` (standalone) numbers do not**: Ruiz-Orera
+  0.876/0.880 and Wang 0.867/0.867, against 0.930 and 0.919. The obsdepth-to-preddepth gap is therefore
+  NOT ~0; it is -0.024 to -0.062. The loss is pure precision (Ruiz-Orera 0.942 -> 0.832) with recall
+  unchanged or higher, i.e. the count head over-calls on the 84,472-tx union universe. The count-head
+  transferability *decision* stands -- the head still transfers across study and species without a TE
+  refactor -- but the Ribo-seq-free Poisson calibration is load-bearing for the standalone arm rather
+  than an optional refinement. Two consequences for method text elsewhere: quote standalone numbers only
+  with the calibration arm stated, and read per-dataset numbers from the generated tutorial pages
+  (`tutorial/make_heldout_{human,mouse}.py`), which print the source checkpoint next to every row.
 - **Input-modality ablation** (results.md Task 17A), Hepatocytes hold-out, converged held-out test-set
   medians. `--input_mode` in {both, emb (sequence-only), cov (RNA-seq-only)}. Confirms the dual-head
   design premise measured cross-tissue for the first time: sequence-only recovers 91% of the
@@ -864,6 +878,17 @@ without retraining.
   (+0.471 vs +0.391), while RNA-seq-only collapses to 0.122 with periodicity destroyed (-0.011). So
   the profile SHAPE (and all periodicity) is sequence-borne; RNA-seq supplies MAGNITUDE (via the count
   head) plus a +0.060 whole-transcript-envelope lift on top of sequence.
+- **Repeated on the DEPLOYED union recipe** (results.md Task 61, 2026-08-08), because the numbers above
+  are from the pre-union recipe and the claim they support is load-bearing for the proteogenomics
+  argument. `scripts/train_union_inputablation.sbatch` clones `train_loto_union.sbatch` and changes only
+  `--input_mode`; the `both` arm is the deployed run itself, so the contrast carries no extra seed noise.
+  The dissociation reproduces and SHARPENS: sequence-only now recovers **98.5%** of the pc profile
+  Pearson (0.6601 of 0.6699, was 91%), periodicity again sharpens without RNA-seq (0.3704 vs 0.3359),
+  RNA-seq-only still collapses to 0.1226 with periodicity destroyed (-0.0155), and the count head loses
+  **-0.193** Pearson (0.8990 -> 0.7063) when RNA-seq is removed. Consequence for how the claim is
+  worded: the model's cell-type specificity runs through the COUNT HEAD (which ORFs clear the caller's
+  depth threshold), not through the profile shape, which is nearly cell-type-invariant. Quote -0.193,
+  never a shape number, when supporting a cell-type-specificity claim.
 - **Capacity ablation** (results.md Task 17B). Neither deeper (4 attn layers: pc Pearson 0.603) nor
   wider (ch 384: 0.633) beats the baseline (0.639); deeper HURTS whole-tx Pearson while sharpening
   periodicity (+0.430). The 2-attn/256-ch body is at the capacity sweet spot for whole-tx shape. (This
@@ -1455,3 +1480,57 @@ the enumerator emits AUG only. The column is COMPUTED rather than hard-coded so 
 automatically once that lands.
 
 Reference impl: `proteogenomics/scripts/proteomics_table.py --tag --reuse-tag --out`.
+
+## 5S. RNA-quality factorial: separating the two paths RNA-seq takes into the model (Task 68, 2026-08-08)
+
+**Motivation.** Every mouse-liver arm in the project varies RNA-seq and Ribo-seq together, so "better
+RNA" has never been separated from "different experiment". RNA-seq enters the model along two distinct
+paths, and they can be varied independently:
+
+1. **UNIVERSE** -- salmon TPM >= 1 decides which transcripts exist at all.
+2. **COVERAGE** -- the per-nt RNA depth track the model consumes as an input channel.
+
+**Design.** Ribo-seq is held FIXED across all three arms: the same 5 Janich P-site hd5, read out of arm
+a's `provenance.json` rather than re-listed, so the arms cannot drift apart through a typo.
+
+| arm | universe | coverage | pack |
+|---|---|---|---|
+| a | Janich-decontaminated (14,887 tx) | Janich | `data/packed_heldout_mouse_janich_liver_decon` (pre-existing) |
+| b | Janich-decontaminated (14,887 tx) | PRJEB34766 | `data/packed_heldout_rnaq_b_uniJanich_cov34766` |
+| c | PRJEB34766 (16,474 tx) | PRJEB34766 | `data/packed_heldout_rnaq_c_uni34766_cov34766` |
+
+- **a vs b = the pure COVERAGE effect.** Arm b is built with `prepare_pack.py --ref-pack <arm a>`, so
+  `tx_order` and `lengths` are copied verbatim and arm a's `orf_track_v2_nokozak.npy` stays valid
+  (symlinked in). The job ASSERTS this rather than assuming it: tx_order equal, lengths equal,
+  `target_counts.npy` byte-identical (proving the Ribo arm really did stay fixed), and `coverage.npy`
+  NOT equal (proving the RNA swap really happened). Measured coverage mean 152.54 -> 842.90.
+- **b vs c = the pure UNIVERSE effect**, and it is NOT a like-for-like F1 comparison: arm c's reference
+  call set comes from RiboCode over a larger transcript space, so its F1 has a different denominator.
+  The scorer prints the two contrasts in separate blocks and says so, because reading a b-vs-c F1 delta
+  as an effect size is the obvious way to misuse this table.
+
+**Comparator choice.** Both existing mouse-liver RNA arms are SINGLE-end (Janich 50-51 nt, GSE243134
+75-80 nt). PRJEB34766 is PAIRED, `library_selection=PolyA` per ENA, 7 CreNeg control runs / 223 M
+pairs, C57BL/6 male adult liver taken from the ENA sample `strain` field rather than inferred from a
+filename -- matching the Ribo-seq strain. Verified on arrival: 90.6-92.4% salmon mapping, 81.1% STAR
+unique, top single transcript 4.3-5.0% of TPM (Janich before decontamination was 52-70%). It is a
+circadian study, so pooling the 7 controls averages over a rhythmic transcriptome; that is acceptable
+for a coverage track and is stated rather than hidden. CrePos/KO/WT runs are excluded because Reverba
+deletion perturbs the circadian liver transcriptome.
+
+**PRJEB86747 was rejected and deleted**, not merely unused. It was the depth extreme (481 M pairs,
+NovaSeq X) but carried two confounds fatal to an experiment whose entire purpose is isolating RNA
+quality: strain C3H/HeNRj against C57BL/6 Ribo-seq, and a mutation-accumulation design (Heredity 2025,
+doi 10.1038/s41437-025-00819-0, E-MTAB-14914) whose subject is between-line expression VARIANCE, so
+pooling replicates works against what the data was collected to show. "Better RNA" would have been
+inseparable from "different mouse".
+
+**Compute note.** mamba4 cannot run on CPU -- `mamba_ssm` dispatches to `causal_conv1d_cuda` and raises
+`Expected x.is_cuda() to be true` at the first block, with no CPU fallback in the installed build. The
+attn arms run either way, so when the gpu partition is saturated the attn dumps go to `medium` with
+`--export=ALL,DEVICE=cpu` and only the mamba4 dumps wait for a GPU. Same script both ways, so the two
+paths cannot drift; the script now aborts immediately on `mamba4 + DEVICE=cpu` rather than 15 s in.
+
+Reference impl: `scripts/rna_quality_factorial_packs.sbatch` (stage 1, packs),
+`scripts/rna_quality_factorial_dump.sbatch` (stage 2, dumps + 3 drop-in variants),
+`scripts/score_rna_quality_factorial.py` (stage 3, the two contrasts).

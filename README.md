@@ -40,6 +40,30 @@ drop-in calling, cross-study (human Ruiz-Orera) + cross-species (mouse Wang) tra
 posture-B multimap sensitivity check, the 3-seed architecture decision, and the macrophage
 proteogenomics application across 12 populations.
 
+Added 2026-08-08 (tasks 61, 63-68):
+
+- **Every held-out number re-measured on the shipping models.** The cross-study and cross-species
+  drop-in figures had been on a pre-nokozak / pre-mm1 / pre-union checkpoint, invisible because run
+  directories are named for the DATASET rather than the CHECKPOINT. The SHAPE claim survived
+  (`pred_obsdepth` within 0.006); the STANDALONE claim did not (`pred_preddepth` fell ~0.05, e.g.
+  Ruiz-Orera 0.930 -> 0.876/0.880). Per-dataset tables are generated with their source checkpoint
+  printed beside every row: `tutorial/make_heldout_{human,mouse}.py`.
+- **Both calling arms, on a Ribo-seq-FREE anchor** (`results/released_two_arm_orf_calls.json`, 16
+  rows). Poisson raises precision on all 8 dumps but improves F1 on only ONE of four datasets, and
+  halves non-canonical F1 every time. Report both arms; neither alone is honest.
+- **Task 61, the no-RNA-seq ablation, NARROWS the cell-type-specificity claim.** Sequence alone
+  recovers 98.5% of profile shape; the count head loses 0.193 Pearson without RNA-seq. Specificity is
+  in WHICH ORFs clear the depth threshold, not in the shape. Write "cell-type-specific translation",
+  cite -0.193, and never "cell-type-specific profile shape". Figure `figures/B6_input_ablation/`.
+- **Task 68, the RNA-quality factorial** (Ribo-seq held fixed, RNA-seq varied along its two paths):
+  the coverage path is worth only +0.001 to +0.010 F1, while the universe path adds **17% more real
+  ORFs**. Both models converge to the same non-canonical F1 (0.520) once the RNA is good, from 0.029
+  apart -- on this axis RNA quality outweighs the architecture choice.
+- **Figure audit.** Five of six Fig 1 panels were on the stale checkpoint AND on the wrong model
+  (locked decision D1b makes mamba4 the main Fig 1 model; the panels were all attn). A1/A2/B4/B5 now
+  take `FIG_MODEL`, default mamba4, and record the model in their values JSON. See
+  `figures/README.md` "Checkpoint provenance".
+
 Key decision from Task 20: the hand-picked Kozak start-context factor is redundant with what the
 sequence backbone learns, so the ORF-track default is `--kozak none`. Both shipped models are trained
 on the no-Kozak track; only the OLD deployed checkpoint retains the heuristic (train/inference match).

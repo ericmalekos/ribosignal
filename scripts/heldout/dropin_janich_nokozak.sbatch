@@ -13,4 +13,4 @@ PY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
 VARIANTS=(real pred_obsdepth pred_preddepth); V=${VARIANTS[$SLURM_ARRAY_TASK_ID]}
 OUT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/o2_liver/janich_nokozak/dropin; mkdir -p "$OUT"
 export PYTHONNOUSERSITE=1
-"$PY" /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/scripts/ribocode_dropin.py   --profiles /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/o2_liver/janich_nokozak/pred_profiles.npz   --annot $ECH/data/ribocode_annot_mouse --variant "$V" --out "$OUT" --min_aa 5 --pval 0.05
+"$PY" /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/scripts/ribocode_dropin.py   --profiles /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/o2_liver/janich_nokozak/pred_profiles.npz   --annot "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot" --variant "$V" --out "$OUT" --min_aa 5 --pval 0.05

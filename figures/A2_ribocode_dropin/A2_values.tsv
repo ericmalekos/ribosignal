@@ -1,0 +1,9 @@
+# A2_values.json -> WIDE (record table at 'recall_per_type', 7 rows)
+key	recovered	n_real	recall
+annotated	13182	13223	0.99689934
+uORF	869	1363	0.6375642
+Overlap_uORF	373	605	0.61652893
+dORF	13	148	0.087837838
+Overlap_dORF	16	51	0.31372549
+internal	40	237	0.16877637
+novel	560	702	0.7977208

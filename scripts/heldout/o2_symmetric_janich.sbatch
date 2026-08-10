@@ -60,7 +60,7 @@ export PYTHONNOUSERSITE=1
 mkdir -p "$OUT/dropin"
 for V in real pred_preddepth pred_obsdepth; do
   "$RIBOPY" "$NEW/scripts/ribocode_dropin.py" --profiles "$OUT/pred_profiles.npz" \
-    --annot "$ECH/data/ribocode_annot_mouse" --variant "$V" --out "$OUT/dropin" \
+    --annot "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot" --variant "$V" --out "$OUT/dropin" \
     --min_aa 5 --pval 0.05
 done
 

@@ -1,13 +1,26 @@
 #!/usr/bin/env python3
 """Figure A2: the model's PREDICTED per-nt profile, dropped into RiboCode in place of real Ribo-seq,
-reproduces RiboCode's OWN ORF calls at F1 ~0.92 -- i.e. the prediction is good enough to call ORFs with no
+reproduces RiboCode's OWN ORF calls at F1 ~0.91 -- i.e. the prediction is good enough to call ORFs with no
 Ribo-seq for the query. Panel a: precision / recall / F1 for the fully-predicted drop-in (predicted profile
 AND predicted depth = 'pred_preddepth_vs_real'), with the observed-depth variant for reference. Panel b:
 recall by ORF type. Reusable: reads dropin_metrics.json, regenerates if the model is retrained. cas12a env.
+
+CHECKPOINT (repointed 2026-08-08). This read `orf_v2_attn_onehot_holdout_Hepatocytes` -- the
+pre-nokozak / pre-mm1 / pre-union checkpoint -- while the project shipped the union models. Run
+directories are named for the DATASET, not the CHECKPOINT, so the staleness was invisible from the
+path. It surfaced only in a scan of every figure generator, which found five of the six Fig 1 panels
+in the same state. The panel now reads the released run, and asserts the checkpoint below rather than
+trusting the path: on release the number moved 0.923 -> 0.909.
+
+MODEL (2026-08-08). Defaults to **mamba4**, per locked decision D1b (2026-07-31): main Figure 1 is
+`orf_v2_mamba4`, with `orf_v2_attn` moving to supplemental but staying shipped as the CPU inference
+path. This panel had been on attn -- D1b was applied to the plan but never to the generators. Switch
+with `FIG_MODEL=attn` for the supplemental variant; the chosen model is written into the values JSON.
 """
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import matplotlib
@@ -18,12 +31,36 @@ import numpy as np
 NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/riboseq_signal_model")
 HERE = NEW / "figures/A2_ribocode_dropin"
-SRC = NEW / "results/loto/orf_v2_attn_onehot_holdout_Hepatocytes/dropin/dropin_metrics.json"
+MODEL = os.environ.get("FIG_MODEL", "mamba4")
+if MODEL not in ("mamba4", "attn"):
+    raise SystemExit(f"FIG_MODEL={MODEL!r}; want 'mamba4' (main, per D1b) or 'attn' (supplemental)")
+RUN = NEW / f"results/loto/orf_v2_{MODEL}_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes"
+SRC = RUN / "dropin/dropin_metrics.json"
+# The npz `meta` field is the only place the checkpoint identity actually lives. Assert it, so a
+# repointed-but-stale source fails loudly instead of producing a plausible number.
+RELEASED_TAG = "union_noBrain_nokozak_mm1"
+# The MAIN figure (mamba4, per D1b) keeps the plain filename; the supplemental attn variant gets
+# an "_attn" suffix. Without this the two share one path and whichever ran last silently wins --
+# which happened once already, with the attn build overwriting the mamba4 PDF.
+SUF = "" if MODEL == "mamba4" else f"_{MODEL}"
+
 MODEL_C, OBS_C = "#2C6FBB", "#88AED0"
 TYPE_ORDER = ["annotated", "uORF", "Overlap_uORF", "dORF", "Overlap_dORF", "internal", "novel"]
 
 
+def check_checkpoint():
+    npz = RUN / "dropin/pred_profiles.npz"
+    if not npz.exists():
+        raise SystemExit(f"no {npz} -- cannot verify the checkpoint this figure is built from")
+    meta = str(np.atleast_1d(np.load(npz, allow_pickle=True)["meta"])[0])
+    if RELEASED_TAG not in meta:
+        raise SystemExit(f"ABORT: {npz} came from '{meta}', which is not a released "
+                         f"({RELEASED_TAG}) checkpoint. Re-dump before rebuilding this figure.")
+    return meta
+
+
 def main():
+    print(f"checkpoint: {check_checkpoint()}")
     d = json.load(open(SRC))
     full = d["pred_preddepth_vs_real"]      # predicted profile + predicted depth (no Ribo-seq at all)
     obsd = d["pred_obsdepth_vs_real"]       # predicted profile, observed depth (reference)
@@ -63,8 +100,8 @@ def main():
                  fontsize=10, y=1.02)
     fig.tight_layout()
     for ext in ("pdf", "png"):
-        fig.savefig(HERE / f"A2_ribocode_dropin.{ext}", dpi=300, bbox_inches="tight")
-    (HERE / "A2_values.json").write_text(json.dumps(
+        fig.savefig(HERE / f"A2_ribocode_dropin{SUF}.{ext}", dpi=300, bbox_inches="tight")
+    (HERE / f"A2_values{SUF}.json").write_text(json.dumps(
         {"fully_predicted": {k: full[k] for k in ("precision", "recall", "f1")},
          "recall_per_type": {t: rpt[t] for t in types}}, indent=2) + "\n")
     print(f"wrote A2_ribocode_dropin.pdf/.png; fully-predicted F1={full['f1']:.3f} "

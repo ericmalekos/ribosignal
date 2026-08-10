@@ -1,0 +1,7 @@
+# D12_values.json -> WIDE (record table at 'datasets.A549.arms', 5 rows)
+model	key	novel_peptides	db_novel_seqs	per_1k	d_gencode_peptides
+mamba4	null_atg	10	368908	0.027107029	-2894
+mamba4	cpat	25	21450	1.1655012	-100
+mamba4	cpc2	23	20708	1.1106819	-145
+mamba4	model_standard	9	10312	0.87276959	-191
+mamba4	model_poisson	11	2404	4.5757072	0

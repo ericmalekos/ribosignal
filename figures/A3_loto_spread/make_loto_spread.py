@@ -13,6 +13,19 @@ predicted periodicity (period_pred) stays high everywhere, and the abundance/cou
 Panel (a): per-fold pc profile Pearson vs held-out period_obs, with the regression line and r.
 Panel (b): pc count Pearson (abundance transfer) across the 9 tissues -- high and even.
 
+CHECKPOINT (audited 2026-08-08, DELIBERATELY NOT REPOINTED). This is the one figure in the project
+still built on the pre-union recipe, and that is a decision rather than an oversight. The 9-fold LOTO
+sweep exists only as `results/loto_9fold/onehot_orf_v2_attn_holdout_<tissue>`; there is no union
+equivalent, and producing one means retraining nine models (12-17 GPU-hours each). Every other panel
+was moved to the released checkpoints, so this one must be LABELLED wherever it appears -- the caption
+should say "9-fold LOTO, pre-union Fibroblast-universe recipe" rather than silently sitting beside
+released-model panels.
+
+The claim it makes is about the SHAPE of the spread across folds (that it tracks held-out target
+periodicity at r=0.81, rather than being a generalization gradient), which is a property of the LOTO
+design and the data, not of the checkpoint. The absolute Pearson values ARE checkpoint-dependent and
+should not be quoted next to released-model numbers.
+
 Reusable: reads results/loto_9fold/*/{test_metrics,extra_metrics}.json. cas12a env.
 """
 from __future__ import annotations

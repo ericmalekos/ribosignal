@@ -14,7 +14,7 @@ BASE=/private/groups/carpenterlab/emalekos/RNAZoo_meta
 NEW=$BASE/RNAZoo/experiments/riboseq_signal_model
 ECH=$BASE/RNAZoo/experiments/biotype_probe/expression_context_human
 G=$NEW/proteogenomics/data/gse120762
-ANNOT=$ECH/data/ribocode_annot_mouse
+ANNOT="/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot"
 PY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
 mkdir -p "$NEW/logs/dropin"
 CONDS=(nt lps); VARIANTS=(real pred_obsdepth pred_preddepth)

@@ -34,8 +34,19 @@ Ribo-seq experiment where none exists.
 - **It works cross-tissue and cross-species.** The deployed model recovers canonical ORFs at **F1 ~0.94-0.97**
   and the non-canonical (uORF/novel/dORF) tail at F1 ~0.5, on a held-out human tissue *and* on mouse cell
   types it never saw (liver, BMDM, CD4+ T cells).
+- **It matches a real experiment where it counts, and the ceiling says how much that is worth.** Against
+  *measured* translation in the same cell line (B721.221, 327 M footprints, model never sees the Ribo-seq),
+  the standalone model reaches **75% of the assay's own split-half reproducibility ceiling** on F1 and 78% on
+  canonical recall. Non-canonical recall is 54% of ceiling -- and the ceiling itself is only **0.498**, because
+  two independent measurements of the same cells agree on barely half their non-canonical calls. Judge
+  non-canonical performance against ~0.5, never against 1.0.
 - **Sequence encoding: one-hot is enough.** Swapping the one-hot input for RNA foundation-model embeddings
   (RiNALMo, Orthrus, HydraRNA) gives **no lift** for ORF calling.
+- **The RNA-seq does not have to come from the same experiment.** A 3 Ribo-seq x 3 RNA-seq factorial on
+  mouse liver -- all nine cells pooled through one pipeline onto one shared universe -- finds that matching
+  the RNA input to the Ribo-seq reference is worth **+0.003 F1** on average, and is *negative* in 2 of 12
+  comparisons. What matters is RNA library quality, not provenance: a 2-sample RNA arm costs ~0.008 F1,
+  while 19 samples buy nothing over 7 ({doc}`data/heldout-mouse`).
 - **Two models ship: `mamba4` (primary) and `attn` (CPU-compatible).** Across 3 seeds on the broad universe,
   `mamba4` beats `attn` by **+0.021** held-out test Pearson (0.680 vs 0.659) with **non-overlapping** seed
   ranges, and wins **5/5** mouse datasets on cross-species CDS F1. But `mamba4` **cannot run on CPU**
@@ -80,6 +91,8 @@ model/architecture
 
 data/training-data
 data/test-sets
+data/heldout-human
+data/heldout-mouse
 ```
 
 ```{toctree}

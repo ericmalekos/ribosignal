@@ -102,7 +102,15 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     dst = os.path.join(OUT, "benchmark_comparison.png")
     fig.savefig(dst, dpi=150, bbox_inches="tight")
-    print(f"plot_benchmarks: wrote {dst} ({len(order)} models)")
+    # Plotted values as TSV alongside the image: the figures get restyled elsewhere and a PNG is not
+    # a data source. Same contract as every other figure in this project.
+    tsv = os.path.join(OUT, "benchmark_comparison.tsv")
+    cols = ["label", "uni", "nonc_f1", "novel_p", "pois_novel_p"]
+    with open(tsv, "w") as fh:
+        fh.write("\t".join(cols) + "\n")
+        for r in order:
+            fh.write("\t".join("" if r.get(c) is None else str(r.get(c)) for c in cols) + "\n")
+    print(f"plot_benchmarks: wrote {dst} ({len(order)} models) + {tsv}")
 
 
 if __name__ == "__main__":

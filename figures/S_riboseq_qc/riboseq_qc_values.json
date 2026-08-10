@@ -1,0 +1,280 @@
+{
+  "datasets": [
+    {
+      "label": "ES",
+      "role": "train",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_per_tissue/ES/ES_pre_config.txt",
+      "n_libraries": 6,
+      "mode_read_length": 28,
+      "mean_read_length": 28.113193305744254,
+      "f0_frac": 0.8596957973007366,
+      "f1_frac": 0.08487473198705847,
+      "f2_frac": 0.05542947071220491,
+      "psites_at_cds": 2184596,
+      "psite_offsets": [
+        6,
+        9,
+        12
+      ],
+      "offset_range": 6
+    },
+    {
+      "label": "VSMC",
+      "role": "train",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_per_tissue/VSMC/VSMC_pre_config.txt",
+      "n_libraries": 11,
+      "mode_read_length": 28,
+      "mean_read_length": 28.42502619454292,
+      "f0_frac": 0.8338541515386158,
+      "f1_frac": 0.09143565173591506,
+      "f2_frac": 0.07471019672546918,
+      "psites_at_cds": 2823122,
+      "psite_offsets": [
+        5,
+        6,
+        9,
+        12,
+        15
+      ],
+      "offset_range": 10
+    },
+    {
+      "label": "Hepatocytes",
+      "role": "train",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_per_tissue/Hepatocytes/Hepatocytes_pre_config.txt",
+      "n_libraries": 5,
+      "mode_read_length": 28,
+      "mean_read_length": 28.594853801169588,
+      "f0_frac": 0.822974181326423,
+      "f1_frac": 0.09982578418801641,
+      "f2_frac": 0.07720003448556059,
+      "psites_at_cds": 5648741,
+      "psite_offsets": [
+        6,
+        9,
+        12
+      ],
+      "offset_range": 6
+    },
+    {
+      "label": "Fibroblast",
+      "role": "train",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_per_tissue/Fibroblast/Fibroblast_pre_config.txt",
+      "n_libraries": 32,
+      "mode_read_length": 28,
+      "mean_read_length": 28.66893025008155,
+      "f0_frac": 0.8155069561943054,
+      "f1_frac": 0.08662079384773559,
+      "f2_frac": 0.09787224995795907,
+      "psites_at_cds": 5221102,
+      "psite_offsets": [
+        6,
+        9,
+        12,
+        15
+      ],
+      "offset_range": 9
+    },
+    {
+      "label": "HCAEC",
+      "role": "train",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_per_tissue/HCAEC/HCAEC_pre_config.txt",
+      "n_libraries": 5,
+      "mode_read_length": 29,
+      "mean_read_length": 28.937688703800106,
+      "f0_frac": 0.809875926054003,
+      "f1_frac": 0.09760512569110785,
+      "f2_frac": 0.09251894825488911,
+      "psites_at_cds": 3932816,
+      "psite_offsets": [
+        12
+      ],
+      "offset_range": 0
+    },
+    {
+      "label": "Fat",
+      "role": "train",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_per_tissue/Fat/Fat_pre_config.txt",
+      "n_libraries": 6,
+      "mode_read_length": 29,
+      "mean_read_length": 28.718795378496115,
+      "f0_frac": 0.7941393410528678,
+      "f1_frac": 0.1047507730469585,
+      "f2_frac": 0.10110988590017377,
+      "psites_at_cds": 1889924,
+      "psite_offsets": [
+        12
+      ],
+      "offset_range": 0
+    },
+    {
+      "label": "HA_EC",
+      "role": "train",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_per_tissue/HA_EC/HA_EC_pre_config.txt",
+      "n_libraries": 6,
+      "mode_read_length": 29,
+      "mean_read_length": 28.751295226770853,
+      "f0_frac": 0.7743098165633376,
+      "f1_frac": 0.08785136954151039,
+      "f2_frac": 0.13783881389515193,
+      "psites_at_cds": 1126983,
+      "psite_offsets": [
+        6,
+        9,
+        12
+      ],
+      "offset_range": 6
+    },
+    {
+      "label": "Brain",
+      "role": "train",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_per_tissue/Brain/Brain_pre_config.txt",
+      "n_libraries": 5,
+      "mode_read_length": 28,
+      "mean_read_length": 27.47306126551741,
+      "f0_frac": 0.7629436202692458,
+      "f1_frac": 0.10316220314324939,
+      "f2_frac": 0.13389417658750485,
+      "psites_at_cds": 780848,
+      "psite_offsets": [
+        9,
+        11,
+        12
+      ],
+      "offset_range": 3
+    },
+    {
+      "label": "HUVEC",
+      "role": "train",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_per_tissue/HUVEC/HUVEC_pre_config.txt",
+      "n_libraries": 3,
+      "mode_read_length": 29,
+      "mean_read_length": 29.25622388828478,
+      "f0_frac": 0.7493359960461126,
+      "f1_frac": 0.10746014971732117,
+      "f2_frac": 0.14320385423656623,
+      "psites_at_cds": 497738,
+      "psite_offsets": [
+        12
+      ],
+      "offset_range": 0
+    },
+    {
+      "label": "GSE120762 NT (mouse)",
+      "role": "heldout",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/heldout_psites/mouse_gse120762_nt/mouse_gse120762_nt_pre_config.txt",
+      "n_libraries": 2,
+      "mode_read_length": 28,
+      "mean_read_length": 27.89223099293727,
+      "f0_frac": 0.8792076399394856,
+      "f1_frac": 0.06019018802679922,
+      "f2_frac": 0.06060217203371515,
+      "psites_at_cds": 148064,
+      "psite_offsets": [
+        6
+      ],
+      "offset_range": 0
+    },
+    {
+      "label": "GSE120762 LPS (mouse)",
+      "role": "heldout",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/heldout_psites/mouse_gse120762_lps/mouse_gse120762_lps_pre_config.txt",
+      "n_libraries": 2,
+      "mode_read_length": 28,
+      "mean_read_length": 28.244235767586147,
+      "f0_frac": 0.8609833862417369,
+      "f1_frac": 0.08226347519020182,
+      "f2_frac": 0.056753138568061336,
+      "psites_at_cds": 577413,
+      "psite_offsets": [
+        6,
+        12
+      ],
+      "offset_range": 6
+    },
+    {
+      "label": "GSE155087 T-cell (mouse)",
+      "role": "heldout",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/heldout_psites/mouse_gse155087_tcell/mouse_gse155087_tcell_pre_config.txt",
+      "n_libraries": 5,
+      "mode_read_length": 29,
+      "mean_read_length": 28.69620124248906,
+      "f0_frac": 0.8222290441247225,
+      "f1_frac": 0.0875434720260534,
+      "f2_frac": 0.09022748384922406,
+      "psites_at_cds": 2130393,
+      "psite_offsets": [
+        9,
+        12
+      ],
+      "offset_range": 3
+    },
+    {
+      "label": "Ruiz-Orera (human)",
+      "role": "heldout",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/heldout_psites/human_ruizorera/human_ruizorera_pre_config.txt",
+      "n_libraries": 5,
+      "mode_read_length": 28,
+      "mean_read_length": 28.03769554131349,
+      "f0_frac": 0.8035687261252112,
+      "f1_frac": 0.09469248427422539,
+      "f2_frac": 0.10173878960056343,
+      "psites_at_cds": 2900811,
+      "psite_offsets": [
+        9,
+        12
+      ],
+      "offset_range": 3
+    },
+    {
+      "label": "Wang liver (mouse)",
+      "role": "heldout",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/heldout_psites/mouse_wang_liver/mouse_wang_liver_pre_config.txt",
+      "n_libraries": 2,
+      "mode_read_length": 29,
+      "mean_read_length": 29.31845444788181,
+      "f0_frac": 0.7762112390749736,
+      "f1_frac": 0.11767898218071077,
+      "f2_frac": 0.10610977874431565,
+      "psites_at_cds": 2039812,
+      "psite_offsets": [
+        12,
+        13
+      ],
+      "offset_range": 1
+    },
+    {
+      "label": "B721.221",
+      "role": "pgx",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/B721_pilot/ribocode/B721_pre_config.txt",
+      "n_libraries": 7,
+      "mode_read_length": 29,
+      "mean_read_length": 29.073685402589565,
+      "f0_frac": 0.7867274614651873,
+      "f1_frac": 0.08802198276622926,
+      "f2_frac": 0.12525055576858335,
+      "psites_at_cds": 18808188,
+      "psite_offsets": [
+        12
+      ],
+      "offset_range": 0
+    },
+    {
+      "label": "HBL-1",
+      "role": "pgx",
+      "path": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/HBL1_pilot/ribocode/HBL1_DMSO_pre_config.txt",
+      "n_libraries": 2,
+      "mode_read_length": 34,
+      "mean_read_length": 33.39609766499627,
+      "f0_frac": 0.747934173397284,
+      "f1_frac": 0.08660535910013137,
+      "f2_frac": 0.16546046750258472,
+      "psites_at_cds": 128641,
+      "psite_offsets": [
+        12
+      ],
+      "offset_range": 0
+    }
+  ],
+  "missing": []
+}
