@@ -183,6 +183,27 @@ flowchart LR
   ORF caller.
 - **Loss** = multinomial profile NLL + `count_weight` x count MSE.
 
+### Why a convolution for the body
+
+The target is a **per-nucleotide** profile whose defining feature is 3-nt periodicity: P-sites sit in frame 0
+of each codon. That is a *translation-equivariant, local* pattern -- the same motif means the same thing at
+position 300 and at position 3,000. A convolution has exactly that inductive bias built in, and is
+parameter-cheap for it. Self-attention is permutation-equivariant by construction and would have to learn
+locality and phase from position encodings instead of getting them for free.
+
+Cost is the second reason. Dilations double across the stack (`1,2,4,...,512`, `model.py:117-124`), so 10
+blocks reach a **~4 kb receptive field in O(L)**. A non-dilated stack would need hundreds of layers to span
+that, and attention over a transcript tens of kb long is O(L^2).
+
+That fixes the division of labour with the mixer. The convolution sets the frame and the local shape; what
+it *cannot* do is tell a position deep in a long CDS which reading frame it is in, because the start codon
+that sets that frame is further away than the ~4 kb receptive field. Supplying that one missing piece --
+full-transcript context -- is the mixer's entire job, which is why the CNN body is held fixed and the mixer
+is the knob that gets swept.
+
+Worth noting when reading the sweep below: `--n_attn_layers` defaults to **0**. The convolutional body alone
+is the baseline, and every mixer row is measured as an addition to it.
+
 ## The mixer knob
 
 The CNN body is fixed; the global-context **mixer** is the architecture variable we sweep. **Two settings

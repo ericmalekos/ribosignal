@@ -89,3 +89,49 @@ This judges universe definition only. It does not block the same RNA from being 
 coverage input: salmon EM plus length normalisation and STAR mm1 plus ncRNA filtering disagree
 strongly on multi-copy loci, and a TPM-contaminated library can still yield clean pack coverage
 (`feedback_salmon_tpm_vs_pack_coverage`).
+
+## CORRECTION (2026-08-10): snoRNA depletion does NOT explain the host-gene TPM
+
+The read-level snoRNA/scaRNA depletion stage was added on the hypothesis that abundant snoRNAs were
+mapping into their lncRNA host transcripts and inflating `ncRNA_host` TPM. **That hypothesis is
+wrong, and the measurement says so.**
+
+Depletion rate against `snorna_grch38_v49`, per sample:
+
+| dataset | arm | reads removed |
+|---|---|---|
+| GSE208041 | RPF | 0.58-0.87% |
+| GSE208041 | RNA | 0.05-0.06% |
+| GSE304796 | RPF | 0.14-0.16% |
+| GSE304796 | RNA | 0.32-0.34% |
+| GSE39561 | RPF | 0.01% |
+
+And the quantity it was supposed to fix did not move at all:
+
+| sample | ncRNA_host TPM before | after |
+|---|---|---|
+| SRR21228005 | 15.3% | 15.3% |
+| SRR21228006 | 15.2% | 15.2% |
+| SRR21228015 | 15.4% | 15.4% |
+| SRR21228016 | 15.9% | 15.9% |
+
+Unchanged to the decimal. Removing every snoRNA read costs a third of a percent of the library and
+leaves host-gene TPM exactly where it was, so **the TPM sitting in `ncRNA_host` genes is not
+snoRNA-derived reads.** It is host-transcript signal: a Ribo-Zero total-RNA library retains
+non-polyadenylated and nascent transcripts that poly(A) selection removes, and the SNHG-type host
+lncRNAs are exactly that class. The 43.1%-vs-15.3% split between GSE304796 and the poly(A) control is
+a genuine library-composition difference, not contamination that can be filtered out of the reads.
+
+A second plausible-sounding explanation was also checked and rejected: snoRNAs are NOT simply
+intronic and therefore absent from the quantified mature transcript. 252 of 972 snoRNA intervals
+(25.9%) overlap a host-gene exon. The reason depletion has no effect is the read count, not the
+annotation geometry.
+
+### What this changes
+
+- **The universe mitigation stands unchanged**: GSE304796 may define a universe only with
+  `ncRNA_host` genes excluded. That operates on the quantification, which is where the problem
+  actually lives, and 35,825 transcripts survive at TPM>=1 (control: 36,070).
+- **The snoRNA stage is kept** -- it does what it says (snoRNA reads are now removed at read level,
+  uniformly across all three human datasets, which is the consistency it was asked for) and costs
+  0.01-0.87% of reads. It is simply not a fix for the universe, and must not be cited as one.

@@ -25,9 +25,16 @@ set -euo pipefail
 #   sbatch scripts/build_human_ribocode_annot.sbatch
 NEW=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
 RBIN=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin
-GTF=/private/groups/carpenterlab/emalekos/RNAZoo_meta/annotations/gencode.v49.annotation.gtf
+# MUST be the GTF the STAR index was built from, read out of its Log.out:
+#   sjdbGTFfile /private/groups/carpenterlab/emalekos/genomes/gencode.v49.primary_assembly.annotation.gtf
+# The first build used annotations/gencode.v49.annotation.gtf. Both say "version 49 (Ensembl 115)"
+# and both are 3.1 G, but they are NOT interchangeable: RiboCode died with
+# `KeyError: ENST00000820386.1` on transcripts that are in the BAM (hence in the STAR GTF) and
+# absent from the annotation it was given. RiboCode joins on versioned transcript IDs, so the
+# annotation has to come from the same file as the alignment reference, not merely the same release.
+GTF=/private/groups/carpenterlab/emalekos/genomes/gencode.v49.primary_assembly.annotation.gtf
 FA=/private/groups/carpenterlab/emalekos/genomes/GRCh38.primary_assembly.genome.fa
-OUT=$NEW/data/human_ribocode_annot
+OUT=$NEW/data/human_ribocode_annot_primary
 
 for f in "$GTF" "$FA" "$RBIN/prepare_transcripts"; do
   [[ -s "$f" ]] || { echo "missing $f" >&2; exit 1; }

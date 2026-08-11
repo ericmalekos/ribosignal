@@ -1,0 +1,5 @@
+orf_class	reference	exp_recall_wang	model_recall	margin	model	rna_input	n_ref
+novel	gse243134	0.5812	0.7094	+0.1282	attn	janich	874
+novel	janich	0.6437	0.7243	+0.0806	attn	janich	769
+uORF	gse243134	0.5596	0.6762	+0.1166	attn	gse243134	806
+uORF	janich	0.6264	0.6875	+0.0611	attn	gse243134	720

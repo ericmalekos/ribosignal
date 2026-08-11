@@ -38,6 +38,9 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from compare_dropin_calls import build_loader  # noqa: E402
 
 DATASETS = ["janich", "gse243134", "wang"]
+# Per-class breakdown. Precision AND recall for every class, not recall only: a class-recall table
+# cannot distinguish "found the uORFs" from "called uORFs everywhere and some were right".
+CLASSES = ["annotated", "novel", "uORF", "internal", "Overlap_uORF", "dORF", "Overlap_dORF"]
 MODELS = ["attn", "mamba4"]
 
 
@@ -115,6 +118,18 @@ def main():
                     f1_annotated=sc["f1"], n_ref_annotated=sc["n_ref"]))
     write_tsv(out / "ribo_vs_ribo.tsv", rows)
 
+    # A2. Ribo vs Ribo, per ORF class
+    prows = []
+    for ref, pred in itertools.product(DATASETS, DATASETS):
+        if ref == pred:
+            continue
+        for c in CLASSES:
+            s = prf(real[pred], real[ref], subset=(c,))
+            prows.append(dict(reference=ref, compared=pred, orf_class=c,
+                              **{k: s[k] for k in
+                                 ("precision", "recall", "f1", "n_pred", "n_ref", "tp")}))
+    write_tsv(out / "ribo_vs_ribo_by_class.tsv", prows)
+
     # ---- B. model vs Ribo, both arms ----
     rows = []
     for model, rna, ref in itertools.product(MODELS, DATASETS, DATASETS):
@@ -135,6 +150,26 @@ def main():
                              precision_annotated=sc["precision"], recall_annotated=sc["recall"],
                              f1_annotated=sc["f1"], n_ref_annotated=sc["n_ref"]))
     write_tsv(out / "model_vs_ribo.tsv", rows)
+
+    # B2. model vs Ribo, per ORF class
+    prows = []
+    for model, rna, ref in itertools.product(MODELS, DATASETS, DATASETS):
+        d = res / f"{model}_ribo-{ref}_rna-{rna}"
+        if not (d / "pred_profiles.npz").exists():
+            continue
+        lc, _, _ = build_loader(d / "pred_profiles.npz", tx2gene=a.tx2gene)
+        for arm in ("pred_obsdepth", "pred_preddepth"):
+            f = d / f"{arm}_collapsed.txt"
+            if not f.exists():
+                continue
+            pc = lc(f, is_pred=True)
+            for c in CLASSES:
+                s = prf(pc, real[ref], subset=(c,))
+                prows.append(dict(model=model, rna_input=rna, ribo_reference=ref, arm=arm,
+                                  orf_class=c,
+                                  **{k: s[k] for k in
+                                     ("precision", "recall", "f1", "n_pred", "n_ref", "tp")}))
+    write_tsv(out / "model_vs_ribo_by_class.tsv", prows)
 
     # ---- matched vs mismatched RNA, the question the factorial exists to answer ----
     summ = []
@@ -159,7 +194,7 @@ def main():
         universe_tx=22974, key="genomic (gene_id, ORF_gstop)",
         filtering="compare_dropin_calls.build_loader (pval<=0.05, ORF>=90nt, enrichment>=0.5x)",
         classes_restricted=list(cls), consistency_ok=not incons), indent=2))
-    print(f"\nwrote 3 TSVs + scoring_meta.json to {out}")
+    print(f"\nwrote 5 TSVs + scoring_meta.json to {out}")
     return 0
 
 
