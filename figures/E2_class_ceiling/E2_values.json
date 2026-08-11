@@ -1,0 +1,44 @@
+[
+  {
+    "orf_class": "annotated",
+    "ceiling_min": 0.9921,
+    "ceiling_max": 0.9954,
+    "model_pred_obsdepth_mean": 0.9882111111111112,
+    "model_pred_preddepth_mean": 0.9824722222222222
+  },
+  {
+    "orf_class": "uORF",
+    "ceiling_min": 0.6928,
+    "ceiling_max": 0.8401,
+    "model_pred_obsdepth_mean": 0.5787999999999999,
+    "model_pred_preddepth_mean": 0.5455944444444445
+  },
+  {
+    "orf_class": "novel",
+    "ceiling_min": 0.6897,
+    "ceiling_max": 0.7961,
+    "model_pred_obsdepth_mean": 0.6221444444444444,
+    "model_pred_preddepth_mean": 0.42647777777777773
+  },
+  {
+    "orf_class": "Overlap_uORF",
+    "ceiling_min": 0.6677,
+    "ceiling_max": 0.7927,
+    "model_pred_obsdepth_mean": 0.45558333333333334,
+    "model_pred_preddepth_mean": 0.453111111111111
+  },
+  {
+    "orf_class": "dORF",
+    "ceiling_min": 0.5161,
+    "ceiling_max": 0.6346,
+    "model_pred_obsdepth_mean": 0.1336277777777778,
+    "model_pred_preddepth_mean": 0.11537222222222224
+  },
+  {
+    "orf_class": "internal",
+    "ceiling_min": 0.5389,
+    "ceiling_max": 0.6195,
+    "model_pred_obsdepth_mean": 0.02176111111111111,
+    "model_pred_preddepth_mean": 0.02015
+  }
+]

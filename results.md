@@ -2739,3 +2739,56 @@ Wang's 2-sample RNA costs ~0.008 F1 against any reference. Depth past ~7 samples
 metaplots re-derives periodic read lengths per sample, so the rebuilt Janich pack differs ~1.7% from
 its historical one. These nine cells are internally consistent but NOT comparable to pre-2026-08-10
 Janich numbers, which are archived at `results/_archive_pre_2026_08_10_janich_pack/`.
+
+## Human ORF calls: THP-1 and CAR-T (2026-08-11)
+
+Two human Ribo-seq datasets pulled, processed and ORF-called end to end. Each is scored
+against RiboCode run on its OWN observed P-sites, on its OWN expression-restricted universe,
+so the transcript space is identical on both sides by construction. Genomic keying,
+`build_loader` filtering, both prediction arms. Tables: `results/human_orf_calls/scored/`.
+
+| dataset | universe | model | arm | P | R | F1 | n_ref |
+|---|--:|---|---|--:|--:|--:|--:|
+| cart | 23,887 tx | attn | `pred_obsdepth` | 0.934 | 0.921 | 0.927 | 8,856 |
+| cart | 23,887 tx | attn | `pred_preddepth` | 0.888 | 0.922 | 0.905 | 8,856 |
+| cart | 23,887 tx | mamba4 | `pred_obsdepth` | 0.932 | 0.926 | 0.929 | 8,856 |
+| cart | 23,887 tx | mamba4 | `pred_preddepth` | 0.890 | 0.924 | 0.907 | 8,856 |
+| gse208041 | 39,611 tx | attn | `pred_obsdepth` | 0.953 | 0.857 | 0.903 | 14,304 |
+| gse208041 | 39,611 tx | attn | `pred_preddepth` | 0.824 | 0.879 | 0.851 | 14,304 |
+| gse208041 | 39,611 tx | mamba4 | `pred_obsdepth` | 0.954 | 0.861 | 0.905 | 14,304 |
+| gse208041 | 39,611 tx | mamba4 | `pred_preddepth` | 0.821 | 0.880 | 0.850 | 14,304 |
+
+**CAR-T scores higher than THP-1 on both arms** (F1 0.929 vs 0.905 obsdepth, 0.907 vs 0.851
+standalone), despite a smaller universe and shallower Ribo-seq. The standalone gap is the
+striking part: CAR-T loses only 0.022 F1 going fully Ribo-seq-free, THP-1 loses 0.054.
+
+### Per ORF class (`pred_obsdepth`, both models)
+
+| class | GSE208041 F1 | CAR-T F1 | n_ref (208041 / CAR-T) |
+|---|--:|--:|--:|
+| annotated | 0.991-0.992 | 0.991-0.993 | 10,654 / 7,399 |
+| uORF | 0.635-0.636 | 0.679-0.685 | 1,191 / 579 |
+| novel | 0.650-0.666 | 0.615-0.636 | 1,347 / 297 |
+| internal | 0.154-0.234 | 0.186-0.213 | 138 / 87 |
+
+**Human internal ORFs are NOT at the floor.** They score 0.154-0.241 here against 0.000-0.037
+in the mouse liver panel. The near-total failure on internal ORFs is specific to that mouse
+panel, not a general property of the model, and the mouse figure should not be generalised.
+
+### GSE39561: closed as a negative result
+
+The third dataset has NO usable Ribo-seq signal and is excluded from the tables above.
+Measured frame concentration against annotated CDS starts is 40.7% pooled (best read length
+54.5%) against a 33.3% random baseline; GSE208041 reaches 91.2% at its dominant length. The
+cause is ragged nuclease digestion: inserts smear across 26-32 nt with no single length above
+18%, where GSE208041 concentrates 51.6% at 28 nt. With no reproducible 5'-end-to-P-site
+offset, RiboCode cannot assign P-sites, and its refusal is correct rather than a threshold to
+override. Adapter and trim were verified correct beforehand (poly-A tail, no ligated adapter
+in the reads at all), and the library is not noise -- 40.7% over a 33.3% baseline means real
+footprints are present, just not resolvable to a frame.
+
+It was built as a coverage-only pack and does produce standalone predictions, but those are
+IDENTICAL to GSE208041's (verified by call-set comparison) because it borrows that dataset's
+RNA and universe. It is not an independent third measurement and must not be reported as one.
+Its remaining value is as a demonstration that the model predicts where RiboCode cannot.
+

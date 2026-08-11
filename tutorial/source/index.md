@@ -104,6 +104,13 @@ calling
 
 ```{toctree}
 :maxdepth: 2
+:caption: What the model learned
+
+learned/index
+```
+
+```{toctree}
+:maxdepth: 2
 :caption: Evaluation
 
 metrics

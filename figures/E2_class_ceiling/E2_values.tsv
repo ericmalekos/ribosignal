@@ -1,0 +1,7 @@
+orf_class	ceiling_min	ceiling_max	model_obsdepth_mean	model_preddepth_mean
+annotated	0.9921	0.9954	0.9882	0.9825
+uORF	0.6928	0.8401	0.5788	0.5456
+novel	0.6897	0.7961	0.6221	0.4265
+Overlap_uORF	0.6677	0.7927	0.4556	0.4531
+dORF	0.5161	0.6346	0.1336	0.1154
+internal	0.5389	0.6195	0.0218	0.0202
