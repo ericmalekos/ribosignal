@@ -47,7 +47,7 @@ ARM_A=$NEW/data/packed_heldout_mouse_janich_liver_decon
 ARM_B=$NEW/data/packed_heldout_rnaq_b_uniJanich_cov34766
 ARM_C=$NEW/data/packed_heldout_rnaq_c_uni34766_cov34766
 COV34766=$NEW/data/heldout_rnaseq_coverage/mouse_prjeb34766_liver/PRJEB34766_coverage.hd5
-Q34766=$NEW/data/salmon_quant_prjeb34766_liver
+Q34766=$NEW/data/tpm/salmon_quant_prjeb34766_liver
 echo "host=$(hostname) start=$(date -Iseconds)"
 
 [[ -s "$COV34766" ]] || { echo "no PRJEB34766 coverage at $COV34766" >&2; exit 1; }

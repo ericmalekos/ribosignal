@@ -1,4 +1,7 @@
 {
+  "model": "attn",
+  "source": "results/replicate_concordance.json",
+  "provenance_note": "run token orf_v2_attn in the generator. NOTE the existing 'this_model' key is a VALUE (0.526), not a model name -- do not read it as provenance.",
   "this_model": 0.526,
   "seq2ribo_range": [
     0.05,

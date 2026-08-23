@@ -1,0 +1,8 @@
+# C11_values.json -> WIDE (record table at 'delta_f1.attn', 6 rows)
+source_tsv	dropin_arm	key	annotated	uORF	novel	internal	dORF
+/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/orf_channel_ablation_canon/ablation_scores.tsv	pred_obsdepth	ch0	-0.0003	-0.0161	0.0005	0.053	0.0251
+/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/orf_channel_ablation_canon/ablation_scores.tsv	pred_obsdepth	ch1	0	-0.0184	0.0009	0.0314	0.0074
+/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/orf_channel_ablation_canon/ablation_scores.tsv	pred_obsdepth	ch2	-0.0005	-0.0224	0.0049	0.0496	-0.0194
+/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/orf_channel_ablation_canon/ablation_scores.tsv	pred_obsdepth	ch3	0.0001	-0.0689	-0.0187	-0.0002	-0.0102
+/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/orf_channel_ablation_canon/ablation_scores.tsv	pred_obsdepth	ch4	-0.0013	-0.0244	-0.0192	0.0308	0.002
+/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/orf_channel_ablation_canon/ablation_scores.tsv	pred_obsdepth	f012	-0.0018	-0.0479	-0.0383	0.0355	-0.0023

@@ -27,7 +27,7 @@ case "$MIXER" in
 esac
 RUN=results/loto/${NAME}_${BACKEND}_union_noBrain_nokozak_mm1_holdout_Hepatocytes
 RIBOPY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
-ANNOT=$ECH/data/ribocode_annot
+ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary
 mkdir -p "$NEW/logs/dropin"
 echo "eval BACKEND=$BACKEND run=$RUN host=$(hostname) start=$(date -Iseconds)"
 

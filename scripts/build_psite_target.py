@@ -28,10 +28,12 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-ECH = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-           "RNAZoo/experiments/biotype_probe/expression_context_human")
-NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-           "RNAZoo/experiments/riboseq_signal_model")
+# ECH removed 2026-08-19: the deleted biotype_probe tree. Consumers repointed to NEW.
+# Root resolves via $RIBOSEQ_SIGNAL_MODEL_ROOT or auto-detection (task #94); never baked in.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "prepare"))
+from paths import project_root  # noqa: E402
+
+NEW = project_root()
 TX2B = NEW / "data" / "tx2biotype.tsv"
 
 SRC_GLOB = "*_psites.hd5"
@@ -63,7 +65,7 @@ def main():
         print("usage: build_psite_target.py <Tissue>", file=sys.stderr)
         return 2
     tissue = sys.argv[1]
-    rc_dir = ECH / "data" / "ribocode_per_tissue" / tissue
+    rc_dir = NEW / "data" / "ribocode_per_tissue" / tissue
     out_hd5 = NEW / "data" / "target" / f"{tissue}_psites_pooled.hd5"
     out_tsv = NEW / "data" / "target" / f"{tissue}_psites_summary.tsv"
 

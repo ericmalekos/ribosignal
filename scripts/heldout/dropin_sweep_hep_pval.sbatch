@@ -15,4 +15,4 @@ P=${PVALS[$SLURM_ARRAY_TASK_ID]}
 OUT=$RUN/dropin_sweep_pval/theta_${P}; rm -rf "$OUT"; mkdir -p "$OUT"
 export PYTHONNOUSERSITE=1
 # lever (d): fixed predicted depth (pred_scale 1.0), tighten the RiboCode p-value threshold
-"$PY" /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/scripts/ribocode_dropin.py --profiles "$RUN/dropin/pred_profiles.npz"   --annot /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_annot --variant pred_preddepth --pred_scale 1.0   --out "$OUT" --min_aa 5 --pval "$P"
+"$PY" /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/scripts/ribocode_dropin.py --profiles "$RUN/dropin/pred_profiles.npz"   --annot /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary --variant pred_preddepth --pred_scale 1.0   --out "$OUT" --min_aa 5 --pval "$P"

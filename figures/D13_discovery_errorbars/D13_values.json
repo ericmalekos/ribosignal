@@ -1,4 +1,9 @@
 {
+  "model": [
+    "attn",
+    "mamba4"
+  ],
+  "source": "proteogenomics/data",
   "HBL1": {
     "baseline_rank1_canonical": 17943,
     "model": {
@@ -49,5 +54,6 @@
       "rank1_canonical_displaced": -287,
       "fdr_threshold": 18.16
     }
-  }
+  },
+  "provenance_note": "generator references both arms"
 }

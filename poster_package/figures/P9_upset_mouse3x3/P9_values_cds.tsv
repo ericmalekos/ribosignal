@@ -1,0 +1,15 @@
+# P9_values_cds.json -> WIDE (record table at 'intersections', 13 rows)
+model	model_rna	arm	view	keying	n_test_tx	bars_drawn	bars_omitted	orfs_in_omitted_bars	pattern	n
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":true,"gse243134":true,"wang":true,"mamba4":true}	10094
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":false,"gse243134":false,"wang":false,"mamba4":true}	342
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":true,"gse243134":true,"wang":true,"mamba4":false}	123
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":true,"gse243134":true,"wang":false,"mamba4":true}	99
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":false,"gse243134":true,"wang":false,"mamba4":true}	38
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":true,"gse243134":false,"wang":false,"mamba4":true}	26
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":false,"gse243134":true,"wang":true,"mamba4":true}	24
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":false,"gse243134":false,"wang":true,"mamba4":true}	22
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":true,"gse243134":false,"wang":true,"mamba4":true}	17
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":false,"gse243134":true,"wang":false,"mamba4":false}	2
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":true,"gse243134":true,"wang":false,"mamba4":false}	2
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":false,"gse243134":false,"wang":true,"mamba4":false}	1
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	13	0	0	{"janich":false,"gse243134":true,"wang":true,"mamba4":false}	1

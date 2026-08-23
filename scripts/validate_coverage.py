@@ -26,7 +26,7 @@ COV_SUM = NEW / "data" / "rnaseq_coverage" / "Fibroblast_rnaseq_coverage_summary
 TGT_HD5 = NEW / "data" / "target" / "Fibroblast_psites_pooled.hd5"
 TGT_SUM = NEW / "data" / "target" / "Fibroblast_psites_summary.tsv"
 UNIV = NEW / "data" / "fibroblast_universe.tsv"
-SALMON = NEW / "data" / "fibroblast_salmon_mean_tpm.tsv"
+SALMON = NEW / "data" / "tpm" / "fibroblast_salmon_mean_tpm.tsv"
 OUT = NEW / "logs" / "validate_pooled_coverage.txt"
 
 

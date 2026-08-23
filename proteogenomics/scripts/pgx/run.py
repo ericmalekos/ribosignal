@@ -94,6 +94,12 @@ def main():
     ap.add_argument("--min-ext-aa", type=int, default=5)
     ap.add_argument("--min-nonzero", type=int, default=5)
     # databases
+    # The ORF-length floor is set BY ASSAY (docs/PIPELINE_POLICY.md Rule 5): tryptic whole-cell
+    # lysate 30 aa, MHC/HLA immunopeptidomics 7 aa. Forwarded to build_dbs, which enforces it.
+    # Without this, pgx.run silently passed its own default of 7 to every database it built --
+    # including tryptic ones, which is how the macrophage sweep ended up at 7 aa.
+    ap.add_argument("--assay", choices=["tryptic", "mhc"], default=None,
+                    help="assay type; sets the DB ORF-length floor (tryptic=30, mhc=7)")
     ap.add_argument("--min-aa", type=int, default=7, help="minimum protein length in the DBs")
     ap.add_argument("--dbs", default="gencode,model,null_atg,null_nc")
     ap.add_argument("--null-starts", default="ATG")
@@ -204,7 +210,8 @@ def main():
         shared_dbs = ",".join(sorted(want_dbs - {"model"}))
         if shared_dbs and (a.force or not done(dbd / "db_summary.json")):
             sh(M + ["pgx.build_dbs", "--species", a.species, "--out", dbd,
-                    "--universe-fa", uni_fa, "--dbs", shared_dbs, "--min-aa", a.min_aa,
+                    "--universe-fa", uni_fa, "--dbs", shared_dbs,
+                    *(["--assay", a.assay] if a.assay else ["--min-aa", a.min_aa]),
                     "--null-starts", a.null_starts, "--nc-starts", a.nc_starts],
                env=env, cwd=scripts)
         elif shared_dbs:
@@ -217,7 +224,9 @@ def main():
                 sh(M + ["pgx.build_dbs", "--species", a.species, "--out", dbd,
                         "--calls", calls / f"calls_{arm}.tsv",
                         "--extensions", exts / arm / "extensions.tsv", "--arm", arm,
-                        "--dbs", "model", "--min-aa", a.min_aa], env=env, cwd=scripts)
+                        "--dbs", "model",
+                        *(["--assay", a.assay] if a.assay else ["--min-aa", a.min_aa])],
+                   env=env, cwd=scripts)
 
     arms = [x for x in DB_ARMS if x in want_dbs]
     if "model" in want_dbs:

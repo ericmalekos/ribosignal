@@ -1,57 +1,8 @@
 {
   "model": "mamba4",
+  "source": "proteogenomics/data/{ds}_pilot/pgx_{MODEL}/db/db_{arm}.fasta; proteogenomics/data/{ds}_pilot/pgx_{MODEL}/search/{arm}",
   "fdr": 0.01,
   "records": [
-    {
-      "dataset": "A549",
-      "arm": "null_atg",
-      "db_novel_seqs": 368908,
-      "global_cut": 19.514999,
-      "class_cut": 30.301001,
-      "canon_peptides_global": 62511,
-      "novel_global": 375,
-      "novel_class": 10
-    },
-    {
-      "dataset": "A549",
-      "arm": "cpat",
-      "db_novel_seqs": 21450,
-      "global_cut": 19.007999,
-      "class_cut": 22.475,
-      "canon_peptides_global": 65305,
-      "novel_global": 62,
-      "novel_class": 25
-    },
-    {
-      "dataset": "A549",
-      "arm": "cpc2",
-      "db_novel_seqs": 20708,
-      "global_cut": 19.014999,
-      "class_cut": 22.475,
-      "canon_peptides_global": 65260,
-      "novel_global": 60,
-      "novel_class": 23
-    },
-    {
-      "dataset": "A549",
-      "arm": "model_standard",
-      "db_novel_seqs": 10312,
-      "global_cut": 19.024,
-      "class_cut": 22.833,
-      "canon_peptides_global": 65214,
-      "novel_global": 28,
-      "novel_class": 9
-    },
-    {
-      "dataset": "A549",
-      "arm": "model_poisson",
-      "db_novel_seqs": 2404,
-      "global_cut": 18.993,
-      "class_cut": 21.537001,
-      "canon_peptides_global": 65405,
-      "novel_global": 14,
-      "novel_class": 11
-    },
     {
       "dataset": "HBL1",
       "arm": "null_atg",

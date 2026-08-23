@@ -11,7 +11,7 @@ PY=/private/groups/carpenterlab/emalekos/conda_envs/cas12a/bin/python3
 MCDS=$NEW/data/mouse_ribocode_annot/transcripts_cds.txt
 HCDS=$NEW/data/human_ribocode_annot_primary/transcripts_cds.txt
 REF=$NEW/data/heldout_refs
-OUT=$NEW/results/codon_occupancy
+OUT=$NEW/results/codon_occupancy_canon
 mkdir -p "$OUT"
 
 run () {  # label npz cds fasta
@@ -25,8 +25,8 @@ run () {  # label npz cds fasta
 # ---- mouse liver 3x3: the matched (diagonal) cells, both models ----
 for M in attn mamba4; do
   for D in janich gse243134 wang; do
-    run "mouse3x3_${M}_${D}" \
-      "$NEW/results/mouse_liver_3x3/${M}_ribo-${D}_rna-${D}/pred_profiles.npz" \
+    run "mouse3x3canon_${M}_${D}" \
+      "$NEW/results/mouse_liver_3x3_canon/${M}_ribo-${D}_rna-${D}/pred_profiles.npz" \
       "$MCDS" "$REF/mouse_liver_union3_universe.fa"
   done
 done

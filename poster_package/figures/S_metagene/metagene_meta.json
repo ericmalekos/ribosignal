@@ -1,0 +1,63 @@
+{
+  "position_semantics": "P-SITE, not read 5' end. Pack targets come from RiboCode process_bam after applying the metaplots-derived per-read-length offset.",
+  "anchor_zero": "start: first nt of the start codon (A of AUG). stop: first nt of the stop codon.",
+  "coordinates": "transcript (not genomic); no splicing correction needed",
+  "start_window": [
+    -50,
+    150
+  ],
+  "stop_window": [
+    -150,
+    50
+  ],
+  "transcripts": "annotated CDS AND has_start_codon == 1 in data/tx2cds.tsv",
+  "n_tx_varies_with_offset": "yes -- a transcript contributes to an offset only if that offset exists in it. Divide psites by the per-row n_tx, never by a global count, or the window edges decay for the wrong reason.",
+  "psites_norm": "each transcript scaled to sum 1 within its own window before pooling; removes the dominance of highly translated genes that `psites` has",
+  "cds_frame_fraction_first150nt": {
+    "frame0": 0.8225834119970933,
+    "frame1": 0.09095087356247657,
+    "frame2": 0.0864657144404302
+  },
+  "packs": [
+    {
+      "tissue": "Fibroblast",
+      "pack": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/packed_canon",
+      "n_tx": 71116
+    },
+    {
+      "tissue": "ES",
+      "pack": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/packed_canon_ES",
+      "n_tx": 71116
+    },
+    {
+      "tissue": "Fat",
+      "pack": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/packed_canon_Fat",
+      "n_tx": 71116
+    },
+    {
+      "tissue": "HA_EC",
+      "pack": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/packed_canon_HA_EC",
+      "n_tx": 71116
+    },
+    {
+      "tissue": "HCAEC",
+      "pack": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/packed_canon_HCAEC",
+      "n_tx": 71116
+    },
+    {
+      "tissue": "HUVEC",
+      "pack": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/packed_canon_HUVEC",
+      "n_tx": 71116
+    },
+    {
+      "tissue": "Hepatocytes",
+      "pack": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/packed_canon_Hepatocytes",
+      "n_tx": 71116
+    },
+    {
+      "tissue": "VSMC",
+      "pack": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/packed_canon_VSMC",
+      "n_tx": 71116
+    }
+  ]
+}

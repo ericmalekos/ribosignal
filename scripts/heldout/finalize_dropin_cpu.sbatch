@@ -15,7 +15,7 @@ ECH=$BASE/RNAZoo/experiments/biotype_probe/expression_context_human
 PYC=/private/groups/carpenterlab/emalekos/conda_envs/cas12a/bin/python3
 PYR=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
 DATASET=${DATASET:?}; BACKEND=${BACKEND:?}; NSHARDS=${NSHARDS:?}
-ANNOT=${ANNOT:-$ECH/data/ribocode_annot}
+ANNOT=${ANNOT:-/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary}
 OFFICIAL=$NEW/data/heldout_psites/$DATASET/${DATASET}_collapsed.txt
 DROPIN=$NEW/results/heldout/$DATASET/$BACKEND/dropin
 PROFILES=$DROPIN/pred_profiles.npz

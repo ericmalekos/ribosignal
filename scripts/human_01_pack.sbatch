@@ -71,6 +71,8 @@ done
 # prepare_from_bams calls samtools index; TranscriptomeSAM output is read-ordered until sorted.
 S=/private/groups/carpenterlab/emalekos/conda_envs/riboseq/bin/samtools
 for f in "${RIBO[@]}" "${RNA[@]}"; do
+  # quickcheck as well as the header -- a truncated BAM keeps a valid header (see 2026-08-21).
+  "$S" quickcheck "$f" 2>/dev/null || { echo "$f is TRUNCATED" >&2; exit 1; }
   [[ "$("$S" view -H "$f" 2>/dev/null | sed -n 1p)" == *SO:coordinate* ]] \
     || { echo "ABORT: $f is not coordinate-sorted -- run sort_human_tx_bams.sbatch first" >&2; exit 1; }
 done

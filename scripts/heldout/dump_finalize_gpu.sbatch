@@ -24,7 +24,7 @@ DATASET=${DATASET:?set DATASET=<name>}
 BACKEND=${BACKEND:?set BACKEND=onehot|orthrus|rinalmo}
 ORFTRACK=${ORFTRACK:-$NEW/data/packed/orf_track_v2.npy}
 FASTA_OVERRIDE=${FASTA_OVERRIDE:-}
-ANNOT=${ANNOT:-$ECH/data/ribocode_annot}
+ANNOT=${ANNOT:-/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary}
 OFFICIAL=$NEW/data/heldout_psites/$DATASET/${DATASET}_collapsed.txt
 case "$BACKEND" in
   onehot)  RUN=results/loto/orf_v2_attn_onehot_holdout_Hepatocytes ;;

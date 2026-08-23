@@ -1,0 +1,728 @@
+{
+  "emphasised_model": "attn",
+  "figures": {
+    "A1_localization_ceiling": {
+      "outputs": [
+        "A1_localization_ceiling.pdf",
+        "A1_localization_ceiling_attn.pdf",
+        "A1_localization_ceiling.png",
+        "A1_localization_ceiling_attn.png"
+      ],
+      "values": [
+        "A1_values.json",
+        "A1_values.tsv",
+        "A1_values_attn.json",
+        "A1_values_attn.tsv"
+      ],
+      "generator": [
+        "make_localization_ceiling.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 10
+    },
+    "A2_ribocode_dropin": {
+      "outputs": [
+        "A2_ribocode_dropin.pdf",
+        "A2_ribocode_dropin_attn.pdf",
+        "A2_ribocode_dropin.png",
+        "A2_ribocode_dropin_attn.png"
+      ],
+      "values": [
+        "A2_values.json",
+        "A2_values.tsv",
+        "A2_values_attn.json",
+        "A2_values_attn.tsv"
+      ],
+      "generator": [
+        "make_ribocode_dropin.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 10
+    },
+    "A3_loto_spread": {
+      "outputs": [
+        "A3_loto_spread.pdf",
+        "A3_loto_spread.png"
+      ],
+      "values": [
+        "A3_values.json",
+        "A3_values.tsv"
+      ],
+      "generator": [
+        "make_loto_spread.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "A4_b721_ground_truth": {
+      "outputs": [
+        "A4_b721_ground_truth.pdf",
+        "A4_b721_ground_truth.png"
+      ],
+      "values": [
+        "A4_values.json",
+        "A4_values.tsv"
+      ],
+      "generator": [
+        "make_b721_ground_truth.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "B4_replicate_ceiling": {
+      "outputs": [
+        "B4_replicate_ceiling.pdf",
+        "B4_replicate_ceiling_attn.pdf",
+        "B4_replicate_ceiling.png",
+        "B4_replicate_ceiling_attn.png"
+      ],
+      "values": [
+        "B4_values.json",
+        "B4_values.tsv",
+        "B4_values_attn.json",
+        "B4_values_attn.tsv"
+      ],
+      "generator": [
+        "make_replicate_ceiling.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 10
+    },
+    "B5_expression_independence": {
+      "outputs": [
+        "B5_expression_independence.pdf",
+        "B5_expression_independence_attn.pdf",
+        "B5_expression_independence.png",
+        "B5_expression_independence_attn.png"
+      ],
+      "values": [
+        "B5_values.json",
+        "B5_values.tsv",
+        "B5_values_attn.json",
+        "B5_values_attn.tsv"
+      ],
+      "generator": [
+        "make_expression_independence.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 10
+    },
+    "B6_input_ablation": {
+      "outputs": [
+        "B6_input_ablation.pdf",
+        "B6_input_ablation.png"
+      ],
+      "values": [
+        "B6_values.json",
+        "B6_values.tsv"
+      ],
+      "generator": [
+        "make_input_ablation.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "B7_multimap_posture": {
+      "outputs": [
+        "B7_multimap_posture.pdf",
+        "B7_multimap_posture.png"
+      ],
+      "values": [
+        "B7_values.json",
+        "B7_values.tsv"
+      ],
+      "generator": [
+        "make_multimap_posture.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "B9_overcall_validation": {
+      "outputs": [
+        "B9_overcall_validation.pdf",
+        "B9_overcall_validation.png"
+      ],
+      "values": [
+        "B9_values.json",
+        "B9_values.tsv"
+      ],
+      "generator": [
+        "make_overcall_validation.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "C10_saliency": {
+      "outputs": [
+        "C10_saliency.pdf",
+        "C10_saliency.png"
+      ],
+      "values": [
+        "C10_values.json",
+        "C10_values.tsv"
+      ],
+      "generator": [
+        "make_saliency.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "C11_channel_ablation": {
+      "outputs": [
+        "C11_channel_ablation.pdf",
+        "C11_channel_ablation.png"
+      ],
+      "values": [
+        "C11_values.json",
+        "C11_values.tsv"
+      ],
+      "generator": [
+        "make_channel_ablation.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "C12_codon_occupancy": {
+      "outputs": [
+        "C12_codon_occupancy.pdf",
+        "C12_codon_occupancy.png"
+      ],
+      "values": [
+        "C12_values.json",
+        "C12_values.tsv"
+      ],
+      "generator": [
+        "make_codon_occupancy.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "C13_memorisation": {
+      "outputs": [
+        "C13_memorisation.pdf",
+        "C13_memorisation.png"
+      ],
+      "values": [
+        "C13_values.json",
+        "C13_values.tsv"
+      ],
+      "generator": [
+        "make_memorisation.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "D11_vs_seq2ribo": {
+      "outputs": [
+        "D11_vs_seq2ribo.pdf",
+        "D11_vs_seq2ribo.png"
+      ],
+      "values": [
+        "D11_values.json",
+        "D11_values.tsv"
+      ],
+      "generator": [
+        "make_vs_seq2ribo.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "D12_cpat_cpc2": {
+      "outputs": [
+        "D12_cpat_cpc2.pdf",
+        "D12_cpat_cpc2.png"
+      ],
+      "values": [
+        "D12_values.json",
+        "D12_values.tsv"
+      ],
+      "generator": [
+        "make_cpat_cpc2.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "D13_discovery_errorbars": {
+      "outputs": [
+        "D13_discovery_errorbars.pdf",
+        "D13_discovery_tradeoff_pgx.pdf",
+        "D13_discovery_errorbars.png",
+        "D13_discovery_tradeoff_pgx.png"
+      ],
+      "values": [
+        "D13_pgx_values.json",
+        "D13_pgx_values.tsv",
+        "D13_values.json",
+        "D13_values.tsv"
+      ],
+      "generator": [
+        "make_d13_pgx.py",
+        "make_discovery_errorbars.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 11
+    },
+    "E1_rna_provenance": {
+      "outputs": [
+        "E1_rna_provenance.pdf",
+        "E1_rna_provenance_attn.pdf",
+        "E1_rna_provenance.png",
+        "E1_rna_provenance_attn.png"
+      ],
+      "values": [
+        "E1_values.json",
+        "E1_values.tsv",
+        "E1_values_attn.json",
+        "E1_values_attn.tsv"
+      ],
+      "generator": [
+        "make_rna_provenance.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 10
+    },
+    "E2_class_ceiling": {
+      "outputs": [
+        "E2_class_ceiling.pdf",
+        "E2_class_ceiling_attn.pdf",
+        "E2_class_ceiling.png",
+        "E2_class_ceiling_attn.png"
+      ],
+      "values": [
+        "E2_values.json",
+        "E2_values.tsv",
+        "E2_values_attn.json",
+        "E2_values_attn.tsv"
+      ],
+      "generator": [
+        "make_class_ceiling.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 10
+    },
+    "E3_shallow_experiment_win": {
+      "outputs": [
+        "E3_shallow_experiment_win.pdf",
+        "E3_shallow_experiment_win.png"
+      ],
+      "values": [
+        "E3_all_rna_cells.json",
+        "E3_all_rna_cells.tsv",
+        "E3_values.json",
+        "E3_values.tsv"
+      ],
+      "generator": [
+        "make_shallow_experiment_win.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 8
+    },
+    "F2b_discovery_forest": {
+      "outputs": [
+        "F2b_discovery_forest.pdf",
+        "F2b_discovery_forest.png"
+      ],
+      "values": [
+        "F2b_values.json",
+        "F2b_values.tsv"
+      ],
+      "generator": [
+        "make_f2b_forest.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "P11_bmdm_proteomics": {
+      "outputs": [
+        "P11_bmdm_proteomics.pdf",
+        "P11_bmdm_proteomics.png"
+      ],
+      "values": [
+        "P11_values.json",
+        "P11_values.tsv"
+      ],
+      "generator": [
+        "make_bmdm_proteomics.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "P12_macrophage_xsubtype": {
+      "outputs": [
+        "P12_macrophage_xsubtype.pdf",
+        "P12_macrophage_xsubtype.png"
+      ],
+      "values": [
+        "P12_values.json",
+        "P12_values.tsv"
+      ],
+      "generator": [
+        "make_macrophage_xsubtype.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "P13_macrophage_psm_venn": {
+      "outputs": [
+        "P13_macrophage_psm_venn.pdf",
+        "P13_macrophage_psm_venn.png"
+      ],
+      "values": [
+        "P13_macrophage_psm_venn.tsv",
+        "P13_values.json",
+        "P13_values.tsv"
+      ],
+      "generator": [
+        "make_macrophage_psm_venn.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 7
+    },
+    "P3_training_data": {
+      "outputs": [
+        "P3_training_data.pdf",
+        "P3_training_data.png"
+      ],
+      "values": [
+        "P3_values.json",
+        "P3_values.tsv"
+      ],
+      "generator": [
+        "make_training_data.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "P5_heldout_human": {
+      "outputs": [
+        "P5_heldout_human.pdf",
+        "P5_heldout_human_attn.pdf",
+        "P5_heldout_human.png",
+        "P5_heldout_human_attn.png"
+      ],
+      "values": [
+        "P5_by_class_attn.tsv",
+        "P5_values.json",
+        "P5_values.tsv",
+        "P5_values_attn.json",
+        "P5_values_attn.tsv"
+      ],
+      "generator": [
+        "make_heldout_human_panel.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 11
+    },
+    "P9_upset_mouse3x3": {
+      "outputs": [
+        "P9_upset_mouse3x3.pdf",
+        "P9_upset_mouse3x3_2models.pdf",
+        "P9_upset_mouse3x3_2models_cds.pdf",
+        "P9_upset_mouse3x3_2models_lncrna.pdf",
+        "P9_upset_mouse3x3_2models_uorf.pdf",
+        "P9_upset_mouse3x3_cds.pdf",
+        "P9_upset_mouse3x3_lncrna.pdf",
+        "P9_upset_mouse3x3_uorf.pdf",
+        "P9_upset_mouse3x3.png",
+        "P9_upset_mouse3x3_2models.png",
+        "P9_upset_mouse3x3_2models_cds.png",
+        "P9_upset_mouse3x3_2models_lncrna.png",
+        "P9_upset_mouse3x3_2models_uorf.png",
+        "P9_upset_mouse3x3_cds.png",
+        "P9_upset_mouse3x3_lncrna.png",
+        "P9_upset_mouse3x3_uorf.png"
+      ],
+      "values": [
+        "P9_values.json",
+        "P9_values.tsv",
+        "P9_values_2models.json",
+        "P9_values_2models.tsv",
+        "P9_values_2models_cds.json",
+        "P9_values_2models_cds.tsv",
+        "P9_values_2models_lncrna.json",
+        "P9_values_2models_lncrna.tsv",
+        "P9_values_2models_uorf.json",
+        "P9_values_2models_uorf.tsv",
+        "P9_values_cds.json",
+        "P9_values_cds.tsv",
+        "P9_values_lncrna.json",
+        "P9_values_lncrna.tsv",
+        "P9_values_uorf.json",
+        "P9_values_uorf.tsv"
+      ],
+      "generator": [
+        "make_upset_mouse3x3.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 34
+    },
+    "S_encoding": {
+      "outputs": [
+        "S_encoding.pdf",
+        "S_encoding.png"
+      ],
+      "values": [
+        "S_encoding.tsv"
+      ],
+      "generator": [
+        "make_encoding_panel.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 5
+    },
+    "S_fdr_rigor": {
+      "outputs": [
+        "fdr_rigor.pdf",
+        "fdr_rigor.png"
+      ],
+      "values": [
+        "fdr_rigor_values.json",
+        "fdr_rigor_values.tsv"
+      ],
+      "generator": [
+        "make_fdr_rigor.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "S_metagene": {
+      "outputs": [
+        "S_metagene.pdf",
+        "S_metagene.png"
+      ],
+      "values": [
+        "S_metagene_values.json",
+        "S_metagene_values.tsv",
+        "metagene_by_tissue.tsv",
+        "metagene_meta.json",
+        "metagene_meta.tsv",
+        "metagene_pooled.tsv"
+      ],
+      "generator": [
+        "make_metagene.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 10
+    },
+    "S_reproducibility": {
+      "outputs": [
+        "S_reproducibility.pdf",
+        "S_reproducibility.png"
+      ],
+      "values": [
+        "S_reproducibility_values.json",
+        "S_reproducibility_values.tsv"
+      ],
+      "generator": [
+        "make_reproducibility.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "S_riboseq_qc": {
+      "outputs": [
+        "riboseq_qc.pdf",
+        "riboseq_qc.png"
+      ],
+      "values": [
+        "riboseq_qc_values.json",
+        "riboseq_qc_values.tsv"
+      ],
+      "generator": [
+        "make_riboseq_qc.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "arch_attn": {
+      "outputs": [
+        "arch_rinalmo.pdf",
+        "arch_rinalmo_mamba.pdf",
+        "arch_style1.pdf",
+        "arch_style2.pdf",
+        "arch_style2h.pdf",
+        "arch_style3.pdf",
+        "style1_panel.pdf",
+        "style2_flow.pdf",
+        "style3_tiers.pdf",
+        "arch_rinalmo.png",
+        "arch_rinalmo_mamba.png",
+        "arch_style1.png",
+        "arch_style2.png",
+        "arch_style2h.png",
+        "arch_style3.png",
+        "style1_panel.png",
+        "style2_flow.png",
+        "style3_tiers.png"
+      ],
+      "values": [
+        "arch_attn_values.json",
+        "arch_attn_values.tsv",
+        "arch_spec_attn.json",
+        "orf_track_spec.json"
+      ],
+      "generator": [
+        "make_arch_attn.py",
+        "make_arch_panel.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 25
+    },
+    "benchmarks": {
+      "outputs": [
+        "benchmark_comparison.png"
+      ],
+      "values": [
+        "benchmark_comparison.tsv"
+      ],
+      "generator": [],
+      "has_provenance_doc": true,
+      "n_files": 3
+    },
+    "depth_crossover": {
+      "outputs": [
+        "depth_crossover.pdf",
+        "depth_crossover.png"
+      ],
+      "values": [
+        "depth_curve.tsv",
+        "depth_curve_summary.json",
+        "depth_curve_summary.tsv"
+      ],
+      "generator": [],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "kozak": {
+      "outputs": [
+        "learned_vs_empirical_vs_heuristic.pdf",
+        "learned_vs_empirical_vs_heuristic.png"
+      ],
+      "values": [
+        "learned_vs_empirical_vs_heuristic.json",
+        "learned_vs_empirical_vs_heuristic.tsv"
+      ],
+      "generator": [],
+      "has_provenance_doc": true,
+      "n_files": 5
+    },
+    "main": {
+      "outputs": [
+        "Figure1_validity.pdf",
+        "Figure2_utility.pdf"
+      ],
+      "values": [
+        "Figure1_validity_manifest.json",
+        "Figure2_utility_manifest.json"
+      ],
+      "generator": [
+        "make_main_figures.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 6
+    },
+    "o2_venn": {
+      "outputs": [
+        "o2_venn_janich_calib.pdf",
+        "o2_venn_janich_theta1.pdf",
+        "o2_venn_wang_calib.pdf",
+        "o2_venn_wang_theta1.pdf",
+        "o2_venn_janich_calib.png",
+        "o2_venn_janich_theta1.png",
+        "o2_venn_wang_calib.png",
+        "o2_venn_wang_theta1.png"
+      ],
+      "values": [
+        "o2_venn_janich_calib.tsv",
+        "o2_venn_janich_theta1.tsv",
+        "o2_venn_wang_calib.tsv",
+        "o2_venn_wang_theta1.tsv"
+      ],
+      "generator": [
+        "make_o2_venn.py"
+      ],
+      "has_provenance_doc": true,
+      "n_files": 14
+    },
+    "prediction_examples": {
+      "outputs": [
+        "prediction_examples.pdf",
+        "prediction_examples_attn.pdf",
+        "prediction_examples_attn_union.pdf",
+        "prediction_examples_mamba4_union.pdf",
+        "prediction_examples_split_attn_union.pdf",
+        "prediction_examples_split_mamba4_union.pdf",
+        "prediction_examples.png",
+        "prediction_examples_attn.png",
+        "prediction_examples_attn_union.png",
+        "prediction_examples_mamba4_union.png",
+        "prediction_examples_split_attn_union.png",
+        "prediction_examples_split_mamba4_union.png"
+      ],
+      "values": [
+        "prediction_examples.tsv"
+      ],
+      "generator": [],
+      "has_provenance_doc": true,
+      "n_files": 14
+    },
+    "profile_exemplars": {
+      "outputs": [
+        "human_hepatocytes.pdf",
+        "human_hepatocytes_attn.pdf",
+        "human_hepatocytes_attn_allclasses.pdf",
+        "human_hepatocytes_attn_allclasses_center.pdf",
+        "human_ruizorera.pdf",
+        "mouse_gse243134_liver.pdf",
+        "mouse_janich_liver.pdf",
+        "mouse_wang_liver.pdf",
+        "human_hepatocytes.png",
+        "human_hepatocytes_attn.png",
+        "human_hepatocytes_attn_allclasses.png",
+        "human_hepatocytes_attn_allclasses_center.png",
+        "human_ruizorera.png",
+        "mouse_gse243134_liver.png",
+        "mouse_janich_liver.png",
+        "mouse_wang_liver.png"
+      ],
+      "values": [
+        "human_hepatocytes.tsv",
+        "human_hepatocytes_attn.tsv",
+        "human_hepatocytes_attn_allclasses.tsv",
+        "human_hepatocytes_attn_allclasses_center.tsv",
+        "human_hepatocytes_attn_ranked.tsv",
+        "human_ruizorera.tsv",
+        "human_ruizorera_attn_ranked.tsv",
+        "mouse_gse243134_liver.tsv",
+        "mouse_janich_liver.tsv",
+        "mouse_wang_liver.tsv"
+      ],
+      "generator": [],
+      "has_provenance_doc": true,
+      "n_files": 27
+    }
+  },
+  "project_docs": [
+    "PROJECT_POSTER_MSG_CAPTION_AUDIT.md",
+    "PROJECT_POSTER_MSG_RNA_COLUMNS.md",
+    "PROJECT_POSTER_MSG_WELL3A.md",
+    "PROJECT_POSTER_SESSION_HANDOFF.md",
+    "PROJECT_POSTER_LAYOUT.md",
+    "PROJECT_STATUS_CURRENT_VS_ARCHIVED.md",
+    "PROJECT_PIPELINE_POLICY.md",
+    "PROJECT_README.md",
+    "PROJECT_results.md",
+    "PROJECT_methods.md"
+  ],
+  "readme_source": "docs/POSTER_PACKAGE_README.md",
+  "data_files": [
+    "dataset_census.tsv",
+    "dataset_census.json",
+    "heldout_psite_totals.json",
+    "overcall_meta.json"
+  ],
+  "dataset_labels": [
+    "DATASET_LABELS.md",
+    "dataset_registry.tsv"
+  ]
+}

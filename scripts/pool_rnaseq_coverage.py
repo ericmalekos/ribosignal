@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-"""DEPRECATED: superseded by scripts/prepare/prepare_pack.py (see scripts/prepare/README.md).
-Kept only for the legacy Fibroblast build runner. Do NOT use for new data -- the glob +
-`assert len==32` below is exactly the hardcoded fragility the prepare/ toolkit removes.
+"""SUPERSEDED by scripts/prepare/prepare_pack.py (see scripts/prepare/README.md), but still
+called by pool_rnaseq_coverage.sbatch and pool_rnaseq_coverage_tissue.py, so it is maintained
+rather than retired.
 
-Pool the 32 per-sample Fibroblast RNAseq per-nt coverage hd5 into one tissue file.
+De-fragilised 2026-08-19 (task #94): the hardcoded project root, the `SRR15513*` glob and the
+hard `assert len(files) == 32` are gone. Every path plus the glob is now a CLI argument, the
+root resolves via $RIBOSEQ_SIGNAL_MODEL_ROOT or auto-detection, and a wrong file count is a
+warning via --expect-n rather than a crash. Defaults reproduce the historical Fibroblast
+32-sample behaviour exactly, so existing callers are unaffected.
+
+Pool the per-sample RNAseq per-nt coverage hd5 for one tissue into a single file.
 
 Element-wise sum across samples (positional accumulation with an axis-order assert,
 int64 accumulate, int32 store-guard), mirroring build_fibroblast_psite_target.py. All
@@ -18,6 +24,7 @@ Output:
   data/rnaseq_coverage/Fibroblast_rnaseq_coverage_summary.tsv
      tx_id length total_coverage n_nonzero_nt max_cov gene_id gene_name chrom transcript_type
 """
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -25,15 +32,44 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-           "RNAZoo/experiments/riboseq_signal_model")
-COV_DIR = NEW / "data" / "rnaseq_coverage" / "per_sample"
-TX2B = NEW / "data" / "tx2biotype.tsv"
-OUT_HD5 = NEW / "data" / "rnaseq_coverage" / "Fibroblast_rnaseq_coverage_pooled.hd5"
-OUT_TSV = NEW / "data" / "rnaseq_coverage" / "Fibroblast_rnaseq_coverage_summary.tsv"
+# Project root is resolved, never baked in: $RIBOSEQ_SIGNAL_MODEL_ROOT, else auto-detected by
+# walking up to the ancestor holding scripts/ and data/. Same helper the prepare/ toolkit uses.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "prepare"))
+from paths import project_root  # noqa: E402
 
 CHUNK = 10000
-TISSUE = "Fibroblast"
+
+
+def build_args():
+    """Every path and the sample glob are CLI arguments.
+
+    Defaults reproduce the historical Fibroblast/32-sample behaviour EXACTLY, so the existing
+    callers (pool_rnaseq_coverage.sbatch, pool_rnaseq_coverage_tissue.py) keep working unchanged.
+    """
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--root", type=Path, default=None,
+                    help="project root (default: $RIBOSEQ_SIGNAL_MODEL_ROOT or auto-detect)")
+    ap.add_argument("--tissue", default="Fibroblast")
+    ap.add_argument("--cov-dir", type=Path, default=None,
+                    help="dir of per-sample *_coverage.hd5 (default <root>/data/rnaseq_coverage/per_sample)")
+    ap.add_argument("--tx2biotype", type=Path, default=None,
+                    help="default <root>/data/tx2biotype.tsv")
+    ap.add_argument("--out-hd5", type=Path, default=None)
+    ap.add_argument("--out-tsv", type=Path, default=None)
+    ap.add_argument("--glob", default="SRR15513*_coverage.hd5",
+                    help="per-sample coverage glob (default matches the Chothani Fibroblast runs)")
+    ap.add_argument("--expect-n", type=int, default=None,
+                    help="if given, WARN when the file count differs. This replaces a hard "
+                         "`assert len(files)==32`, which made the script unusable on any other "
+                         "dataset and is exactly the fragility task #94 exists to remove.")
+    a = ap.parse_args()
+    root = a.root or project_root()
+    a.cov_dir = a.cov_dir or root / "data" / "rnaseq_coverage" / "per_sample"
+    a.tx2biotype = a.tx2biotype or root / "data" / "tx2biotype.tsv"
+    a.out_hd5 = a.out_hd5 or root / "data" / "rnaseq_coverage" / f"{a.tissue}_rnaseq_coverage_pooled.hd5"
+    a.out_tsv = a.out_tsv or root / "data" / "rnaseq_coverage" / f"{a.tissue}_rnaseq_coverage_summary.tsv"
+    return a
 
 
 def read_tx_ids(h):
@@ -55,8 +91,14 @@ def load_tx2biotype(path):
 
 
 def main():
-    files = sorted(COV_DIR.glob("SRR15513*_coverage.hd5"))
-    assert len(files) == 32, f"expected 32 per-sample coverage hd5, found {len(files)}"
+    a = build_args()
+    files = sorted(a.cov_dir.glob(a.glob))
+    if not files:
+        sys.exit(f"no per-sample coverage hd5 matching {a.glob!r} under {a.cov_dir}")
+    if a.expect_n is not None and len(files) != a.expect_n:
+        print(f"WARNING: expected {a.expect_n} per-sample coverage hd5, found {len(files)}",
+              file=sys.stderr)
+    print(f"[{a.tissue}] pooling {len(files)} per-sample coverage hd5 from {a.cov_dir}")
 
     canon = None
     acc = None
@@ -99,21 +141,21 @@ def main():
     obj = np.empty(n_tx, dtype=object)
     for i, a in enumerate(acc):
         obj[i] = a.astype(store_dt, copy=False)
-    with h5py.File(OUT_HD5, "w") as o:
+    with h5py.File(a.out_hd5, "w") as o:
         o.create_dataset("transcript_ids", data=np.array(canon, dtype=object), dtype=str_dt)
         o.create_dataset("coverage", data=obj, dtype=h5py.vlen_dtype(store_dt),
                          compression="gzip", compression_opts=4)
-        o.attrs["tissue"] = TISSUE
+        o.attrs["tissue"] = a.tissue
         o.attrs["n_samples"] = len(files)
         o.attrs["libtype"] = "ISR"
         o.attrs["mapped_sense_total"] = int(sum(v for v in per_sample.values() if v >= 0))
         o.attrs["mapped_sense_per_sample"] = json.dumps(per_sample)
-    print(f"wrote {OUT_HD5}", file=sys.stderr)
+    print(f"wrote {a.out_hd5}", file=sys.stderr)
 
-    tx2b = load_tx2biotype(TX2B)
+    tx2b = load_tx2biotype(a.tx2biotype)
     grand = 0
     nz_tx = 0
-    with OUT_TSV.open("w") as t:
+    with a.out_tsv.open("w") as t:
         t.write("tx_id\tlength\ttotal_coverage\tn_nonzero_nt\tmax_cov\t"
                 "gene_id\tgene_name\tchrom\ttranscript_type\n")
         for i, a in enumerate(acc):
@@ -125,7 +167,7 @@ def main():
             gid, gname, chrom, ttype = tx2b.get(tx, ("NA", "NA", "NA", "unknown"))
             t.write(f"{tx}\t{a.shape[0]}\t{tot}\t{int((a > 0).sum())}\t"
                     f"{int(a.max()) if a.size else 0}\t{gid}\t{gname}\t{chrom}\t{ttype}\n")
-    print(f"wrote {OUT_TSV}", file=sys.stderr)
+    print(f"wrote {a.out_tsv}", file=sys.stderr)
     print(f"grand_total_coverage={grand:,}  transcripts_with_coverage={nz_tx:,}/{n_tx:,}",
           file=sys.stderr)
 

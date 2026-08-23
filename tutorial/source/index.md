@@ -61,7 +61,10 @@ Ribo-seq experiment where none exists.
 - **Predicted ORFs carry independent peptide evidence.** Feeding the calls to a mass-spec search finds novel
   peptides at **123x** the discovery density of a naive enumeration and at **28x** lower cost to canonical
   detection -- and recovers peptides a 154x larger database contains but cannot report at 1% FDR
-  ({doc}`proteogenomics`).
+  ({doc}`proteogenomics`). Those are BMDM numbers; across all 12 macrophage populations the medians are
+  **111x** density on a **156x** smaller database. On TOTAL unique peptides the honest claim is
+  **cost-neutrality**, not a gain -- the model is above the GENCODE-only baseline in 5 of 12 populations
+  (median -8 of ~55,000), while the naive null is above it in **0 of 12** (median -1,784).
 
 ## How to read this site
 

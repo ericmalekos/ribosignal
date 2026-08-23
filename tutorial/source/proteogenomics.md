@@ -264,13 +264,66 @@ Two honest notes for reading the figure:
   honest uncertainty statement is the peptide count printed beside each point (7 to 16). A Poisson interval on
   those counts would imply a replication structure that does not exist.
 
+## The ORF-length floor is set by the ASSAY, not by a default
+
+Before any of the numbers below mean anything, the search database has a minimum ORF length, and it is
+**not one value**:
+
+```{list-table}
+:header-rows: 1
+:widths: 34 12 54
+
+* - assay
+  - floor
+  - why
+* - tryptic whole-cell lysate
+  - **30 AA**
+  - tryptic peptides come from digesting whole proteins, so sub-30-aa ORFs are not the population the
+    assay samples. Same floor the ORF-call side applies (90 nt, stop excluded).
+* - MHC / HLA immunopeptidomics
+  - **7 AA**
+  - HLA-I peptides are 8-11 aa. A 30-aa floor would delete the microproteins the assay exists to find.
+```
+
+**Classify from the search parameters, never from the dataset name.** `search_enzyme_name_1 = trypsin`
+with `num_enzyme_termini = 2` is tryptic; `nonspecific` with `termini = 0` is MHC.
+
+`pgx.build_dbs --assay {tryptic,mhc}` sets the floor and refuses a conflicting `--min-aa`, so it cannot
+drift.
+
+:::{admonition} The floor is load-bearing for HLA-I and free for tryptic
+:class: important
+
+Novel peptides at 1% class-specific FDR whose supporting ORFs are **all** sub-30-aa -- the ones a 30-aa
+floor deletes -- measured by `proteogenomics/scripts/orf_length_audit.py`:
+
+| arm | mouse macrophage (tryptic) | human (mostly HLA-I) |
+|---|--:|--:|
+| model (Poisson) | **0 / 295 (0.0%)** | **14 / 52 (26.9%)** |
+| null AUG | 19 / 453 (4.2%) | 22 / 72 (30.6%) |
+| CPAT | -- | **0 / 39 (0.0%)** |
+| CPC2 | -- | **0 / 55 (0.0%)** |
+
+On tryptic data the floor costs the model nothing. On HLA-I it would cost ~30% -- and because CPAT and
+CPC2 have **zero** short-only discoveries (their databases are 0-2% short by construction, since
+composition scoring selects long ORF-like sequences), the loss is not symmetric. Applying 30 aa to HLA-I
+would turn "the model wins all three HLA-I immunopeptidomes" into "wins 2 of 3".
+
+That asymmetry is the point, not an embarrassment: sub-30-aa microproteins are exactly what a
+translation model finds and a coding-potential selector rejects.
+:::
+
+**Status note (2026-08-14):** the macrophage numbers on this page were computed at 7 AA. They are
+tryptic and are scheduled to be rebuilt at 30 AA; because model short-only is 0.0% there, the headline
+numbers are expected to move very little. See `docs/STATUS_CURRENT_VS_ARCHIVED.md`.
+
 ## Result: a bigger database destroys discovery it contains
 
 BMDM, mouse, `mamba4` union model, tryptic, 18 fractions.
 
 ```{list-table}
 :header-rows: 1
-:widths: 22 12 12 14 14 14 12
+:widths: 20 10 10 12 12 12 10 14
 
 * - Arm
   - novel PSMs
@@ -279,6 +332,7 @@ BMDM, mouse, `mamba4` union model, tryptic, 18 fractions.
   - GENCODE PSMs
   - $\Delta$PSM
   - ncStart
+  - $\Delta$TOTAL pept
 * - `gencode`
   - 0
   - 0
@@ -286,6 +340,7 @@ BMDM, mouse, `mamba4` union model, tryptic, 18 fractions.
   - 335,548
   - +0
   - 0
+  - +0 (55,156)
 * - **`model_poisson`**
   - 121
   - 40
@@ -293,6 +348,7 @@ BMDM, mouse, `mamba4` union model, tryptic, 18 fractions.
   - 335,187
   - **-361**
   - **3**
+  - **-21**
 * - `null_atg`
   - 177
   - 50
@@ -300,6 +356,7 @@ BMDM, mouse, `mamba4` union model, tryptic, 18 fractions.
   - 325,254
   - -10,294
   - 0
+  - -1,998
 * - `null_nc`
   - 657
   - 177
@@ -307,10 +364,34 @@ BMDM, mouse, `mamba4` union model, tryptic, 18 fractions.
   - 319,544
   - -16,004
   - 9
+  - -4,457
 ```
 
+:::{admonition} The last column is the one to read first, and it is negative
+:class: warning
+
+$\Delta$TOTAL is the change in **total unique peptides** (canonical + novel) against searching
+GENCODE alone -- the number an experimentalist actually takes home. Every other column can favour an
+arm that nonetheless hands back fewer peptides than not searching a novel database at all.
+
+On this run the model is **-21**, not a gain. Two things follow, and neither is optional:
+
+1. **It flips sign on search parameters.** The frozen-parameter BMDM run (used by
+   `figures/P11_bmdm_proteomics` and `F2b`) gives **+31** for the same databases and the same
+   spectra. The model's effect on total peptides is within noise of zero, and quoting either number
+   without its search configuration is quoting noise as a result.
+2. **BMDM is the most favourable of 12 macrophage populations.** Across all 12 (frozen parameters)
+   the model is above the GENCODE-only baseline in **5**, median **-8** of ~55,000 (0.01%). The
+   naive AUG null is above it in **0 of 12**, median **-1,784**.
+
+The defensible claim is therefore **cost-neutrality**, not a gain: the model adds novel discoveries
+at a cost indistinguishable from zero, while the nulls cost ~2,000-4,500 peptides every time. Do not
+write "the model finds more peptides".
+:::
+
 The model database costs **28x less** canonical signal than the AUG null (0.11% vs 3.07% of baseline) at
-**154x** fewer sequences. But the decisive number is the peptide overlap: of 40 model peptides, **17 are
+**154x** fewer sequences. (Medians across all 12 macrophage populations: **156x** smaller database,
+**111x** higher discovery density. The BMDM ratios are representative; its $\Delta$TOTAL is not.) But the decisive number is the peptide overlap: of 40 model peptides, **17 are
 found by neither null**, and every one is explained:
 
 ```{list-table}

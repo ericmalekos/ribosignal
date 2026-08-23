@@ -1,0 +1,231 @@
+{
+  "model": null,
+  "source": "data/packed_union_Hepatocytes/{target_counts,offsets,lengths,tx_order} + data/union_universe.tsv (RNA TPM)",
+  "provenance_note": "MODEL-FREE: observed Ribo-seq only, no prediction. Hepatocytes is the LOTO held-out tissue; these are its measured P-sites under the posture-A multimapper convention (methods.md 2.3).",
+  "gene": "GTF2I",
+  "n_isoforms": 35,
+  "summed_psites_over_isoforms": 452992,
+  "per_isoform_psites_min": 11161,
+  "per_isoform_psites_max": 13258,
+  "psite_spread_pct_of_max": 15.82,
+  "rna_tpm_min": 1.109342,
+  "rna_tpm_max": 50.3097265,
+  "rna_tpm_fold_range": 45.4,
+  "inflation_vs_single_isoform": 34.2,
+  "highest_ribo_isoform": "ENST00000901263.1",
+  "highest_ribo_isoform_tpm": 1.2497883333333333,
+  "highest_rna_isoform": "ENST00000620879.4",
+  "highest_rna_isoform_tpm": 50.3097265,
+  "isoforms": [
+    {
+      "tx": "ENST00000620879.4",
+      "len": 4352,
+      "tpm": 50.3097265,
+      "total_psites": 13138
+    },
+    {
+      "tx": "ENST00000614986.4",
+      "len": 4415,
+      "tpm": 49.732292,
+      "total_psites": 13044
+    },
+    {
+      "tx": "ENST00000901264.1",
+      "len": 5194,
+      "tpm": 20.542890166666666,
+      "total_psites": 13102
+    },
+    {
+      "tx": "ENST00000443166.5",
+      "len": 979,
+      "tpm": 13.53063,
+      "total_psites": 11161
+    },
+    {
+      "tx": "ENST00000573035.6",
+      "len": 4515,
+      "tpm": 7.3169265,
+      "total_psites": 13007
+    },
+    {
+      "tx": "ENST00000901278.1",
+      "len": 5164,
+      "tpm": 6.5832295,
+      "total_psites": 13159
+    },
+    {
+      "tx": "ENST00000932179.1",
+      "len": 4130,
+      "tpm": 4.808725166666666,
+      "total_psites": 12012
+    },
+    {
+      "tx": "ENST00000901269.1",
+      "len": 4547,
+      "tpm": 4.287648666666667,
+      "total_psites": 13144
+    },
+    {
+      "tx": "ENST00000932158.1",
+      "len": 4458,
+      "tpm": 4.108744000000001,
+      "total_psites": 13102
+    },
+    {
+      "tx": "ENST00000932149.1",
+      "len": 4437,
+      "tpm": 3.7676728333333336,
+      "total_psites": 13202
+    },
+    {
+      "tx": "ENST00000901267.1",
+      "len": 4682,
+      "tpm": 3.263028333333333,
+      "total_psites": 13167
+    },
+    {
+      "tx": "ENST00000901275.1",
+      "len": 4607,
+      "tpm": 3.132359,
+      "total_psites": 13050
+    },
+    {
+      "tx": "ENST00000901271.1",
+      "len": 4548,
+      "tpm": 3.0826915,
+      "total_psites": 13065
+    },
+    {
+      "tx": "ENST00000901270.1",
+      "len": 4742,
+      "tpm": 2.793237,
+      "total_psites": 13073
+    },
+    {
+      "tx": "ENST00000932157.1",
+      "len": 5078,
+      "tpm": 2.4278866666666667,
+      "total_psites": 13196
+    },
+    {
+      "tx": "ENST00000932171.1",
+      "len": 4255,
+      "tpm": 2.3699615,
+      "total_psites": 12123
+    },
+    {
+      "tx": "ENST00000932153.1",
+      "len": 4531,
+      "tpm": 2.268775,
+      "total_psites": 13032
+    },
+    {
+      "tx": "ENST00000901289.1",
+      "len": 4381,
+      "tpm": 2.2086046666666665,
+      "total_psites": 13102
+    },
+    {
+      "tx": "ENST00000932154.1",
+      "len": 4539,
+      "tpm": 2.1577610000000003,
+      "total_psites": 13107
+    },
+    {
+      "tx": "ENST00000901285.1",
+      "len": 4650,
+      "tpm": 2.0533853125,
+      "total_psites": 13102
+    },
+    {
+      "tx": "ENST00000901279.1",
+      "len": 4188,
+      "tpm": 2.035807,
+      "total_psites": 13102
+    },
+    {
+      "tx": "ENST00000949270.1",
+      "len": 4162,
+      "tpm": 2.0324125,
+      "total_psites": 13196
+    },
+    {
+      "tx": "ENST00000690345.1",
+      "len": 3842,
+      "tpm": 2.027405,
+      "total_psites": 12012
+    },
+    {
+      "tx": "ENST00000901266.1",
+      "len": 4490,
+      "tpm": 2.0142123333333335,
+      "total_psites": 13159
+    },
+    {
+      "tx": "ENST00000901268.1",
+      "len": 4145,
+      "tpm": 1.979847,
+      "total_psites": 13196
+    },
+    {
+      "tx": "ENST00000932162.1",
+      "len": 4110,
+      "tpm": 1.8680104999999998,
+      "total_psites": 13138
+    },
+    {
+      "tx": "ENST00000901276.1",
+      "len": 4309,
+      "tpm": 1.8251680000000001,
+      "total_psites": 13196
+    },
+    {
+      "tx": "ENST00000932166.1",
+      "len": 4317,
+      "tpm": 1.651899,
+      "total_psites": 13138
+    },
+    {
+      "tx": "ENST00000932174.1",
+      "len": 3647,
+      "tpm": 1.4946076666666668,
+      "total_psites": 13044
+    },
+    {
+      "tx": "ENST00000932150.1",
+      "len": 4422,
+      "tpm": 1.2532258333333335,
+      "total_psites": 11887
+    },
+    {
+      "tx": "ENST00000901263.1",
+      "len": 5178,
+      "tpm": 1.2497883333333333,
+      "total_psites": 13258
+    },
+    {
+      "tx": "ENST00000901300.1",
+      "len": 3201,
+      "tpm": 1.2438488333333333,
+      "total_psites": 13195
+    },
+    {
+      "tx": "ENST00000901282.1",
+      "len": 5213,
+      "tpm": 1.1572005,
+      "total_psites": 13144
+    },
+    {
+      "tx": "ENST00000949274.1",
+      "len": 4371,
+      "tpm": 1.1305111666666667,
+      "total_psites": 13138
+    },
+    {
+      "tx": "ENST00000621734.4",
+      "len": 4412,
+      "tpm": 1.109342,
+      "total_psites": 13101
+    }
+  ]
+}

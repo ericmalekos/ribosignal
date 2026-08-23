@@ -5,6 +5,11 @@
 #SBATCH --mem=110G
 #SBATCH --time=12:00:00
 #SBATCH --output=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/logs/cart_proc_%A_%a.out
+# SUPERSEDED by scripts/riboseq_align.sbatch (docs/PIPELINE_POLICY.md rule 1).
+# PARTIALLY superseded: the Ribo ALIGNMENT half is replaced (see data/human_ribo_canon_samplesheet.tsv).
+# The RNA arm and salmon steps have no canonical equivalent yet. TWO defects, both fixed in the
+# canonical path: no filter_tx_heldout, and umi_tools dedup ran on the GENOME bam while the pack
+# was built from the raw STAR transcriptome bam (~29% PCR duplicates reached the pack).
 set -euo pipefail
 # GSE304796 (19-28z CAR-T) read processing, to the recipe the user specified:
 #

@@ -69,7 +69,7 @@ def main():
     bt = load_kv(NEW / "data" / "tx2biotype.tsv", "tx_id",
                  ["transcript_type", "gene_id", "gene_name", "chrom", "length"],
                  [str, str, str, str, int])
-    tpm = load_kv(NEW / "data" / "fibroblast_salmon_mean_tpm.tsv", "tx_id",
+    tpm = load_kv(NEW / "data" / "tpm" / "fibroblast_salmon_mean_tpm.tsv", "tx_id",
                   ["mean_tpm"], [float])
     ribo = load_kv(NEW / "data" / "target" / "Fibroblast_psites_summary.tsv", "tx_id",
                    ["total_psites"], [int])

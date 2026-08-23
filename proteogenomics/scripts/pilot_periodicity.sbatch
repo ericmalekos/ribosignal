@@ -11,7 +11,7 @@ ENV=/private/groups/carpenterlab/emalekos/conda_envs/riboseq; export PATH="$ENV/
 RC=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin
 IDX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_grch38_v49
 ECH=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human
-ANNOT=$ECH/data/ribocode_annot
+ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary
 RB=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/HBL1_pilot/riboseq
 SCR=/data/tmp/emalekos/hbl1_pilot_$SLURM_JOB_ID; mkdir -p "$SCR"; cd "$SCR"
 set +o pipefail; zcat $RB/SRR12285192.fastq.gz | head -80000000 > raw.fq; set -o pipefail   # 20M reads

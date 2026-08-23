@@ -42,15 +42,22 @@ NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/riboseq_signal_model")
 OUTDIR = NEW / "results/profile_exemplars"
 
-# (dataset key, species, dump dir holding pred_profiles.npz + real_collapsed.txt)
-DATASETS = [
-    ("human_hepatocytes", "human",
-     "results/loto/orf_v2_mamba4_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/dropin"),
-    ("human_ruizorera", "human", "results/heldout/human_ruizorera/released_mamba4/dropin"),
-    ("mouse_wang_liver", "mouse", "results/liver_released/mamba4_mouse_wang_liver"),
-    ("mouse_janich_liver", "mouse", "results/liver_released/mamba4_mouse_janich_liver_decon"),
-    ("mouse_gse243134_liver", "mouse", "results/liver_released/mamba4_mouse_gse243134_liver"),
-]
+# (dataset key, species, dump dir holding pred_profiles.npz + real_collapsed.txt), as a function of
+# the architecture. The paths were mamba4 literals, so the shipped exemplar TSVs were all mamba4 with
+# nothing on the files to say so -- a poster built as all-attn had no attn observed-vs-predicted
+# source at all. `--model attn` selects the attn dumps, which already exist for every dataset here.
+def datasets_for(model):
+    return [
+        ("human_hepatocytes", "human",
+         f"results/loto/orf_v2_{model}_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/dropin"),
+        ("human_ruizorera", "human", f"results/heldout/human_ruizorera/released_{model}/dropin"),
+        ("mouse_wang_liver", "mouse", f"results/liver_released/{model}_mouse_wang_liver"),
+        ("mouse_janich_liver", "mouse", f"results/liver_released/{model}_mouse_janich_liver_decon"),
+        ("mouse_gse243134_liver", "mouse", f"results/liver_released/{model}_mouse_gse243134_liver"),
+    ]
+
+
+DATASETS = datasets_for("mamba4")
 MIN_PSITES = 200      # below this the observed profile is too sparse to judge a shape
 MIN_ORF_NT = 90       # matches the drop-in comparison's min_len
 
@@ -163,7 +170,10 @@ def score_dataset(key, species, d, top):
     return rows[:top] if top else rows
 
 
-COLS = ["dataset", "species", "tx_id", "gene", "tx_biotype", "orf_type", "orf_tstart", "orf_tstop", "tx_len",
+# `model` is FIRST-CLASS, not optional: write_tsv emits exactly COLS, so stamping rows without
+# listing it here would have silently dropped it (it did, on the first attn run).
+COLS = ["model", "dataset", "species", "tx_id", "gene", "tx_biotype", "orf_type", "orf_tstart",
+        "orf_tstop", "tx_len",
         "psites_total", "psites_in_orf", "r_full", "r_drop1", "r_drop3", "r_orf", "r_drop_orf3",
         "top1_frac", "spread90", "f0_obs_in_orf", "score"]
 
@@ -181,16 +191,27 @@ def main():
     ap.add_argument("--dataset", help="only this dataset key")
     ap.add_argument("--top", type=int, default=200, help="rows kept per dataset (0 = all)")
     ap.add_argument("--outdir", default=str(OUTDIR))
+    ap.add_argument("--model", default="mamba4", choices=["mamba4", "attn"],
+                    help="which architecture's dumps to score. Default mamba4 (historical).")
     a = ap.parse_args()
     out = Path(a.outdir); out.mkdir(parents=True, exist_ok=True)
+    datasets = datasets_for(a.model)
+    print(f"  model = {a.model}")
 
     combined = []
-    for key, species, d in DATASETS:
+    for key, species, d in datasets:
         if a.dataset and key != a.dataset:
+            continue
+        if not (NEW / d / "pred_profiles.npz").exists():
+            print(f"  SKIP {key}: no dump at {d}")
             continue
         rows = score_dataset(key, species, d, a.top)
         if not rows:
             continue
+        # The model is stamped on every row, so an exemplar TSV can never again be architecture-
+        # ambiguous the way the shipped mamba4 ones were.
+        for r in rows:
+            r["model"] = a.model
         write_tsv(rows, out / f"{key}_exemplars.tsv")
         combined.extend(rows)
 

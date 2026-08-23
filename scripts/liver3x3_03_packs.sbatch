@@ -33,10 +33,10 @@ RIBO_I=$((SLURM_ARRAY_TASK_ID / 3))
 RNA_I=$((SLURM_ARRAY_TASK_ID % 3))
 RB=${DS[$RIBO_I]}
 RN=${DS[$RNA_I]}
-OUT=$L/pack_ribo-${RB}_rna-${RN}
+OUT=$L/pack_canon_ribo-${RB}_rna-${RN}
 
-mapfile -t PS < <(ls $L/pool_$RB/_work/psites/*_psites.hd5 | sort)
-mapfile -t CV < <(ls $L/pool_$RN/_work/coverage/*_coverage.hd5 | sort)
+mapfile -t PS < <(ls $L/pool_${RB}_canon/_work/psites/*_psites.hd5 | sort)
+mapfile -t CV < <(ls $L/pool_$RN/_work/coverage/*_coverage.hd5 | sort)   # RNA unchanged: final-recipe rebuild re-aligned RIBO only
 [[ ${#PS[@]} -ge 1 && ${#CV[@]} -ge 1 ]] || { echo "no cached hd5 for ribo=$RB rna=$RN" >&2; exit 1; }
 [[ -s "$TRACK" ]] || { echo "missing ORF track $TRACK -- run stage 2 first" >&2; exit 1; }
 echo "cell=$SLURM_ARRAY_TASK_ID ribo=$RB (${#PS[@]} hd5) rna=$RN (${#CV[@]} hd5) host=$(hostname) start=$(date -Iseconds)"
@@ -45,7 +45,7 @@ echo "cell=$SLURM_ARRAY_TASK_ID ribo=$RB (${#PS[@]} hd5) rna=$RN (${#CV[@]} hd5)
   --ribo-psites "${PS[@]}" \
   --rna-coverage "${CV[@]}" \
   --universe-tx "$UNI" \
-  --group "l3x3_ribo-${RB}_rna-${RN}" --species mouse --out "$OUT" \
+  --group "l3x3canon_ribo-${RB}_rna-${RN}" --species mouse --out "$OUT" \
   --tx2biotype "$NEW/data/tx2biotype_mouse.tsv"
 
 # Gate the contract, not the exit status. Every cell must share the universe exactly, or the nine

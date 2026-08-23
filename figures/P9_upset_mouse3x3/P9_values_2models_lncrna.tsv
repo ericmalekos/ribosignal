@@ -1,0 +1,33 @@
+# P9_values_2models_lncrna.json -> WIDE (record table at 'intersections', 31 rows)
+model	model_rna	arm	view	keying	n_test_tx	bars_drawn	bars_omitted	orfs_in_omitted_bars	pattern	n
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":false,"wang":false,"attn":true,"mamba4":true}	873
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":false,"wang":false,"attn":false,"mamba4":true}	278
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":false,"wang":false,"attn":true,"mamba4":false}	244
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":true,"wang":true,"attn":true,"mamba4":true}	243
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":true,"wang":false,"attn":true,"mamba4":true}	92
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":true,"wang":true,"attn":false,"mamba4":false}	61
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":true,"wang":false,"attn":false,"mamba4":false}	59
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":true,"wang":false,"attn":true,"mamba4":true}	50
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":true,"wang":false,"attn":false,"mamba4":false}	42
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":false,"wang":true,"attn":false,"mamba4":false}	28
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":false,"wang":false,"attn":false,"mamba4":false}	28
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":false,"wang":false,"attn":true,"mamba4":true}	25
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":true,"wang":true,"attn":true,"mamba4":true}	23
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":true,"wang":true,"attn":false,"mamba4":true}	21
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":false,"wang":true,"attn":true,"mamba4":true}	15
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":true,"wang":true,"attn":true,"mamba4":false}	14
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":false,"wang":false,"attn":true,"mamba4":false}	14
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":true,"wang":false,"attn":true,"mamba4":false}	14
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":true,"wang":true,"attn":false,"mamba4":false}	13
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":false,"wang":true,"attn":true,"mamba4":true}	11
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":false,"wang":true,"attn":false,"mamba4":false}	9
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":false,"wang":false,"attn":false,"mamba4":true}	9
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":true,"wang":false,"attn":false,"mamba4":true}	9
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":true,"wang":false,"attn":false,"mamba4":true}	8
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":true,"wang":false,"attn":true,"mamba4":false}	8
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":false,"wang":true,"attn":true,"mamba4":false}	5
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":true,"wang":true,"attn":true,"mamba4":false}	5
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":false,"wang":true,"attn":false,"mamba4":true}	4
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":false,"wang":true,"attn":false,"mamba4":true}	3
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":true,"gse243134":false,"wang":true,"attn":true,"mamba4":false}	1
+mamba4	gse243134	pred_preddepth	lncRNA ORFs (RiboCode 'novel')	genomic (gene_id, ORF_gstop)	22974	20	11	62	{"janich":false,"gse243134":true,"wang":true,"attn":false,"mamba4":true}	1

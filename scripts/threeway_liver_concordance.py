@@ -40,7 +40,7 @@ from compare_dropin_calls import NONCANON, load_calls, prf  # noqa: E402
 ECH = ROOT.parent.parent / "experiments" / "biotype_probe" / "expression_context_human"
 OBS = {
     "Wang": ROOT / "data/heldout_psites/mouse_wang_liver/mouse_wang_liver_collapsed.txt",
-    "Janich": ECH / "data/ribocode_mouse_liver/Liver_5samp/Liver_5samp_collapsed.txt",
+    "Janich": NEW / "results/merged_liver_ribocode/merged_liver_collapsed.txt",
     "GSE243134": ROOT / "data/heldout_psites/mouse_gse243134_liver/mouse_gse243134_liver_collapsed.txt",
 }
 # BOTH arms per the standing two-arm rule. theta=0.02 is the CDS-anchored calibrated operating point
@@ -69,8 +69,8 @@ CLASSES = {"CDS": {"annotated"}, "non-canonical": NONCANON}
 # 52-70% of TPM into two structural transcripts, which suppressed ~4,900 real transcripts below the
 # TPM >= 1 cut. GSE243134 contributes no expression set -- its totalRNA was rejected on chemistry --
 # so the shared space is Wang AND Janich, and GSE243134 is scored inside it.
-SALMON_WANG = ROOT / "data/salmon_quant_wang_liver/wang_merged_quant.sf"
-JANICH_DECON = ROOT / "data/salmon_quant_janich_liver_decontam"
+SALMON_WANG = ROOT / "data/tpm/salmon_quant_wang_liver/wang_merged_quant.sf"
+JANICH_DECON = ROOT / "data/tpm/salmon_quant_janich_liver_decontam"
 TX2GENE = ROOT / "data/tx2biotype_mouse.tsv"
 
 

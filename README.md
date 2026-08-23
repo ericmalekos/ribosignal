@@ -1,5 +1,7 @@
 # riboseq_signal_model
 
+> Current vs superseded results: **`docs/STATUS_CURRENT_VS_ARCHIVED.md`**.
+
 Predict per-nucleotide Ribo-seq P-site signal along a transcript from sequence (+ optional matched
 RNA-seq coverage). A dilated-CNN body with a transformer or Mamba mixer feeds two heads: a profile head
 (multinomial over the transcript, the periodic P-site SHAPE) and a count head (log total P-sites, the
@@ -59,6 +61,17 @@ Added 2026-08-08 (tasks 61, 63-68):
   the coverage path is worth only +0.001 to +0.010 F1, while the universe path adds **17% more real
   ORFs**. Both models converge to the same non-canonical F1 (0.520) once the RNA is good, from 0.029
   apart -- on this axis RNA quality outweighs the architecture choice.
+- **The final-recipe pipeline, and what it changed (2026-08-13).** One aligner for both species
+  (`scripts/riboseq_align.sbatch`, EndToEnd + mm1 + ncRNA/cross-gene filter); policy in
+  `docs/PIPELINE_POLICY.md`, entry points in `docs/CANONICAL_ENTRYPOINTS.md`. Canonical alignment
+  strips **22.3% of novel** and **12.5% of uORF** reference calls vs 1.4% of annotated, while the
+  model's own standalone predictions are byte-identical -- so the earlier non-canonical F1 was
+  INFLATED by the model matching alignment artifacts. **Never compare canonical non-canonical
+  numbers to previously reported ones.**
+- **Reproducibility is per-tissue, and 3.04% was the flattering tissue.** Across all 8 Chothani
+  tissues the median regeneration divergence is **3.86%** (range 3.04-11.66%, per-nt r 0.432-0.980);
+  HUVEC, the tissue the original claim rested on, is the BEST of the eight. Quote the range, not
+  3.04% alone. Figure `figures/S_reproducibility/`.
 - **Figure audit.** Five of six Fig 1 panels were on the stale checkpoint AND on the wrong model
   (locked decision D1b makes mamba4 the main Fig 1 model; the panels were all attn). A1/A2/B4/B5 now
   take `FIG_MODEL`, default mamba4, and record the model in their values JSON. See

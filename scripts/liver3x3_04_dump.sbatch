@@ -49,7 +49,7 @@ RB=${DS[$((CELL / 3))]}
 RN=${DS[$((CELL % 3))]}
 MODELS=(attn mamba4)
 M=${MODELS[$MI]}
-NAME=l3x3_ribo-${RB}_rna-${RN}
+NAME=l3x3canon_ribo-${RB}_rna-${RN}
 
 case "$M" in
   attn)   RUN=results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes
@@ -65,7 +65,7 @@ PACK=$NEW/data/packed_heldout_$NAME
 ORFTRACK=$L/orf_track_union3_nokozak.npy
 FASTA=$NEW/data/heldout_refs/mouse_liver_union3_universe.fa
 TXLIST=$NEW/data/heldout_refs/mouse_liver_union3_tx.txt
-OUT=$NEW/results/mouse_liver_3x3/${M}_ribo-${RB}_rna-${RN}
+OUT=$NEW/results/mouse_liver_3x3_canon/${M}_ribo-${RB}_rna-${RN}
 mkdir -p "$OUT"
 
 for f in "$ORFTRACK" "$FASTA" "$TXLIST" "$NEW/$RUN/best.pt" "$PACK/tx_order.txt"; do

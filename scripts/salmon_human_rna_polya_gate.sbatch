@@ -30,7 +30,7 @@ set -euo pipefail
 NEW=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
 SALMON=/private/groups/carpenterlab/emalekos/conda_envs/riboseq/bin/salmon
 IDX=/private/groups/carpenterlab/emalekos/Salmon_indexes/salmon_index_decoy_v49
-OUT=$NEW/data/salmon_human_rna
+OUT=$NEW/data/tpm/salmon_human_rna
 T=${SLURM_CPUS_PER_TASK:-12}
 
 RUNS=(SRR21228005 SRR21228006 SRR21228015 SRR21228016 SRR34901749 SRR34901750 SRR34901751)

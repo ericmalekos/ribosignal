@@ -6,7 +6,7 @@ Pack per-nt P-site target + pooled RNAseq coverage for the expressed universe in
 ragged 1-D numpy arrays, so the training data loader needs only numpy (no h5py) and reads
 contiguous per-transcript slices (fast, memmap-friendly) instead of random hd5 vlen rows.
 
-For the 36,668 universe transcripts (sorted tx id = canonical pack order), reads each
+For the 36,668 universe transcripts (sorted tx id = final-recipe pack order), reads each
 transcript's per-nt P-site counts from the target hd5 and per-nt read depth from the
 pooled coverage hd5 (joining BY id -- the two hd5 share the same transcript set in
 different axis orders), asserts the two per-nt lengths agree, and concatenates into:
@@ -34,8 +34,11 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-           "RNAZoo/experiments/riboseq_signal_model")
+# Root resolves via $RIBOSEQ_SIGNAL_MODEL_ROOT or auto-detection (task #94); never baked in.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "prepare"))
+from paths import project_root  # noqa: E402
+
+NEW = project_root()
 UNIV = NEW / "data" / "fibroblast_universe.tsv"
 TARGET = NEW / "data" / "target" / "Fibroblast_psites_pooled.hd5"
 TARGET_SUM = NEW / "data" / "target" / "Fibroblast_psites_summary.tsv"

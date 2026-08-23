@@ -32,7 +32,7 @@ echo "O2 symmetric start=$(date -Iseconds) host=$(hostname)"
 
 # 1. Janich pack on the Wang universe (Janich Ribo psites + Janich RNA coverage, Wang tx_order)
 "$PY" "$NEW/scripts/prepare/prepare_pack.py" \
-  --ribo-psites "$ECH/data/ribocode_mouse_liver/Liver_5samp" \
+  --ribo-psites "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/merged_liver_ribocode/merged_liver" \
   --rna-coverage "$NEW/data/heldout_rnaseq_coverage/mouse_janich_liver" \
   --ref-pack "$WANGPACK" \
   --tx2biotype "$NEW/data/tx2biotype_mouse.tsv" \

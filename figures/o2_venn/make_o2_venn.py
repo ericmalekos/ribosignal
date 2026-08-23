@@ -36,9 +36,9 @@ ECH = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
 HERE = NEW / "figures/o2_venn"
 
 WANG_OBS = NEW / "data/heldout_psites/mouse_wang_liver/mouse_wang_liver_collapsed.txt"
-JANICH_OBS = ECH / "data/ribocode_mouse_liver/Liver_5samp/Liver_5samp_collapsed.txt"
-QW = NEW / "data/salmon_quant_wang_liver/wang_merged_quant.sf"
-QJ = NEW / "data/salmon_quant_janich_liver/janich_merged_quant.sf"
+JANICH_OBS = NEW / "results/merged_liver_ribocode/merged_liver_collapsed.txt"
+QW = NEW / "data/tpm/salmon_quant_wang_liver/wang_merged_quant.sf"
+QJ = NEW / "data/tpm/salmon_quant_janich_liver/janich_merged_quant.sf"
 
 ARMS = {
     "wang":   {"theta1": NEW / "results/o2_liver/wang_nokozak/dropin/pred_preddepth_collapsed.txt",

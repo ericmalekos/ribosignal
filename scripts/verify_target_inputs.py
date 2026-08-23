@@ -24,8 +24,8 @@ ECH = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/biotype_probe/expression_context_human")
 NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/riboseq_signal_model")
-RC_DIR = ECH / "data" / "ribocode_per_tissue" / "Fibroblast"
-NCRNA = ECH / "data" / "phase30" / "ncrna_filter_tx.txt"
+RC_DIR = NEW / "data" / "ribocode_per_tissue" / "Fibroblast"
+NCRNA = NEW / "data" / "ncrna_tx_human_v49.txt"
 TX2B = NEW / "data" / "tx2biotype.tsv"
 
 CONTROLS = ("ACTB", "GAPDH")   # by gene_name; pool all isoforms present on the axis

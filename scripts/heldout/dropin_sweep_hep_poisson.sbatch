@@ -15,4 +15,4 @@ TH=${THETAS[$SLURM_ARRAY_TASK_ID]}
 OUT=$RUN/dropin_sweep_poisson/theta_${TH}; rm -rf "$OUT"; mkdir -p "$OUT"
 export PYTHONNOUSERSITE=1
 # lever (b): same depth scale BUT Poisson-sampled (injects realistic detection noise)
-"$PY" /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/scripts/ribocode_dropin.py --profiles "$RUN/dropin/pred_profiles.npz"   --annot /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_annot --variant pred_preddepth --pred_scale "$TH" --pred_poisson   --seed 0 --out "$OUT" --min_aa 5 --pval 0.05
+"$PY" /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/scripts/ribocode_dropin.py --profiles "$RUN/dropin/pred_profiles.npz"   --annot /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary --variant pred_preddepth --pred_scale "$TH" --pred_poisson   --seed 0 --out "$OUT" --min_aa 5 --pval 0.05

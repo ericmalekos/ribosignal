@@ -32,7 +32,7 @@ SPECIES=(mouse mouse mouse mouse mouse mouse human human)
 N=${NAMES[$SLURM_ARRAY_TASK_ID]}; SP=${SPECIES[$SLURM_ARRAY_TASK_ID]}
 if [[ "$SP" == "human" ]]; then
   PROF=$NEW/results/heldout/human_ruizorera/$N/dropin/pred_profiles.npz
-  ANNOT=$ECH/data/ribocode_annot
+  ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary
   OUT=$NEW/results/heldout/human_ruizorera/$N/calib
 else
   PROF=$NEW/results/liver_released/$N/pred_profiles.npz

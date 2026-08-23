@@ -23,8 +23,11 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-           "RNAZoo/experiments/riboseq_signal_model")
+# Root resolves via $RIBOSEQ_SIGNAL_MODEL_ROOT or auto-detection (task #94); never baked in.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "prepare"))
+from paths import project_root  # noqa: E402
+
+NEW = project_root()
 COV_DIR = NEW / "data" / "rnaseq_coverage" / "per_sample"
 SRR_TISSUE = NEW / "data" / "loto_rnaseq_srr_tissue.tsv"
 TX2B = NEW / "data" / "tx2biotype.tsv"

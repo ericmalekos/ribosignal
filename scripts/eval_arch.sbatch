@@ -27,7 +27,7 @@ esac
 SUF=""; SEEDLBL=""; [ "$SEED" = 0 ] || { SUF="_seed${SEED}"; SEEDLBL=" seed${SEED}"; }
 RUN=results/loto/${NAME}_onehot_noBrain_nokozak_mm1_holdout_Hepatocytes${SUF}
 RIBOPY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
-ANNOT=$ECH/data/ribocode_annot
+ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary
 echo "eval ARCH=$ARCH run=$RUN host=$(hostname) start=$(date -Iseconds)"
 
 # 1. dump predicted profiles on the Hepatocytes holdout (GPU)

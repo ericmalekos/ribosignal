@@ -18,5 +18,5 @@ M=${MODELS[$SLURM_ARRAY_TASK_ID]}; V=${VARS[$SLURM_ARRAY_TASK_ID]}
 D=$NEW/results/heldout/human_ruizorera/released_${M}/dropin
 echo "model=$M variant=$V host=$(hostname) start=$(date -Iseconds)"
 "$RPY" "$NEW/scripts/ribocode_dropin.py" --profiles "$D/pred_profiles.npz" \
-  --annot "$ECH/data/ribocode_annot" --variant "$V" --out "$D" --min_aa 5 --pval 0.05
+  --annot "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary" --variant "$V" --out "$D" --min_aa 5 --pval 0.05
 echo "done=$(date -Iseconds): $(($(wc -l < "$D/${V}_collapsed.txt") - 1)) calls"

@@ -1,0 +1,126 @@
+{
+  "model": "mamba4",
+  "datasets": {
+    "HBL1": {
+      "substrate": "HLA-I",
+      "arms": {
+        "null_atg": {
+          "novel_peptides": 20,
+          "db_novel_seqs": 276698,
+          "per_1k": 0.07228097058887306,
+          "d_gencode_peptides": -124,
+          "d_total_peptides": -104
+        },
+        "cpat": {
+          "novel_peptides": 3,
+          "db_novel_seqs": 15810,
+          "per_1k": 0.18975332068311196,
+          "d_gencode_peptides": -23,
+          "d_total_peptides": -20
+        },
+        "cpc2": {
+          "novel_peptides": 10,
+          "db_novel_seqs": 15250,
+          "per_1k": 0.6557377049180327,
+          "d_gencode_peptides": -1,
+          "d_total_peptides": 9
+        },
+        "model_standard": {
+          "novel_peptides": 8,
+          "db_novel_seqs": 10345,
+          "per_1k": 0.7733204446592556,
+          "d_gencode_peptides": -22,
+          "d_total_peptides": -14
+        },
+        "model_poisson": {
+          "novel_peptides": 14,
+          "db_novel_seqs": 1837,
+          "per_1k": 7.621121393576483,
+          "d_gencode_peptides": 0,
+          "d_total_peptides": 14
+        }
+      }
+    },
+    "SUDHL4": {
+      "substrate": "HLA-I",
+      "arms": {
+        "null_atg": {
+          "novel_peptides": 28,
+          "db_novel_seqs": 259701,
+          "per_1k": 0.10781629643320588,
+          "d_gencode_peptides": 19,
+          "d_total_peptides": 47
+        },
+        "cpat": {
+          "novel_peptides": 7,
+          "db_novel_seqs": 8269,
+          "per_1k": 0.8465352521465715,
+          "d_gencode_peptides": 0,
+          "d_total_peptides": 7
+        },
+        "cpc2": {
+          "novel_peptides": 14,
+          "db_novel_seqs": 8380,
+          "per_1k": 1.6706443914081146,
+          "d_gencode_peptides": 0,
+          "d_total_peptides": 14
+        },
+        "model_standard": {
+          "novel_peptides": 22,
+          "db_novel_seqs": 10351,
+          "per_1k": 2.1253985122210413,
+          "d_gencode_peptides": 0,
+          "d_total_peptides": 22
+        },
+        "model_poisson": {
+          "novel_peptides": 10,
+          "db_novel_seqs": 1621,
+          "per_1k": 6.169031462060457,
+          "d_gencode_peptides": 0,
+          "d_total_peptides": 10
+        }
+      }
+    },
+    "DoHH2": {
+      "substrate": "HLA-I",
+      "arms": {
+        "null_atg": {
+          "novel_peptides": 13,
+          "db_novel_seqs": 242512,
+          "per_1k": 0.05360559477469156,
+          "d_gencode_peptides": 4,
+          "d_total_peptides": 17
+        },
+        "cpat": {
+          "novel_peptides": 4,
+          "db_novel_seqs": 7592,
+          "per_1k": 0.5268703898840885,
+          "d_gencode_peptides": 7,
+          "d_total_peptides": 11
+        },
+        "cpc2": {
+          "novel_peptides": 8,
+          "db_novel_seqs": 7717,
+          "per_1k": 1.0366722819748606,
+          "d_gencode_peptides": 7,
+          "d_total_peptides": 15
+        },
+        "model_standard": {
+          "novel_peptides": 32,
+          "db_novel_seqs": 8198,
+          "per_1k": 3.903391070992925,
+          "d_gencode_peptides": 63,
+          "d_total_peptides": 95
+        },
+        "model_poisson": {
+          "novel_peptides": 14,
+          "db_novel_seqs": 1955,
+          "per_1k": 7.161125319693094,
+          "d_gencode_peptides": 7,
+          "d_total_peptides": 21
+        }
+      }
+    }
+  },
+  "missing": []
+}

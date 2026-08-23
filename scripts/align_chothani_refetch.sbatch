@@ -5,6 +5,9 @@
 #SBATCH --mem=96G
 #SBATCH --time=12:00:00
 #SBATCH --output=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/logs/cho_align_%A_%a.out
+# SUPERSEDED by scripts/riboseq_align.sbatch (docs/PIPELINE_POLICY.md rule 1).
+# Kept for provenance only -- do NOT use for new work. Its Chothani re-alignment is now a
+# samplesheet: data/chothani_ribo_samplesheet.tsv.
 set -euo pipefail
 # Re-align the 74 Chothani Ribo-seq runs the RELEASED MODELS WERE TRAINED ON.
 #

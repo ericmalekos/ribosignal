@@ -23,7 +23,7 @@ NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--tpm", default=str(NEW / "data/fibroblast_salmon_mean_tpm.tsv"))
+    ap.add_argument("--tpm", default=str(NEW / "data/tpm/fibroblast_salmon_mean_tpm.tsv"))
     ap.add_argument("--tx2biotype", default=str(NEW / "data/tx2biotype.tsv"))
     ap.add_argument("--universe", default=str(NEW / "data/packed/tx_order.txt"),
                     help="restrict to isoforms present in this packed universe")

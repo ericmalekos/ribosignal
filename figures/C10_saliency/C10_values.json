@@ -1,4 +1,7 @@
 {
+  "model": "attn",
+  "source": "results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes",
+  "provenance_note": "run dir token orf_v2_attn",
   "ENST00000399697.7": {
     "gene": "POLR1D",
     "label": "uORF",

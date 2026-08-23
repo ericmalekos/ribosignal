@@ -1,0 +1,82 @@
+{
+  "library": {
+    "janich": {
+      "psites": 109996969,
+      "f0": 82.05933333333333,
+      "n": 5
+    },
+    "gse243134": {
+      "psites": 150531643,
+      "f0": 80.54581395348838,
+      "n": 21
+    },
+    "wang": {
+      "psites": 78257663,
+      "f0": 75.41428571428571,
+      "n": 2
+    }
+  },
+  "pairs": [
+    {
+      "orf_class": "annotated",
+      "reference": "gse243134",
+      "exp_recall": 0.9864,
+      "model_recall": 0.9964,
+      "model": "attn",
+      "rna_input": "gse243134",
+      "n_ref": 10383,
+      "cell_selection": "fixed (not argmax)"
+    },
+    {
+      "orf_class": "annotated",
+      "reference": "janich",
+      "exp_recall": 0.9877,
+      "model_recall": 0.9969,
+      "model": "attn",
+      "rna_input": "gse243134",
+      "n_ref": 10361,
+      "cell_selection": "fixed (not argmax)"
+    },
+    {
+      "orf_class": "novel",
+      "reference": "gse243134",
+      "exp_recall": 0.5747,
+      "model_recall": 0.6953,
+      "model": "attn",
+      "rna_input": "gse243134",
+      "n_ref": 663,
+      "cell_selection": "fixed (not argmax)"
+    },
+    {
+      "orf_class": "novel",
+      "reference": "janich",
+      "exp_recall": 0.6123,
+      "model_recall": 0.7188,
+      "model": "attn",
+      "rna_input": "gse243134",
+      "n_ref": 601,
+      "cell_selection": "fixed (not argmax)"
+    },
+    {
+      "orf_class": "uORF",
+      "reference": "gse243134",
+      "exp_recall": 0.5423,
+      "model_recall": 0.6844,
+      "model": "attn",
+      "rna_input": "gse243134",
+      "n_ref": 697,
+      "cell_selection": "fixed (not argmax)"
+    },
+    {
+      "orf_class": "uORF",
+      "reference": "janich",
+      "exp_recall": 0.6085,
+      "model_recall": 0.7113,
+      "model": "attn",
+      "rna_input": "gse243134",
+      "n_ref": 613,
+      "cell_selection": "fixed (not argmax)"
+    }
+  ],
+  "note": "Standalone model recall vs the shallow Wang experiment, on the two deeper references. Model loses to both deeper experiments on recall and to all three on precision/F1; see FIGURE_DATA_INPUTS.md."
+}

@@ -5,6 +5,9 @@
 #SBATCH --mem=96G
 #SBATCH --time=12:00:00
 #SBATCH --output=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/logs/wang_ribo_%A_%a.out
+# SUPERSEDED by scripts/riboseq_align.sbatch (docs/PIPELINE_POLICY.md rule 1).
+# Kept for provenance only -- do NOT use for new work. This script LACKED --alignEndsType EndToEnd
+# and the ncRNA + cross-gene filter; its output was rebuilt canonically on 2026-08-13.
 set -euo pipefail
 # Align the two Wang 2021 mouse-liver RIBO-SEQ runs (SRR5262890, SRR5262891) that had been deleted.
 #

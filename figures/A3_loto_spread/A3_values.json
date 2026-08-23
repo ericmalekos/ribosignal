@@ -1,4 +1,7 @@
 {
+  "model": "attn",
+  "source": "results/loto/orf_v2_attn_holdout_* (9-fold LOTO)",
+  "provenance_note": "model token read from make_shallow/make script run-dir pattern orf_v2_attn_holdout_*",
   "per_fold": [
     {
       "tissue": "Brain",

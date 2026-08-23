@@ -1,4 +1,16 @@
 #!/usr/bin/env bash
+# ============================================================================
+# DO NOT RUN -- RETIRED 2026-08-19.
+#
+# This points at expression_context_human/.../salmon_quant_mouse_liver_decoy/ZT0_rep1/quant.sf,
+# which is the PRE-adapter-fix quant (0.03% salmon mapping -- the corruption fixed by task 35).
+# That tree was deleted 2026-08-15 and the path is dead. It was deliberately NOT repointed at the
+# live data/tpm/salmon_quant_janich_liver/, because doing so would make a script that must not run
+# look runnable and would silently produce a DIFFERENT universe.
+#
+# The live 10,431-tx Janich universe was rebuilt post-fix from data/tpm/salmon_quant_janich_liver/.
+# See scripts/janich_decon_universe_pack.sbatch (lines 24-28) for the original note.
+# ============================================================================
 #SBATCH --job-name=janich_univ
 #SBATCH --partition=short
 #SBATCH --cpus-per-task=2

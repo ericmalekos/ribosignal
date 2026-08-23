@@ -1,0 +1,16 @@
+# B9_values.json -> WIDE (record table at 'strata', 14 rows)
+model	panel_a_model	merged_libraries	merged_calls_in_space	arm	control_rate	control_n	key	kind	source	n	recovered	rate
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	experiment-unique (control) / janich	experiment-unique (control)	janich	321	220	0.68535826
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	experiment-unique (control) / gse243134	experiment-unique (control)	gse243134	552	438	0.79347826
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	experiment-unique (control) / wang	experiment-unique (control)	wang	181	127	0.70165746
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	model-unique (question) / mamba4	model-unique (question)	mamba4	1942	149	0.076725026
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	model, experiment-supported (anchor) / mamba4	model, experiment-supported (anchor)	mamba4	11441	11362	0.99309501
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	model-unique (question) / attn	model-unique (question)	attn	2056	176	0.085603113
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	model, experiment-supported (anchor) / attn	model, experiment-supported (anchor)	attn	11704	11607	0.99171224
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	model-unique, BOTH models / mamba4+attn	model-unique, BOTH models	mamba4+attn	1504	131	0.087101064
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	model-unique, THIS MODEL ONLY / mamba4	model-unique, THIS MODEL ONLY	mamba4	438	18	0.04109589
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	model-unique, THIS MODEL ONLY / attn	model-unique, THIS MODEL ONLY	attn	552	45	0.081521739
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	model-unique, gene HAS merged calls / mamba4	model-unique, gene HAS merged calls	mamba4	881	149	0.16912599
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	model-unique, gene has NO merged call* / mamba4	model-unique, gene has NO merged call*	mamba4	1061	0	0
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	model-unique, gene HAS merged calls / attn	model-unique, gene HAS merged calls	attn	1067	176	0.16494845
+mamba4 (panel a) + attn and both-models (panel b)	mamba4	28	15254	pred_preddepth	0.74478178	1054	model-unique, gene has NO merged call* / attn	model-unique, gene has NO merged call*	attn	989	0	0

@@ -10,7 +10,7 @@
 set -euo pipefail
 G=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/gse120762
 PY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
-ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human/data/ribocode_annot_mouse
+ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot
 CONDS=(nt lps); THETAS=(0.02 0.05 0.1 0.2 0.35 0.5 0.7 1.0 1.5 2.5)
 COND=${CONDS[$(( SLURM_ARRAY_TASK_ID / 10 ))]}
 TH=${THETAS[$(( SLURM_ARRAY_TASK_ID % 10 ))]}

@@ -16,7 +16,7 @@ BASE=/private/groups/carpenterlab/emalekos/RNAZoo_meta
 NEW=$BASE/RNAZoo/experiments/riboseq_signal_model
 ECH=$BASE/RNAZoo/experiments/biotype_probe/expression_context_human
 RUN=$NEW/results/loto/orf_v2_attn_onehot_noBrain_nokozak_mm1_holdout_Hepatocytes
-ANNOT=$ECH/data/ribocode_annot          # human (Hepatocytes)
+ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary          # human (Hepatocytes)
 PY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
 mkdir -p "$NEW/logs/dropin"
 THETAS=(0.02 0.05 0.1 0.2 0.35 0.5 0.7 1.0 1.5 2.5)

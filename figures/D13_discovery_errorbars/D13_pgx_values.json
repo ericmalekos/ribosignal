@@ -1,23 +1,35 @@
 {
+  "model": [
+    "attn",
+    "mamba4"
+  ],
+  "source": "proteogenomics/data",
+  "provenance_note": "BOTH arms; they are the file's own two top-level keys",
   "mamba4": {
     "HBL1": {
       "null_atg": {
         "density_per_1k": 0.07228097058887308,
         "novel_peptides": 20,
         "db_novel_seqs": 276698,
-        "d_gencode_psms": -369
+        "d_gencode_psms": -369,
+        "d_gencode_peptides": -124,
+        "d_total_peptides": -104
       },
       "model_standard": {
         "density_per_1k": 0.7733204446592556,
         "novel_peptides": 8,
         "db_novel_seqs": 10345,
-        "d_gencode_psms": -71
+        "d_gencode_psms": -71,
+        "d_gencode_peptides": -22,
+        "d_total_peptides": -14
       },
       "model_poisson": {
         "density_per_1k": 7.621121393576484,
         "novel_peptides": 14,
         "db_novel_seqs": 1837,
-        "d_gencode_psms": 0
+        "d_gencode_psms": 0,
+        "d_gencode_peptides": 0,
+        "d_total_peptides": 14
       }
     },
     "DoHH2": {
@@ -25,19 +37,25 @@
         "density_per_1k": 0.05360559477469156,
         "novel_peptides": 13,
         "db_novel_seqs": 242512,
-        "d_gencode_psms": 13
+        "d_gencode_psms": 13,
+        "d_gencode_peptides": 4,
+        "d_total_peptides": 17
       },
       "model_standard": {
         "density_per_1k": 3.903391070992925,
         "novel_peptides": 32,
         "db_novel_seqs": 8198,
-        "d_gencode_psms": 140
+        "d_gencode_psms": 140,
+        "d_gencode_peptides": 63,
+        "d_total_peptides": 95
       },
       "model_poisson": {
         "density_per_1k": 7.161125319693095,
         "novel_peptides": 14,
         "db_novel_seqs": 1955,
-        "d_gencode_psms": 18
+        "d_gencode_psms": 18,
+        "d_gencode_peptides": 7,
+        "d_total_peptides": 21
       }
     },
     "SUDHL4": {
@@ -45,45 +63,25 @@
         "density_per_1k": 0.10781629643320588,
         "novel_peptides": 28,
         "db_novel_seqs": 259701,
-        "d_gencode_psms": 43
+        "d_gencode_psms": 43,
+        "d_gencode_peptides": 19,
+        "d_total_peptides": 47
       },
       "model_standard": {
         "density_per_1k": 2.1253985122210413,
         "novel_peptides": 22,
         "db_novel_seqs": 10351,
-        "d_gencode_psms": 0
+        "d_gencode_psms": 0,
+        "d_gencode_peptides": 0,
+        "d_total_peptides": 22
       },
       "model_poisson": {
         "density_per_1k": 6.169031462060457,
         "novel_peptides": 10,
         "db_novel_seqs": 1621,
-        "d_gencode_psms": 0
-      }
-    },
-    "A549": {
-      "null_atg": {
-        "density_per_1k": 0.027107029394862675,
-        "novel_peptides": 10,
-        "db_novel_seqs": 368908,
-        "d_gencode_psms": -4109
-      },
-      "null_nc": {
-        "density_per_1k": 0.009708298832679258,
-        "novel_peptides": 38,
-        "db_novel_seqs": 3914177,
-        "d_gencode_psms": -11278
-      },
-      "model_standard": {
-        "density_per_1k": 0.8727695888285493,
-        "novel_peptides": 9,
-        "db_novel_seqs": 10312,
-        "d_gencode_psms": -265
-      },
-      "model_poisson": {
-        "density_per_1k": 4.575707154742097,
-        "novel_peptides": 11,
-        "db_novel_seqs": 2404,
-        "d_gencode_psms": 0
+        "d_gencode_psms": 0,
+        "d_gencode_peptides": 0,
+        "d_total_peptides": 10
       }
     }
   },
@@ -93,19 +91,25 @@
         "density_per_1k": 0.07228097058887308,
         "novel_peptides": 20,
         "db_novel_seqs": 276698,
-        "d_gencode_psms": -369
+        "d_gencode_psms": -369,
+        "d_gencode_peptides": -124,
+        "d_total_peptides": -104
       },
       "model_standard": {
         "density_per_1k": 1.3182674199623352,
         "novel_peptides": 14,
         "db_novel_seqs": 10620,
-        "d_gencode_psms": -345
+        "d_gencode_psms": -345,
+        "d_gencode_peptides": -109,
+        "d_total_peptides": -95
       },
       "model_poisson": {
         "density_per_1k": 6.597031335898846,
         "novel_peptides": 12,
         "db_novel_seqs": 1819,
-        "d_gencode_psms": 0
+        "d_gencode_psms": 0,
+        "d_gencode_peptides": 0,
+        "d_total_peptides": 12
       }
     },
     "DoHH2": {
@@ -113,19 +117,25 @@
         "density_per_1k": 0.05360559477469156,
         "novel_peptides": 13,
         "db_novel_seqs": 242512,
-        "d_gencode_psms": 13
+        "d_gencode_psms": 13,
+        "d_gencode_peptides": 4,
+        "d_total_peptides": 17
       },
       "model_standard": {
         "density_per_1k": 5.139500734214391,
         "novel_peptides": 28,
         "db_novel_seqs": 5448,
-        "d_gencode_psms": 18
+        "d_gencode_psms": 18,
+        "d_gencode_peptides": 7,
+        "d_total_peptides": 35
       },
       "model_poisson": {
         "density_per_1k": 8.908685968819599,
         "novel_peptides": 16,
         "db_novel_seqs": 1796,
-        "d_gencode_psms": 18
+        "d_gencode_psms": 18,
+        "d_gencode_peptides": 7,
+        "d_total_peptides": 23
       }
     },
     "SUDHL4": {
@@ -133,45 +143,25 @@
         "density_per_1k": 0.10781629643320588,
         "novel_peptides": 28,
         "db_novel_seqs": 259701,
-        "d_gencode_psms": 43
+        "d_gencode_psms": 43,
+        "d_gencode_peptides": 19,
+        "d_total_peptides": 47
       },
       "model_standard": {
         "density_per_1k": 2.403846153846154,
         "novel_peptides": 17,
         "db_novel_seqs": 7072,
-        "d_gencode_psms": 0
+        "d_gencode_psms": 0,
+        "d_gencode_peptides": 0,
+        "d_total_peptides": 17
       },
       "model_poisson": {
         "density_per_1k": 4.409769335142469,
         "novel_peptides": 13,
         "db_novel_seqs": 2948,
-        "d_gencode_psms": 0
-      }
-    },
-    "A549": {
-      "null_atg": {
-        "density_per_1k": 0.027107029394862675,
-        "novel_peptides": 10,
-        "db_novel_seqs": 368908,
-        "d_gencode_psms": -4109
-      },
-      "null_nc": {
-        "density_per_1k": 0.009708298832679258,
-        "novel_peptides": 38,
-        "db_novel_seqs": 3914177,
-        "d_gencode_psms": -11278
-      },
-      "model_standard": {
-        "density_per_1k": 0.7492741406762199,
-        "novel_peptides": 8,
-        "db_novel_seqs": 10677,
-        "d_gencode_psms": -267
-      },
-      "model_poisson": {
-        "density_per_1k": 3.048780487804878,
-        "novel_peptides": 7,
-        "db_novel_seqs": 2296,
-        "d_gencode_psms": -60
+        "d_gencode_psms": 0,
+        "d_gencode_peptides": 0,
+        "d_total_peptides": 13
       }
     }
   }

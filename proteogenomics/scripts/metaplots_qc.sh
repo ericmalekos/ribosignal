@@ -5,7 +5,7 @@ set -euo pipefail
 NEW=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
 ECH=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human
 RC=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin
-ANNOT=$ECH/data/ribocode_annot
+ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary
 RB=$NEW/proteogenomics/data/HBL1_pilot/riboseq
 OUT=$NEW/proteogenomics/data/HBL1_pilot/ribocode; mkdir -p "$OUT"; cd "$OUT"
 D1=$RB/SRR12285192.Aligned.toTranscriptome.out.bam

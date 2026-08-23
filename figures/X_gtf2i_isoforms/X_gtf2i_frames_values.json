@@ -1,0 +1,327 @@
+{
+  "model": null,
+  "source": "data/packed_union_Hepatocytes/target_counts.npy (observed P-sites); CDS from data/human_ribocode_annot_primary/transcripts_cds.txt; TPM from data/union_universe.tsv",
+  "provenance_note": "MODEL-FREE: observed Ribo-seq only. Frame is relative to each isoform's OWN annotated CDS start, so identical shared footprints receive different frame labels across isoforms.",
+  "gene": "GTF2I",
+  "n_isoforms": 35,
+  "frame0_frac_min": 0.8534,
+  "frame0_frac_max": 0.8581,
+  "frame0_frac_median": 0.8555,
+  "isoforms": [
+    {
+      "tx": "ENST00000620879.4",
+      "tpm": 50.3097265,
+      "cds_start": 317,
+      "cds_end": 3190,
+      "total_psites": 13138,
+      "psites_in_cds": 12064,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000614986.4",
+      "tpm": 49.732292,
+      "cds_start": 317,
+      "cds_end": 3253,
+      "total_psites": 13044,
+      "psites_in_cds": 11970,
+      "frame0_frac_in_cds": 0.8559
+    },
+    {
+      "tx": "ENST00000901264.1",
+      "tpm": 20.542890166666666,
+      "cds_start": 404,
+      "cds_end": 3340,
+      "total_psites": 13102,
+      "psites_in_cds": 11970,
+      "frame0_frac_in_cds": 0.8559
+    },
+    {
+      "tx": "ENST00000443166.5",
+      "tpm": 13.53063,
+      "cds_start": 44,
+      "cds_end": 868,
+      "total_psites": 11161,
+      "psites_in_cds": 11138,
+      "frame0_frac_in_cds": 0.8581
+    },
+    {
+      "tx": "ENST00000573035.6",
+      "tpm": 7.3169265,
+      "cds_start": 357,
+      "cds_end": 3353,
+      "total_psites": 13007,
+      "psites_in_cds": 11933,
+      "frame0_frac_in_cds": 0.8548
+    },
+    {
+      "tx": "ENST00000901278.1",
+      "tpm": 6.5832295,
+      "cds_start": 377,
+      "cds_end": 3310,
+      "total_psites": 13159,
+      "psites_in_cds": 12027,
+      "frame0_frac_in_cds": 0.8543
+    },
+    {
+      "tx": "ENST00000932179.1",
+      "tpm": 4.808725166666666,
+      "cds_start": 98,
+      "cds_end": 2971,
+      "total_psites": 12012,
+      "psites_in_cds": 12012,
+      "frame0_frac_in_cds": 0.8557
+    },
+    {
+      "tx": "ENST00000901269.1",
+      "tpm": 4.287648666666667,
+      "cds_start": 512,
+      "cds_end": 3385,
+      "total_psites": 13144,
+      "psites_in_cds": 12013,
+      "frame0_frac_in_cds": 0.8557
+    },
+    {
+      "tx": "ENST00000932158.1",
+      "tpm": 4.108744000000001,
+      "cds_start": 369,
+      "cds_end": 3299,
+      "total_psites": 13102,
+      "psites_in_cds": 11970,
+      "frame0_frac_in_cds": 0.8559
+    },
+    {
+      "tx": "ENST00000932149.1",
+      "tpm": 3.7676728333333336,
+      "cds_start": 405,
+      "cds_end": 3275,
+      "total_psites": 13202,
+      "psites_in_cds": 12070,
+      "frame0_frac_in_cds": 0.8555
+    },
+    {
+      "tx": "ENST00000901267.1",
+      "tpm": 3.263028333333333,
+      "cds_start": 647,
+      "cds_end": 3520,
+      "total_psites": 13167,
+      "psites_in_cds": 12012,
+      "frame0_frac_in_cds": 0.8557
+    },
+    {
+      "tx": "ENST00000901275.1",
+      "tpm": 3.132359,
+      "cds_start": 512,
+      "cds_end": 3448,
+      "total_psites": 13050,
+      "psites_in_cds": 11919,
+      "frame0_frac_in_cds": 0.8561
+    },
+    {
+      "tx": "ENST00000901271.1",
+      "tpm": 3.0826915,
+      "cds_start": 393,
+      "cds_end": 3386,
+      "total_psites": 13065,
+      "psites_in_cds": 11933,
+      "frame0_frac_in_cds": 0.8548
+    },
+    {
+      "tx": "ENST00000901270.1",
+      "tpm": 2.793237,
+      "cds_start": 644,
+      "cds_end": 3580,
+      "total_psites": 13073,
+      "psites_in_cds": 11918,
+      "frame0_frac_in_cds": 0.8562
+    },
+    {
+      "tx": "ENST00000932157.1",
+      "tpm": 2.4278866666666667,
+      "cds_start": 374,
+      "cds_end": 3232,
+      "total_psites": 13196,
+      "psites_in_cds": 12064,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000932171.1",
+      "tpm": 2.3699615,
+      "cds_start": 178,
+      "cds_end": 3096,
+      "total_psites": 12123,
+      "psites_in_cds": 12064,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000932153.1",
+      "tpm": 2.268775,
+      "cds_start": 433,
+      "cds_end": 3369,
+      "total_psites": 13032,
+      "psites_in_cds": 11919,
+      "frame0_frac_in_cds": 0.8561
+    },
+    {
+      "tx": "ENST00000901289.1",
+      "tpm": 2.2086046666666665,
+      "cds_start": 361,
+      "cds_end": 3225,
+      "total_psites": 13102,
+      "psites_in_cds": 11970,
+      "frame0_frac_in_cds": 0.8559
+    },
+    {
+      "tx": "ENST00000932154.1",
+      "tpm": 2.1577610000000003,
+      "cds_start": 383,
+      "cds_end": 3379,
+      "total_psites": 13107,
+      "psites_in_cds": 11975,
+      "frame0_frac_in_cds": 0.8559
+    },
+    {
+      "tx": "ENST00000901285.1",
+      "tpm": 2.0533853125,
+      "cds_start": 364,
+      "cds_end": 3300,
+      "total_psites": 13102,
+      "psites_in_cds": 11970,
+      "frame0_frac_in_cds": 0.8559
+    },
+    {
+      "tx": "ENST00000901279.1",
+      "tpm": 2.035807,
+      "cds_start": 376,
+      "cds_end": 3312,
+      "total_psites": 13102,
+      "psites_in_cds": 11970,
+      "frame0_frac_in_cds": 0.8559
+    },
+    {
+      "tx": "ENST00000949270.1",
+      "tpm": 2.0324125,
+      "cds_start": 373,
+      "cds_end": 3003,
+      "total_psites": 13196,
+      "psites_in_cds": 12064,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000690345.1",
+      "tpm": 2.027405,
+      "cds_start": 65,
+      "cds_end": 3421,
+      "total_psites": 12012,
+      "psites_in_cds": 12012,
+      "frame0_frac_in_cds": 0.8557
+    },
+    {
+      "tx": "ENST00000901266.1",
+      "tpm": 2.0142123333333335,
+      "cds_start": 396,
+      "cds_end": 3326,
+      "total_psites": 13159,
+      "psites_in_cds": 12027,
+      "frame0_frac_in_cds": 0.8543
+    },
+    {
+      "tx": "ENST00000901268.1",
+      "tpm": 1.979847,
+      "cds_start": 396,
+      "cds_end": 3269,
+      "total_psites": 13196,
+      "psites_in_cds": 12064,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000932162.1",
+      "tpm": 1.8680104999999998,
+      "cds_start": 356,
+      "cds_end": 3229,
+      "total_psites": 13138,
+      "psites_in_cds": 12064,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000901276.1",
+      "tpm": 1.8251680000000001,
+      "cds_start": 387,
+      "cds_end": 3260,
+      "total_psites": 13196,
+      "psites_in_cds": 12064,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000932166.1",
+      "tpm": 1.651899,
+      "cds_start": 356,
+      "cds_end": 3163,
+      "total_psites": 13138,
+      "psites_in_cds": 12064,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000932174.1",
+      "tpm": 1.4946076666666668,
+      "cds_start": 337,
+      "cds_end": 3207,
+      "total_psites": 13044,
+      "psites_in_cds": 11970,
+      "frame0_frac_in_cds": 0.8559
+    },
+    {
+      "tx": "ENST00000932150.1",
+      "tpm": 1.2532258333333335,
+      "cds_start": 402,
+      "cds_end": 3260,
+      "total_psites": 11887,
+      "psites_in_cds": 10755,
+      "frame0_frac_in_cds": 0.8534
+    },
+    {
+      "tx": "ENST00000901263.1",
+      "tpm": 1.2497883333333333,
+      "cds_start": 451,
+      "cds_end": 3324,
+      "total_psites": 13258,
+      "psites_in_cds": 12064,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000901300.1",
+      "tpm": 1.2438488333333333,
+      "cds_start": 394,
+      "cds_end": 3018,
+      "total_psites": 13195,
+      "psites_in_cds": 12063,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000901282.1",
+      "tpm": 1.1572005,
+      "cds_start": 486,
+      "cds_end": 3359,
+      "total_psites": 13144,
+      "psites_in_cds": 12013,
+      "frame0_frac_in_cds": 0.8557
+    },
+    {
+      "tx": "ENST00000949274.1",
+      "tpm": 1.1305111666666667,
+      "cds_start": 344,
+      "cds_end": 3211,
+      "total_psites": 13138,
+      "psites_in_cds": 12064,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000621734.4",
+      "tpm": 1.109342,
+      "cds_start": 317,
+      "cds_end": 3250,
+      "total_psites": 13101,
+      "psites_in_cds": 12027,
+      "frame0_frac_in_cds": 0.8543
+    }
+  ]
+}

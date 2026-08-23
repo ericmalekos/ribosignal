@@ -15,7 +15,7 @@ NEW=$BASE/RNAZoo/experiments/riboseq_signal_model
 ECH=$BASE/RNAZoo/experiments/biotype_probe/expression_context_human
 PY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
 DATASET=${DATASET:?set DATASET=<name> via --export}
-ANNOT=${ANNOT:-$ECH/data/ribocode_annot}                    # v49 human; mouse -> ribocode_annot_mouse
+ANNOT=${ANNOT:-/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary}                    # v49 human; mouse -> ribocode_annot_mouse
 OFFICIAL=$NEW/data/heldout_psites/$DATASET/${DATASET}_collapsed.txt
 export PYTHONNOUSERSITE=1
 

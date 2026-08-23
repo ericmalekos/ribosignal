@@ -22,7 +22,7 @@ T=Fibroblast
 SRRS=$(comm -23 <(ls "$PER"/SRR*_coverage.hd5 | grep -oE 'SRR[0-9]+' | sort -u) <(cut -f1 "$MAP" | sort -u))
 COV_ARGS=""
 for s in $SRRS; do f="$PER/${s}_coverage.hd5"; [ -s "$f" ] || { echo "MISSING cov $f" >&2; exit 1; }; COV_ARGS="$COV_ARGS $f"; done
-PSITES="$ECH/data/ribocode_per_tissue/$T"/*_psites.hd5
+PSITES="/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/ribocode_per_tissue/$T"/*_psites.hd5
 echo "[$T] union repack: cov_samples=$(echo $SRRS|wc -w) psites_samples=$(ls $PSITES|wc -l) host=$(hostname) start=$(date -Iseconds)"
 # shellcheck disable=SC2086
 "$PY" "$NEW/scripts/prepare/prepare_pack.py" \

@@ -1,0 +1,398 @@
+{
+  "source_dir": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/macrophage_tissue/pgx_xsubtype_aa30/reports",
+  "search_parameters": "frozen",
+  "n_populations": 12,
+  "populations": [
+    {
+      "pop": "SmallIntestinal",
+      "baseline_total": 52914,
+      "model": {
+        "novel": 37,
+        "canon": 52913,
+        "total": 52950,
+        "dtot": 36,
+        "db": 916,
+        "dpsm": -6,
+        "density": 40.39301310043668
+      },
+      "null_atg": {
+        "novel": 53,
+        "canon": 51929,
+        "total": 51982,
+        "dtot": -932,
+        "db": 73070,
+        "dpsm": -4073,
+        "density": 0.7253318735459149
+      },
+      "null_nc": {
+        "novel": 127,
+        "canon": 49177,
+        "total": 49304,
+        "dtot": -3610,
+        "db": 861334,
+        "dpsm": -16347,
+        "density": 0.14744570631137283
+      }
+    },
+    {
+      "pop": "Peritoneal",
+      "baseline_total": 55744,
+      "model": {
+        "novel": 30,
+        "canon": 55742,
+        "total": 55772,
+        "dtot": 28,
+        "db": 879,
+        "dpsm": -9,
+        "density": 34.129692832764505
+      },
+      "null_atg": {
+        "novel": 38,
+        "canon": 54609,
+        "total": 54647,
+        "dtot": -1097,
+        "db": 80339,
+        "dpsm": -5165,
+        "density": 0.47299568080259896
+      },
+      "null_nc": {
+        "novel": 134,
+        "canon": 52043,
+        "total": 52177,
+        "dtot": -3567,
+        "db": 939373,
+        "dpsm": -18207,
+        "density": 0.14264834096785836
+      }
+    },
+    {
+      "pop": "LargeIntestinal",
+      "baseline_total": 54562,
+      "model": {
+        "novel": 19,
+        "canon": 54560,
+        "total": 54579,
+        "dtot": 17,
+        "db": 892,
+        "dpsm": -6,
+        "density": 21.300448430493272
+      },
+      "null_atg": {
+        "novel": 43,
+        "canon": 53354,
+        "total": 53397,
+        "dtot": -1165,
+        "db": 81868,
+        "dpsm": -5166,
+        "density": 0.525235745346167
+      },
+      "null_nc": {
+        "novel": 122,
+        "canon": 50101,
+        "total": 50223,
+        "dtot": -4339,
+        "db": 971109,
+        "dpsm": -19402,
+        "density": 0.1256295637255962
+      }
+    },
+    {
+      "pop": "BMDM",
+      "baseline_total": 54941,
+      "model": {
+        "novel": 34,
+        "canon": 54918,
+        "total": 54952,
+        "dtot": 11,
+        "db": 997,
+        "dpsm": -102,
+        "density": 34.10230692076229
+      },
+      "null_atg": {
+        "novel": 54,
+        "canon": 53845,
+        "total": 53899,
+        "dtot": -1042,
+        "db": 81250,
+        "dpsm": -5380,
+        "density": 0.6646153846153846
+      },
+      "null_nc": {
+        "novel": 151,
+        "canon": 51233,
+        "total": 51384,
+        "dtot": -3557,
+        "db": 946106,
+        "dpsm": -19490,
+        "density": 0.15960156684346152
+      }
+    },
+    {
+      "pop": "Kupffer",
+      "baseline_total": 52067,
+      "model": {
+        "novel": 19,
+        "canon": 52057,
+        "total": 52076,
+        "dtot": 9,
+        "db": 1034,
+        "dpsm": -52,
+        "density": 18.3752417794971
+      },
+      "null_atg": {
+        "novel": 38,
+        "canon": 50700,
+        "total": 50738,
+        "dtot": -1329,
+        "db": 89779,
+        "dpsm": -6196,
+        "density": 0.42326156450840396
+      },
+      "null_nc": {
+        "novel": 109,
+        "canon": 47551,
+        "total": 47660,
+        "dtot": -4407,
+        "db": 1049183,
+        "dpsm": -21122,
+        "density": 0.10389036040423835
+      }
+    },
+    {
+      "pop": "SpleenRecruited",
+      "baseline_total": 45340,
+      "model": {
+        "novel": 30,
+        "canon": 45319,
+        "total": 45349,
+        "dtot": 9,
+        "db": 1326,
+        "dpsm": -92,
+        "density": 22.624434389140273
+      },
+      "null_atg": {
+        "novel": 49,
+        "canon": 44193,
+        "total": 44242,
+        "dtot": -1098,
+        "db": 88434,
+        "dpsm": -4948,
+        "density": 0.5540855327136621
+      },
+      "null_nc": {
+        "novel": 78,
+        "canon": 41440,
+        "total": 41518,
+        "dtot": -3822,
+        "db": 1036410,
+        "dpsm": -17188,
+        "density": 0.07525979100934958
+      }
+    },
+    {
+      "pop": "SpleenResident",
+      "baseline_total": 47425,
+      "model": {
+        "novel": 31,
+        "canon": 47391,
+        "total": 47422,
+        "dtot": -3,
+        "db": 1432,
+        "dpsm": -153,
+        "density": 21.64804469273743
+      },
+      "null_atg": {
+        "novel": 43,
+        "canon": 46290,
+        "total": 46333,
+        "dtot": -1092,
+        "db": 87339,
+        "dpsm": -4996,
+        "density": 0.492334466847571
+      },
+      "null_nc": {
+        "novel": 64,
+        "canon": 43403,
+        "total": 43467,
+        "dtot": -3958,
+        "db": 1020477,
+        "dpsm": -17966,
+        "density": 0.06271576919421015
+      }
+    },
+    {
+      "pop": "Microglia",
+      "baseline_total": 48031,
+      "model": {
+        "novel": 8,
+        "canon": 48017,
+        "total": 48025,
+        "dtot": -6,
+        "db": 388,
+        "dpsm": -53,
+        "density": 20.61855670103093
+      },
+      "null_atg": {
+        "novel": 24,
+        "canon": 46856,
+        "total": 46880,
+        "dtot": -1151,
+        "db": 82720,
+        "dpsm": -4779,
+        "density": 0.2901353965183752
+      },
+      "null_nc": {
+        "novel": 98,
+        "canon": 44627,
+        "total": 44725,
+        "dtot": -3306,
+        "db": 967156,
+        "dpsm": -14382,
+        "density": 0.10132801740360396
+      }
+    },
+    {
+      "pop": "LungRecruited",
+      "baseline_total": 44167,
+      "model": {
+        "novel": 20,
+        "canon": 44140,
+        "total": 44160,
+        "dtot": -7,
+        "db": 1469,
+        "dpsm": -112,
+        "density": 13.614703880190605
+      },
+      "null_atg": {
+        "novel": 39,
+        "canon": 43020,
+        "total": 43059,
+        "dtot": -1108,
+        "db": 97087,
+        "dpsm": -4662,
+        "density": 0.4017015666361099
+      },
+      "null_nc": {
+        "novel": 119,
+        "canon": 40625,
+        "total": 40744,
+        "dtot": -3423,
+        "db": 1133831,
+        "dpsm": -15023,
+        "density": 0.10495391288472444
+      }
+    },
+    {
+      "pop": "LiverRecruited",
+      "baseline_total": 55460,
+      "model": {
+        "novel": 24,
+        "canon": 55420,
+        "total": 55444,
+        "dtot": -16,
+        "db": 1483,
+        "dpsm": -128,
+        "density": 16.183412002697235
+      },
+      "null_atg": {
+        "novel": 37,
+        "canon": 53971,
+        "total": 54008,
+        "dtot": -1452,
+        "db": 97161,
+        "dpsm": -6815,
+        "density": 0.38081123084365126
+      },
+      "null_nc": {
+        "novel": 112,
+        "canon": 50880,
+        "total": 50992,
+        "dtot": -4468,
+        "db": 1139223,
+        "dpsm": -21619,
+        "density": 0.09831262184840019
+      }
+    },
+    {
+      "pop": "LungResident",
+      "baseline_total": 69860,
+      "model": {
+        "novel": 27,
+        "canon": 69815,
+        "total": 69842,
+        "dtot": -18,
+        "db": 1124,
+        "dpsm": -168,
+        "density": 24.02135231316726
+      },
+      "null_atg": {
+        "novel": 48,
+        "canon": 68479,
+        "total": 68527,
+        "dtot": -1333,
+        "db": 85731,
+        "dpsm": -6222,
+        "density": 0.5598908212898485
+      },
+      "null_nc": {
+        "novel": 191,
+        "canon": 65028,
+        "total": 65219,
+        "dtot": -4641,
+        "db": 1003710,
+        "dpsm": -23122,
+        "density": 0.1902940092257724
+      }
+    },
+    {
+      "pop": "RAW264",
+      "baseline_total": 60449,
+      "model": {
+        "novel": 9,
+        "canon": 60415,
+        "total": 60424,
+        "dtot": -25,
+        "db": 1091,
+        "dpsm": -129,
+        "density": 8.249312557286892
+      },
+      "null_atg": {
+        "novel": 58,
+        "canon": 59177,
+        "total": 59235,
+        "dtot": -1214,
+        "db": 79231,
+        "dpsm": -6768,
+        "density": 0.73203670280572
+      },
+      "null_nc": {
+        "novel": 170,
+        "canon": 56284,
+        "total": 56454,
+        "dtot": -3995,
+        "db": 924825,
+        "dpsm": -23661,
+        "density": 0.18381856026815885
+      }
+    }
+  ],
+  "model_beats_baseline_n": 6,
+  "null_atg_beats_baseline_n": 0,
+  "median_model_dtotal": 3.0,
+  "median_null_atg_dtotal": -1129.5,
+  "db_size_ratio_null_over_model": {
+    "median": 78.02193701533824,
+    "range": [
+      60.990921787709496,
+      213.1958762886598
+    ]
+  },
+  "density_ratio_model_over_null": {
+    "median": 43.15853975293749,
+    "range": [
+      11.268987641834444,
+      72.15645769714389
+    ]
+  },
+  "supersedes": "BMDM-only version of this panel, whose +31 total-peptide gain is the best of 12 populations and was presented as if general"
+}

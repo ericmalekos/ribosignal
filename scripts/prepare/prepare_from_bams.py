@@ -56,6 +56,10 @@ def parse_args():
     uni = ap.add_mutually_exclusive_group(required=True)
     uni.add_argument("--universe-tx")
     uni.add_argument("--ref-pack")
+    # Forwarded to prepare_pack. Reuses an existing pack's universe AND coverage, writing only a new
+    # Ribo target -- the "Ribo re-aligned, RNA untouched" path the final recipe requires. With it,
+    # --rna-bam / --rna-coverage are not needed.
+    uni.add_argument("--reuse-coverage")
     ap.add_argument("--group", required=True)
     ap.add_argument("--species", default="human")
     ap.add_argument("--out", required=True)
@@ -66,8 +70,19 @@ def parse_args():
     ap.add_argument("--gtf")
     # ribo-processing refs
     ap.add_argument("--annot", help="RiboCode prepared annotation dir (required with --ribo-bam)")
-    ap.add_argument("--ncrna-tx", help="ncRNA tx blocklist (filter_tx_heldout.py); optional")
-    ap.add_argument("--tx-to-gene", help="tx->gene TSV for cross-gene drop; optional")
+    # NOT OPTIONAL ANY MORE. The ncRNA + cross-gene drop is part of the final recipe -- it is
+    # what produced the training packs (see build_psite_target.py's docstring: "rRNA/tRNA/miRNA
+    # transcripts + cross-gene multimappers removed"). Leaving it as an optional flag meant every
+    # dataset processed in 2026-08 silently skipped it and came out with ~5% excess P-sites, which
+    # was then misread as the training data being irreproducible. Skipping is still possible but
+    # must now be DECLARED, so it appears in the provenance instead of being invisible.
+    ap.add_argument("--ncrna-tx", help="ncRNA tx blocklist (filter_tx_heldout.py); REQUIRED with "
+                                       "--ribo-bam unless --no-ncrna-filter is given")
+    ap.add_argument("--tx-to-gene", help="tx->gene TSV for the cross-gene read drop; REQUIRED with "
+                                         "--ribo-bam unless --no-ncrna-filter is given")
+    ap.add_argument("--no-ncrna-filter", action="store_true",
+                    help="deliberately skip the canonical ncRNA/cross-gene filter; recorded in "
+                         "provenance as a deviation from the standard recipe")
     # external tools (env-defaulted, never hardcoded)
     ap.add_argument("--ribocode-bin", default=os.environ.get("RIBOCODE_BIN"),
                     help="dir with metaplots + RiboCode (or $RIBOCODE_BIN)")
@@ -82,6 +97,18 @@ def parse_args():
 
 def main():
     args = parse_args()
+    # The ncRNA + cross-gene drop is part of the CANONICAL recipe: it is what produced the training
+    # packs ("rRNA/tRNA/miRNA transcripts + cross-gene multimappers removed", build_psite_target.py).
+    # It used to be an optional flag, so every dataset processed in 2026-08 silently skipped it and
+    # carried ~5% excess P-sites -- which was then misread as the training data being
+    # irreproducible. Skipping is still allowed but must be DECLARED, so it lands in provenance
+    # instead of being invisible.
+    if args.ribo_bam and not args.no_ncrna_filter and not (args.ncrna_tx and args.tx_to_gene):
+        print("ERROR: --ribo-bam requires --ncrna-tx AND --tx-to-gene (the canonical ncRNA + "
+              "cross-gene filter).\n"
+              "       Pass --no-ncrna-filter to skip it deliberately; that is then recorded in the "
+              "pack provenance.", file=sys.stderr)
+        return 2
     root = project_root()
     scripts = root / "scripts"
     out_dir = Path(args.out)
@@ -105,8 +132,9 @@ def main():
     if args.ribo_bam and not args.ribocode_bin:
         print("ERROR: --ribocode-bin or $RIBOCODE_BIN required with --ribo-bam", file=sys.stderr)
         return 2
-    if not (args.rna_bam or args.rna_coverage):
-        print("ERROR: provide --rna-bam or --rna-coverage", file=sys.stderr)
+    # --reuse-coverage supplies coverage from an existing pack, so no RNA input is needed.
+    if not (args.rna_bam or args.rna_coverage or args.reuse_coverage):
+        print("ERROR: provide --rna-bam, --rna-coverage, or --reuse-coverage", file=sys.stderr)
         return 2
     if not dry:
         for d in (psites_dir, cov_dir):
@@ -124,7 +152,7 @@ def main():
                 shutil.copy2(bam, wbam)
             else:
                 print(f"+ cp {bam} {wbam}", file=sys.stderr)
-            if args.ncrna_tx and args.tx_to_gene:
+            if args.ncrna_tx and args.tx_to_gene and not args.no_ncrna_filter:
                 run([args.pysam_python, scripts / "heldout" / "filter_tx_heldout.py",
                      wbam, args.ncrna_tx, args.tx_to_gene])
             run([args.samtools, "index", wbam])
@@ -150,14 +178,18 @@ def main():
         rna_coverage = [str(cov_dir)]
 
     # ---- pack ---------------------------------------------------------------
-    cmd = [sys.executable, scripts / "prepare" / "prepare_pack.py",
-           "--rna-coverage", *rna_coverage,
+    cmd = [sys.executable, scripts / "prepare" / "prepare_pack.py"]
+    if not args.reuse_coverage:
+        cmd += ["--rna-coverage", *rna_coverage]
+    cmd += [
            "--group", args.group, "--species", args.species, "--out", out_dir]
     if args.coverage_only:
         cmd.append("--coverage-only")
     else:
         cmd += ["--ribo-psites", *ribo_psites]
-    cmd += (["--ref-pack", args.ref_pack] if args.ref_pack else ["--universe-tx", args.universe_tx])
+    cmd += (["--reuse-coverage", args.reuse_coverage] if args.reuse_coverage
+            else ["--ref-pack", args.ref_pack] if args.ref_pack
+            else ["--universe-tx", args.universe_tx])
     if args.build_orf_track:
         cmd += ["--build-orf-track", "--fasta", args.fasta, "--kozak", args.kozak]
     if args.tx2biotype:

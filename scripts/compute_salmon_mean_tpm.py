@@ -6,8 +6,21 @@ Independent abundance reference for validating the posture-A RNAseq per-nt cover
 defining the expressed training universe. Uses the existing decoy-aware salmon quant;
 no realignment.
 
-Output: data/fibroblast_salmon_mean_tpm.tsv  (tx_id, mean_tpm, mean_numreads, n_samples)
+Output: data/tpm/fibroblast_salmon_mean_tpm.tsv  (tx_id, mean_tpm, mean_numreads, n_samples)
 """
+
+# ============================================================================
+# CANNOT RUN AS-IS -- input lost 2026-08-15.
+#
+# SAL/SALMON below points at expression_context_human/data/salmon_quant_chothani_decoy, which went
+# with the deleted biotype_probe tree. There is NO surviving copy: no salmon quant anywhere under
+# data/ holds the Chothani SRR15513* accessions (data/tpm/salmon_human_rna is a different cohort).
+# It was deliberately NOT repointed, because there is nothing to point at.
+#
+# This script's OUTPUT survives, so nothing downstream is blocked today. What is lost is the
+# ability to REBUILD that output from source. Re-deriving it means re-running salmon on the 69
+# Chothani RNA libraries; the BAMs are still in data/rnaseq_bam_mm1/.
+# ============================================================================
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -18,7 +31,7 @@ NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/riboseq_signal_model")
 SALMON = ECH / "data" / "salmon_quant_chothani_decoy"
 SRR_LIST = NEW / "data" / "fibroblast_rnaseq_srr.txt"
-OUT = NEW / "data" / "fibroblast_salmon_mean_tpm.tsv"
+OUT = NEW / "data" / "tpm" / "fibroblast_salmon_mean_tpm.tsv"
 
 
 def main():

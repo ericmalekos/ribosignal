@@ -136,3 +136,49 @@ historical one. Factorial numbers are internally consistent across the nine cell
 directly comparable to previously reported Janich numbers computed on the old pack (e.g.
 `results/liver_released/`). Those earlier results remain valid on their own pack; they are a
 different measurement, not a contradicted one.
+
+---
+
+## RESOLVED 2026-08-13: the final-recipe rebuild is COMPLETE
+
+> The OFF-RECIPE banner immediately below is retained as history. It is no longer the current state.
+> Appended, not rewritten -- the original plan text is untouched, and the pre-append copy is at
+> `mouse_liver_3x3_plan.md.bak.2026-08-14`.
+
+The rebuild it describes as "in progress" finished: 40 Ribo alignments -> 3 pools -> 9 packs ->
+18 dumps -> rescore, 0 failures. Current tables are `results/mouse_liver_3x3_canon/scored/`; the
+off-recipe originals are archived at `results/_archive_offrecipe_2026_08_13/mouse_liver_3x3/`.
+
+What changed, and what did not:
+
+| | off-recipe | canonical |
+|---|--:|--:|
+| observed calls (janich / gse243134 / wang) | 12,804 / 13,145 / 12,104 | 12,289 / 12,584 / 11,646 |
+| matched-minus-mismatched RNA, mean | +0.0030 | **+0.0035** |
+| `pred_obsdepth` F1 range | 0.895-0.926 | 0.897-0.925 |
+| `pred_preddepth` F1 range | 0.864-0.880 | 0.855-0.871 |
+
+The headline conclusion is unchanged: matching the RNA input to the Ribo reference is worth ~0.003 F1
+and goes negative in the same 2 of 12 cells.
+
+**The one substantive finding the rebuild produced** is that final-recipe alignment strips 22.3% of
+NOVEL and 12.5% of uORF reference calls while touching annotated CDS by only 1.4%. The model's own
+standalone predictions are byte-identical across the switch, so the earlier non-canonical F1 was
+INFLATED by the model being credited for matching alignment artifacts. See results.md, "The
+off-recipe non-canonical F1 was INFLATED by alignment artifacts". Quote canonical non-canonical
+numbers only, and never against previously reported ones.
+
+Figures E1/E2/E3, `figures/S_riboseq_qc/`, and the tutorial's mouse tables all now read the canonical
+scored tables.
+
+## OFF-RECIPE, flagged 2026-08-13
+
+> **OFF-RECIPE (flagged 2026-08-13).** The mouse-liver 3x3 numbers below were computed on packs built
+> without `--alignEndsType EndToEnd` and without the ncRNA + cross-gene filter, both mandatory under
+> `docs/PIPELINE_POLICY.md`. Re-pooling the same reads canonically removes 3.5-4.9% of P-sites
+> (janich 110.0M -> 106.1M, wang 78.3M -> 74.5M, gse243134 150.5M -> 143.2M). Comparisons AMONG the
+> nine cells stay valid (they share the deviation); absolute F1 is provisional until rescoring.
+
+Canonical rebuild in progress: `data/liver3x3/pool_*_canon` and `pack_canon_*`, built by
+`scripts/riboseq_align.sbatch` (EndToEnd + mm1 + filter). The originals are retained so the
+effect on reported F1 can be measured rather than assumed.

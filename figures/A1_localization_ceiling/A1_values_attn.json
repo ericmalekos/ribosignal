@@ -1,5 +1,6 @@
 {
   "model": "attn",
+  "source": "results/heldout/human_ruizorera; results/loto/orf_v2_{MODEL}_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes",
   "sources": {
     "Held-out\nHepatocytes": "results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/localization_metrics.json",
     "Cross-study\nRuiz-Orera": "results/heldout/human_ruizorera/released_attn/localization_metrics_human_ruizorera.json"

@@ -23,7 +23,7 @@ for s in $HUVEC_SRR; do COV_ARGS="$COV_ARGS $NEW/data/rnaseq_coverage/per_sample
 
 # shellcheck disable=SC2086
 "$PY" "$NEW/scripts/prepare/prepare_pack.py" \
-  --ribo-psites "$ECH/data/ribocode_per_tissue/HUVEC" \
+  --ribo-psites "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/ribocode_per_tissue/HUVEC" \
   --rna-coverage $COV_ARGS \
   --ref-pack "$NEW/data/packed" \
   --tx2biotype "$NEW/data/tx2biotype.tsv" \

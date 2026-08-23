@@ -1,0 +1,5 @@
+# B6_values.json -> WIDE (record table at 'arms', 3 rows)
+n_scored	seq_only_pct_of_deployed_shape	count_pearson_loss_without_rnaseq	label	run	pc_profile	lnc_profile	pc_count	pc_period	n
+70883	98.52985	-0.19271154	both (deployed)	results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes	0.66992786	0.45827904	0.89898171	0.33587484	70883
+70883	98.52985	-0.19271154	sequence only (RNA-seq zeroed)	results/ablation/orf_v2_attn_onehot_union_nokozak_input_emb_holdout_Hepatocytes	0.66007891	0.44619771	0.70627017	0.37037487	70883
+70883	98.52985	-0.19271154	RNA-seq only (sequence zeroed)	results/ablation/orf_v2_attn_onehot_union_nokozak_input_cov_holdout_Hepatocytes	0.12264756	0.083820044	0.80782666	-0.015478665	70883

@@ -13,8 +13,8 @@ ECH=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype
 ENV=/private/groups/carpenterlab/emalekos/conda_envs/riboseq
 export PATH="${ENV}/bin:${PATH}"
 STAR_INDEX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_grch38_v49
-NCRNA=$ECH/data/phase30/ncrna_filter_tx.txt
-TX2GENE=$ECH/data/phase30/tx_to_gene.tsv
+NCRNA=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/ncrna_tx_human_v49.txt
+TX2GENE=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/tx_to_gene_human_v49.tsv
 
 # PAPER-MATCHED PROCESSING (Ruiz-Cuevas 2021, validated on the u2 periodicity pilot 35607559: offset 12,
 # frame-0 ~80%). McGlincy-Ingolia UMI prep: [2nt 5' UMI][footprint][5nt 3' UMI/linker][TruSeq adapter].

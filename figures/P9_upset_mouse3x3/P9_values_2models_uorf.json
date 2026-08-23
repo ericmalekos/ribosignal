@@ -1,0 +1,335 @@
+{
+  "model": "mamba4",
+  "source": "data/tx2biotype_mouse.tsv; results/merged_liver_ribocode/overcall/overcall_meta.json; results/merged_liver_ribocode/overcall/overcall_recovery_by_class.tsv; results/mouse_liver_3x3_canon/{model}_ribo-{ribo}_rna-{rna}",
+  "model_rna": "gse243134",
+  "arm": "pred_preddepth",
+  "view": "uORFs (5'UTR, non-overlapping)",
+  "keying": "genomic (gene_id, ORF_gstop)",
+  "n_test_tx": 22974,
+  "set_sizes": {
+    "janich": 613,
+    "gse243134": 697,
+    "wang": 412,
+    "attn": 770,
+    "mamba4": 584
+  },
+  "alt_model_set_sizes_by_rna": {
+    "janich": 13108,
+    "wang": 13124
+  },
+  "intersections": [
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 229
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": false,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 139
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": false,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 120
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 75
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 68
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 62
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 57
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 56
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": false,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 43
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 39
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 34
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 31
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": false,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 22
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": false,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 14
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 14
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": false,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 14
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 13
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 13
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 9
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": false,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 6
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": true,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 5
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": true,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 4
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 4
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 3
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 3
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 3
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 2
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": true,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 2
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 2
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 2
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": true,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 1
+    }
+  ],
+  "bars_drawn": 20,
+  "bars_omitted": 11,
+  "orfs_in_omitted_bars": 31
+}

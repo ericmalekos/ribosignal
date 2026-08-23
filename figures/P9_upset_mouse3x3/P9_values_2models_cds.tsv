@@ -1,0 +1,23 @@
+# P9_values_2models_cds.json -> WIDE (record table at 'intersections', 21 rows)
+model	model_rna	arm	view	keying	n_test_tx	bars_drawn	bars_omitted	orfs_in_omitted_bars	pattern	n
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":true,"gse243134":true,"wang":true,"attn":true,"mamba4":true}	10076
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":false,"wang":false,"attn":true,"mamba4":true}	321
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":true,"gse243134":true,"wang":true,"attn":true,"mamba4":false}	109
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":true,"gse243134":true,"wang":false,"attn":true,"mamba4":true}	97
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":true,"wang":false,"attn":true,"mamba4":true}	37
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":true,"gse243134":false,"wang":false,"attn":true,"mamba4":true}	26
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":true,"wang":true,"attn":true,"mamba4":true}	23
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":false,"wang":false,"attn":false,"mamba4":true}	21
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":false,"wang":true,"attn":true,"mamba4":true}	21
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":true,"gse243134":true,"wang":true,"attn":false,"mamba4":true}	18
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":true,"gse243134":false,"wang":true,"attn":true,"mamba4":true}	17
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":true,"gse243134":true,"wang":true,"attn":false,"mamba4":false}	14
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":true,"wang":false,"attn":false,"mamba4":false}	2
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":true,"gse243134":true,"wang":false,"attn":false,"mamba4":false}	2
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":true,"gse243134":true,"wang":false,"attn":false,"mamba4":true}	2
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":false,"wang":false,"attn":true,"mamba4":false}	1
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":true,"wang":false,"attn":false,"mamba4":true}	1
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":false,"wang":true,"attn":false,"mamba4":false}	1
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":false,"wang":true,"attn":false,"mamba4":true}	1
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":true,"wang":true,"attn":false,"mamba4":true}	1
+mamba4	gse243134	pred_preddepth	annotated CDS	genomic (gene_id, ORF_gstop)	22974	20	1	1	{"janich":false,"gse243134":true,"wang":true,"attn":false,"mamba4":false}	1

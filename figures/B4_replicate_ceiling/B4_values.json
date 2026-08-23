@@ -1,4 +1,6 @@
 {
+  "model": "mamba4",
+  "source": "results/loto; results/replicate_concordance.json",
   "run": "orf_v2_mamba4_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes",
   "ceiling_source": "results/replicate_concordance.json",
   "model_source": "results/loto/orf_v2_mamba4_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/extra_metrics.json",
@@ -35,5 +37,6 @@
       "model": 0.26836026507011235,
       "pct_of_ceiling": 35.818552570735285
     }
-  ]
+  ],
+  "provenance_note": "UNSUFFIXED = mamba4 by the generator's own FIG_MODEL default (main figure per decision D1b)"
 }

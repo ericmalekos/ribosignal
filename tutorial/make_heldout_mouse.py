@@ -29,7 +29,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "tutorial/source/data/heldout-mouse.md"
 THREEWAY = ROOT / "results/o2_liver/threeway_liver_concordance.json"
-LIVER3X3 = ROOT / "results/mouse_liver_3x3/scored"
+LIVER3X3 = ROOT / "results/mouse_liver_3x3_canon/scored"
 
 # (label, dataset key, dropin_metrics.json, npz whose meta names the checkpoint)
 SOURCES = [
@@ -93,7 +93,7 @@ def table(rows):
 
 
 def liver3x3_section():
-    """The 3 Ribo x 3 RNA factorial, read from results/mouse_liver_3x3/scored/.
+    """The 3 Ribo x 3 RNA factorial, read from results/mouse_liver_3x3_canon/scored/.
 
     Read from the scored TSVs rather than transcribed, so the page cannot drift from the numbers.
     """
@@ -150,7 +150,7 @@ def liver3x3_section():
         L.append("## Model vs observed, by ORF class\n")
         L.append("The same four classes, now for the MODEL against each dataset's observed calls. Rows are")
         L.append("matched-RNA cells (RNA input from the same experiment as the Ribo reference); the full")
-        L.append("7-class x 9-cell x 2-arm table is `results/mouse_liver_3x3/scored/model_vs_ribo_by_class.tsv`.")
+        L.append("7-class x 9-cell x 2-arm table is `results/mouse_liver_3x3_canon/scored/model_vs_ribo_by_class.tsv`.")
         L.append("Read each row against the same class in the ceiling table above, not against 1.0.\n")
         for arm, lab in (("pred_obsdepth", "Predicted shape at observed depth (`pred_obsdepth`)"),
                          ("pred_preddepth", "Standalone, no Ribo-seq at inference (`pred_preddepth`)")):

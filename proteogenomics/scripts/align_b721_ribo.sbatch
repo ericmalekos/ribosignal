@@ -31,8 +31,8 @@ ECH=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype
 ENV=/private/groups/carpenterlab/emalekos/conda_envs/riboseq
 export PATH="${ENV}/bin:${PATH}"
 STAR_INDEX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_grch38_v49
-NCRNA=$ECH/data/phase30/ncrna_filter_tx.txt
-TX2GENE=$ECH/data/phase30/tx_to_gene.tsv
+NCRNA=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/ncrna_tx_human_v49.txt
+TX2GENE=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/tx_to_gene_human_v49.tsv
 
 SRRS=(SRR10846525 SRR10846526 SRR10846527 SRR10846528 SRR10846529 SRR10846530 SRR10846531)
 ALLELE=(A0101 A0101 A3303 B1501 B1501 B4402 B4402)

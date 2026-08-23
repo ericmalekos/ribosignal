@@ -1,0 +1,105 @@
+{
+  "source": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/B721_pilot/dropin_compare/b721_dropin_metrics.json",
+  "ceiling_source": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/B721_pilot/dropin_compare/ceiling_AvsB",
+  "n_ref_genomewide": 21974,
+  "n_ref_restricted": 16331,
+  "n_gene_universe": 11527,
+  "n_tx_universe": 30075,
+  "ceiling": {
+    "precision": 0.9647225536992841,
+    "recall": 0.8237279500732344,
+    "f1": 0.888667513998145,
+    "recall_annotated": 0.9728926847382102,
+    "recall_noncanonical": 0.49787061447982156,
+    "n_real": 15703
+  },
+  "ceiling_n_ref": 15703,
+  "arms": {
+    "mamba4/theta1": {
+      "n_pred": 12151,
+      "n_real": 16331,
+      "n_match": 9476,
+      "precision": 0.779853509999177,
+      "recall": 0.580246157614353,
+      "f1": 0.6654027104838143,
+      "recall_annotated": 0.754307948860478,
+      "n_real_annotated": 10794,
+      "n_pred_annotated": 8523,
+      "precision_annotated": 0.9540068051155697,
+      "recall_noncanonical": 0.24092468845945458,
+      "n_real_noncanonical": 5537,
+      "n_pred_noncanonical": 3628,
+      "precision_noncanonical": 0.37072767364939363
+    },
+    "mamba4/poisson": {
+      "n_pred": 9304,
+      "n_real": 16331,
+      "n_match": 8256,
+      "precision": 0.8873602751504729,
+      "recall": 0.5055416079848142,
+      "f1": 0.6441193680514921,
+      "recall_annotated": 0.714100426162683,
+      "n_real_annotated": 10794,
+      "n_pred_annotated": 7999,
+      "precision_annotated": 0.9629953744218027,
+      "recall_noncanonical": 0.09897056167599784,
+      "n_real_noncanonical": 5537,
+      "n_pred_noncanonical": 1305,
+      "precision_noncanonical": 0.42375478927203064
+    },
+    "attn/theta1": {
+      "n_pred": 12699,
+      "n_real": 16331,
+      "n_match": 9669,
+      "precision": 0.7613985353177416,
+      "recall": 0.5920641724327965,
+      "f1": 0.6661384774371341,
+      "recall_annotated": 0.7586622197517139,
+      "n_real_annotated": 10794,
+      "n_pred_annotated": 8568,
+      "precision_annotated": 0.9538982259570495,
+      "recall_noncanonical": 0.267292757811089,
+      "n_real_noncanonical": 5537,
+      "n_pred_noncanonical": 4131,
+      "precision_noncanonical": 0.36213991769547327
+    },
+    "attn/poisson": {
+      "n_pred": 8732,
+      "n_real": 16331,
+      "n_match": 8017,
+      "precision": 0.9181172698121851,
+      "recall": 0.4909068642459127,
+      "f1": 0.6397478354546543,
+      "recall_annotated": 0.7045580878265704,
+      "n_real_annotated": 10794,
+      "n_pred_annotated": 7868,
+      "precision_annotated": 0.965683782409761,
+      "recall_noncanonical": 0.0744085244717356,
+      "n_real_noncanonical": 5537,
+      "n_pred_noncanonical": 864,
+      "precision_noncanonical": 0.4849537037037037
+    }
+  },
+  "pct_of_ceiling": {
+    "mamba4/theta1": {
+      "f1": 74.87645266677355,
+      "recall_annotated": 77.53249260615524,
+      "recall_noncanonical": 48.391023983444825
+    },
+    "mamba4/poisson": {
+      "f1": 72.48148018301889,
+      "recall_annotated": 73.39971174259944,
+      "recall_noncanonical": 19.878771471460094
+    },
+    "attn/theta1": {
+      "f1": 74.95924706869891,
+      "recall_annotated": 77.98005182409791,
+      "recall_noncanonical": 53.6871930251112
+    },
+    "attn/poisson": {
+      "f1": 71.98956025481422,
+      "recall_annotated": 72.41889047774633,
+      "recall_noncanonical": 14.945353734017443
+    }
+  }
+}

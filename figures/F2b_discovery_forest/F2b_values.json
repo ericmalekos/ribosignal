@@ -1,57 +1,10 @@
 {
+  "model": [
+    "attn",
+    "mamba4"
+  ],
+  "source": "proteogenomics/data/{ds}_pilot/pgx_{model}/report/{nm}",
   "records": [
-    {
-      "dataset": "A549",
-      "substrate": "tryptic",
-      "model": "mamba4",
-      "arm": "model_poisson",
-      "ratio": 168.80149750415976,
-      "model_density": 4.575707154742097,
-      "null_density": 0.027107029394862675,
-      "novel_peptides": 11,
-      "db_novel_seqs": 2404,
-      "null_peptides": 10,
-      "null_seqs": 368908
-    },
-    {
-      "dataset": "A549",
-      "substrate": "tryptic",
-      "model": "mamba4",
-      "arm": "model_standard",
-      "ratio": 32.19716834755624,
-      "model_density": 0.8727695888285493,
-      "null_density": 0.027107029394862675,
-      "novel_peptides": 9,
-      "db_novel_seqs": 10312,
-      "null_peptides": 10,
-      "null_seqs": 368908
-    },
-    {
-      "dataset": "A549",
-      "substrate": "tryptic",
-      "model": "attn",
-      "arm": "model_poisson",
-      "ratio": 112.4719512195122,
-      "model_density": 3.048780487804878,
-      "null_density": 0.027107029394862675,
-      "novel_peptides": 7,
-      "db_novel_seqs": 2296,
-      "null_peptides": 10,
-      "null_seqs": 368908
-    },
-    {
-      "dataset": "A549",
-      "substrate": "tryptic",
-      "model": "attn",
-      "arm": "model_standard",
-      "ratio": 27.641322468858295,
-      "model_density": 0.7492741406762199,
-      "null_density": 0.027107029394862675,
-      "novel_peptides": 8,
-      "db_novel_seqs": 10677,
-      "null_peptides": 10,
-      "null_seqs": 368908
-    },
     {
       "dataset": "HBL1",
       "substrate": "HLA-I",
@@ -63,7 +16,9 @@
       "novel_peptides": 14,
       "db_novel_seqs": 1837,
       "null_peptides": 20,
-      "null_seqs": 276698
+      "null_seqs": 276698,
+      "d_total_peptides": 14,
+      "null_d_total_peptides": -104
     },
     {
       "dataset": "HBL1",
@@ -76,7 +31,9 @@
       "novel_peptides": 8,
       "db_novel_seqs": 10345,
       "null_peptides": 20,
-      "null_seqs": 276698
+      "null_seqs": 276698,
+      "d_total_peptides": -14,
+      "null_d_total_peptides": -104
     },
     {
       "dataset": "HBL1",
@@ -89,7 +46,9 @@
       "novel_peptides": 12,
       "db_novel_seqs": 1819,
       "null_peptides": 20,
-      "null_seqs": 276698
+      "null_seqs": 276698,
+      "d_total_peptides": 12,
+      "null_d_total_peptides": -104
     },
     {
       "dataset": "HBL1",
@@ -102,7 +61,9 @@
       "novel_peptides": 14,
       "db_novel_seqs": 10620,
       "null_peptides": 20,
-      "null_seqs": 276698
+      "null_seqs": 276698,
+      "d_total_peptides": -95,
+      "null_d_total_peptides": -104
     },
     {
       "dataset": "SUDHL4",
@@ -115,7 +76,9 @@
       "novel_peptides": 10,
       "db_novel_seqs": 1621,
       "null_peptides": 28,
-      "null_seqs": 259701
+      "null_seqs": 259701,
+      "d_total_peptides": 10,
+      "null_d_total_peptides": 47
     },
     {
       "dataset": "SUDHL4",
@@ -128,7 +91,9 @@
       "novel_peptides": 22,
       "db_novel_seqs": 10351,
       "null_peptides": 28,
-      "null_seqs": 259701
+      "null_seqs": 259701,
+      "d_total_peptides": 22,
+      "null_d_total_peptides": 47
     },
     {
       "dataset": "SUDHL4",
@@ -141,7 +106,9 @@
       "novel_peptides": 13,
       "db_novel_seqs": 2948,
       "null_peptides": 28,
-      "null_seqs": 259701
+      "null_seqs": 259701,
+      "d_total_peptides": 13,
+      "null_d_total_peptides": 47
     },
     {
       "dataset": "SUDHL4",
@@ -154,7 +121,9 @@
       "novel_peptides": 17,
       "db_novel_seqs": 7072,
       "null_peptides": 28,
-      "null_seqs": 259701
+      "null_seqs": 259701,
+      "d_total_peptides": 17,
+      "null_d_total_peptides": 47
     },
     {
       "dataset": "DoHH2",
@@ -167,7 +136,9 @@
       "novel_peptides": 14,
       "db_novel_seqs": 1955,
       "null_peptides": 13,
-      "null_seqs": 242512
+      "null_seqs": 242512,
+      "d_total_peptides": 21,
+      "null_d_total_peptides": 17
     },
     {
       "dataset": "DoHH2",
@@ -180,7 +151,9 @@
       "novel_peptides": 32,
       "db_novel_seqs": 8198,
       "null_peptides": 13,
-      "null_seqs": 242512
+      "null_seqs": 242512,
+      "d_total_peptides": 95,
+      "null_d_total_peptides": 17
     },
     {
       "dataset": "DoHH2",
@@ -193,7 +166,9 @@
       "novel_peptides": 16,
       "db_novel_seqs": 1796,
       "null_peptides": 13,
-      "null_seqs": 242512
+      "null_seqs": 242512,
+      "d_total_peptides": 23,
+      "null_d_total_peptides": 17
     },
     {
       "dataset": "DoHH2",
@@ -206,7 +181,9 @@
       "novel_peptides": 28,
       "db_novel_seqs": 5448,
       "null_peptides": 13,
-      "null_seqs": 242512
+      "null_seqs": 242512,
+      "d_total_peptides": 35,
+      "null_d_total_peptides": 17
     },
     {
       "dataset": "THP1",
@@ -219,7 +196,9 @@
       "novel_peptides": 3,
       "db_novel_seqs": 1711,
       "null_peptides": 1,
-      "null_seqs": 301855
+      "null_seqs": 301855,
+      "d_total_peptides": 3,
+      "null_d_total_peptides": -5
     },
     {
       "dataset": "THP1",
@@ -232,7 +211,9 @@
       "novel_peptides": 5,
       "db_novel_seqs": 8414,
       "null_peptides": 1,
-      "null_seqs": 301855
+      "null_seqs": 301855,
+      "d_total_peptides": 5,
+      "null_d_total_peptides": -5
     },
     {
       "dataset": "THP1",
@@ -245,7 +226,9 @@
       "novel_peptides": 15,
       "db_novel_seqs": 1650,
       "null_peptides": 1,
-      "null_seqs": 301855
+      "null_seqs": 301855,
+      "d_total_peptides": 15,
+      "null_d_total_peptides": -5
     },
     {
       "dataset": "THP1",
@@ -258,8 +241,11 @@
       "novel_peptides": 8,
       "db_novel_seqs": 9318,
       "null_peptides": 1,
-      "null_seqs": 301855
+      "null_seqs": 301855,
+      "d_total_peptides": 8,
+      "null_d_total_peptides": -5
     }
   ],
-  "missing": []
+  "missing": [],
+  "provenance_note": "generator references both arms"
 }

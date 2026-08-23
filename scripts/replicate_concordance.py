@@ -25,7 +25,7 @@ ECH = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments
            "biotype_probe/expression_context_human")
 NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/riboseq_signal_model")
-SAMPLE_DIR = ECH / "data" / "ribocode_per_tissue" / "Fibroblast"
+SAMPLE_DIR = NEW / "data" / "ribocode_per_tissue" / "Fibroblast"
 
 
 def pearson(a, b):

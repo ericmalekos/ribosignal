@@ -25,22 +25,25 @@ RiNALMo per-token embedding {tx}_tokens.npy of shape (L,1280) and with future pe
 RNAseq coverage on the same transcript-nt axis.
 """
 import json
+import os
 import sys
 from pathlib import Path
 
 import h5py
 import numpy as np
 
-ECH = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-           "RNAZoo/experiments/biotype_probe/expression_context_human")
-NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-           "RNAZoo/experiments/riboseq_signal_model")
-RC_DIR = ECH / "data" / "ribocode_per_tissue" / "Fibroblast"
+# ECH removed 2026-08-19: the deleted biotype_probe tree. Consumers repointed to NEW.
+# Root resolves via $RIBOSEQ_SIGNAL_MODEL_ROOT or auto-detection (task #94); never baked in.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "prepare"))
+from paths import project_root  # noqa: E402
+
+NEW = project_root()
+RC_DIR = NEW / "data" / "ribocode_per_tissue" / "Fibroblast"
 TX2B = NEW / "data" / "tx2biotype.tsv"
 OUT_HD5 = NEW / "data" / "target" / "Fibroblast_psites_pooled.hd5"
 OUT_TSV = NEW / "data" / "target" / "Fibroblast_psites_summary.tsv"
 
-SRC_GLOB = "SRR15513*_psites.hd5"
+SRC_GLOB = os.environ.get("PSITE_GLOB", "SRR15513*_psites.hd5")
 CHUNK = 10000
 TISSUE = "Fibroblast"
 POSTURE = "A_ribocode_isoform_multimapped"
@@ -67,7 +70,15 @@ def load_tx2biotype(path):
 
 def main():
     files = sorted(RC_DIR.glob(SRC_GLOB))
-    assert len(files) == 32, f"expected 32 Fibroblast hd5, found {len(files)}"
+    # De-fragilised 2026-08-19 (task #94): was a hard `assert len(files) == 32`, which made this
+    # script unusable on any cohort but the 32-sample Chothani Fibroblast set. Override the glob
+    # with $PSITE_GLOB and the expected count with $PSITE_EXPECT_N; defaults reproduce the
+    # historical behaviour exactly.
+    if not files:
+        sys.exit(f"no P-site hd5 matching {SRC_GLOB!r} under {SRC_DIR}")
+    _expect = os.environ.get("PSITE_EXPECT_N", "32")
+    if _expect and len(files) != int(_expect):
+        print(f"WARNING: expected {_expect} P-site hd5, found {len(files)}", file=sys.stderr)
     OUT_HD5.parent.mkdir(parents=True, exist_ok=True)
 
     canon = None

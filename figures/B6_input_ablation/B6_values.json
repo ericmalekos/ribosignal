@@ -1,4 +1,7 @@
 {
+  "model": "attn",
+  "source": "results/loto/orf_v2_attn_onehot_union_* (3 input arms)",
+  "provenance_note": "all three ablation run dirs are orf_v2_attn",
   "n_scored": 70883,
   "arms": [
     {

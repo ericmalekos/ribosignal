@@ -1,0 +1,158 @@
+{
+  "model": "mamba4",
+  "model_rna": "gse243134",
+  "arm": "pred_preddepth",
+  "view": "uORFs (5'UTR, non-overlapping)",
+  "keying": "genomic (gene_id, ORF_gstop)",
+  "n_test_tx": 22974,
+  "set_sizes": {
+    "janich": 613,
+    "gse243134": 697,
+    "wang": 412,
+    "mamba4": 584
+  },
+  "alt_model_set_sizes_by_rna": {
+    "janich": 13108,
+    "wang": 13124
+  },
+  "intersections": [
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "mamba4": true
+      },
+      "n": 242
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": false,
+        "mamba4": true
+      },
+      "n": 182
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "mamba4": false
+      },
+      "n": 119
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "mamba4": false
+      },
+      "n": 99
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "mamba4": false
+      },
+      "n": 95
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "mamba4": true
+      },
+      "n": 89
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": false,
+        "mamba4": false
+      },
+      "n": 36
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "mamba4": true
+      },
+      "n": 36
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": false,
+        "mamba4": true
+      },
+      "n": 20
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "mamba4": false
+      },
+      "n": 15
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "mamba4": false
+      },
+      "n": 12
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": true,
+        "mamba4": false
+      },
+      "n": 9
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "mamba4": true
+      },
+      "n": 7
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "mamba4": true
+      },
+      "n": 5
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": true,
+        "mamba4": true
+      },
+      "n": 3
+    }
+  ],
+  "bars_drawn": 15,
+  "bars_omitted": 0,
+  "orfs_in_omitted_bars": 0
+}

@@ -1,4 +1,7 @@
 {
+  "model": "attn",
+  "source": "results/loto/orf_v2_{MODEL}_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes",
+  "provenance_note": "_attn suffix = the supplemental attn variant (FIG_MODEL=attn)",
   "all": {
     "auroc_pred_frame0_lengthctrl": 0.8876898616872848,
     "auroc_pred_density_lengthctrl": 0.7728500721030007,

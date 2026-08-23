@@ -26,7 +26,7 @@ set -euo pipefail
 NEW=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
 ECH=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human
 RC=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin
-ANNOT=$ECH/data/ribocode_annot            # v49 prepared-transcripts, same annotation as training
+ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary            # v49 prepared-transcripts, same annotation as training
 RB=$NEW/proteogenomics/data/B721_pilot/riboseq
 OUT=$NEW/proteogenomics/data/B721_pilot/ribocode; mkdir -p "$OUT"
 

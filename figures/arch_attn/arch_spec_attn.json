@@ -1,0 +1,119 @@
+{
+  "run": "orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes",
+  "model": "attn",
+  "mixer": "transformer",
+  "n_params": 5071106,
+  "n_params_by_group": {
+    "in_proj": 2816,
+    "body_blocks": 3947520,
+    "mixer": 1054208,
+    "profile_head": 257,
+    "count_head": 66305
+  },
+  "input_channels": {
+    "order": "one-hot(4) | orf_track(5) | rna_coverage(1); coverage is ALWAYS last",
+    "onehot": 4,
+    "onehot_order": [
+      "A",
+      "C",
+      "G",
+      "T"
+    ],
+    "onehot_note": "U maps to the T column; N or any other character is an all-zero row",
+    "orf_track": 5,
+    "rna_coverage": 1,
+    "total": 10,
+    "rna_coverage_transform": "log1p(coverage / global_mean_coverage)  [cov_norm=global_mean]. Per-nt RNA depth divided by the PACK's own global mean before log1p, so the channel is depth-normalised and comparable across datasets."
+  },
+  "projection": {
+    "kernel": 1,
+    "in": 10,
+    "out": 256
+  },
+  "body": {
+    "n_blocks": 10,
+    "kernel": 3,
+    "dilations": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "block": "residual: x + drop(conv2(gelu(norm2(conv1(gelu(norm1(x)))))))-style, two k=3 dilated convs per block",
+    "norm": "GroupNorm",
+    "groups": 8,
+    "dropout": 0.1,
+    "receptive_field_nt": 4093,
+    "receptive_field_derivation": "1 + 2*(k-1)*sum(dilations) = 1 + 4*1023 = 4093. Two k=3 convs per block, each widening by 2*d; in_proj is k=1 and adds nothing.",
+    "receptive_field_caveat": "THIS IS THE CONVOLUTIONAL RECEPTIVE FIELD ONLY. The mixer below is FULL self-attention over the transcript, masked for padding alone (`self.attn(xt, src_key_padding_mask=~mask)`) -- no causal and no local window. So the attn model's EFFECTIVE context is the ENTIRE transcript, not 4093 nt. Labelling the panel 'receptive field ~4 kb' without this qualifier understates the attn model. Say 'convolutional receptive field 4,093 nt; attention is global over the transcript'."
+  },
+  "mixer_cfg": {
+    "n_attn_layers": 2,
+    "n_heads": 8,
+    "norm_first": true,
+    "activation": "gelu",
+    "d_ff": 512,
+    "d_ff_note": "dim_feedforward = channels * 2, not an independent hyperparameter",
+    "attention_scope": "global over the transcript; only padding is masked"
+  },
+  "heads": {
+    "profile": {
+      "op": "Conv1d(256, 1, 1) -> (B, L) logits, -1e9 at padding",
+      "activation": "log_softmax over positions, applied at loss time"
+    },
+    "count": {
+      "op": "Linear(256+1, 256) -> GELU -> Dropout -> Linear(256, 1)",
+      "input": "masked mean of body features over valid positions, CONCATENATED with log1p(total RNA coverage) for the transcript",
+      "target": "log1p(total observed P-sites)"
+    }
+  },
+  "loss": {
+    "profile": "per-transcript multinomial NLL, equal-weighted across transcripts",
+    "count": "MSE on log1p(total)",
+    "count_weight": 0.1,
+    "peakiness_weight": 0.0,
+    "peakiness_note": "0.0 in the deployed model; the entropy-gap anti-smoothing term is an A/B arm, not part of this checkpoint"
+  },
+  "training": {
+    "epochs": 30,
+    "lr": 0.0003,
+    "weight_decay": 0.01,
+    "budget": 16000,
+    "warmup": 2,
+    "patience": 6,
+    "seed": 0,
+    "val_fold": 0,
+    "min_train_signal": 50,
+    "max_tx_per_tissue": 6000,
+    "input_mode": "both"
+  },
+  "data": {
+    "holdout": "Hepatocytes",
+    "train_tissues": [
+      "Fibroblast",
+      "VSMC",
+      "ES",
+      "Fat",
+      "HA_EC",
+      "HCAEC",
+      "HUVEC"
+    ],
+    "n_train_tx": 42000,
+    "n_val_tx": 8400,
+    "n_test_tx": 70883,
+    "emb_backend": "onehot",
+    "kozak": "none (heuristic Kozak gate DROPPED; see docs/PIPELINE_POLICY.md)"
+  },
+  "provenance": {
+    "n_params": "summed from best.pt state_dict",
+    "channels_and_kernels": "read from checkpoint tensor shapes",
+    "hyperparameters": "orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/args.json",
+    "generated_by": "scripts/export_arch_spec.py"
+  }
+}

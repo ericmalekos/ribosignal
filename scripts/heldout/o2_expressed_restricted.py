@@ -33,13 +33,13 @@ ECH = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/biotype_probe/expression_context_human")
 
 WANG_OBS = NEW / "data/heldout_psites/mouse_wang_liver/mouse_wang_liver_collapsed.txt"
-JANICH_OBS = ECH / "data/ribocode_mouse_liver/Liver_5samp/Liver_5samp_collapsed.txt"
+JANICH_OBS = NEW / "results/merged_liver_ribocode/merged_liver_collapsed.txt"
 WANG_MODEL = NEW / "results/o2_liver/wang_nokozak/dropin/pred_preddepth_collapsed.txt"
 JANICH_MODEL = NEW / "results/o2_liver/janich_wanguni/dropin/pred_preddepth_collapsed.txt"
 WANG_PACK = NEW / "data/packed_heldout_mouse_wang_liver"
 JANICH_PACK = NEW / "data/packed_heldout_mouse_janich_liver_wanguni"
-SALMON = NEW / "data/salmon_quant_janich_liver/janich_merged_quant.sf"
-SALMON_WANG = NEW / "data/salmon_quant_wang_liver/wang_merged_quant.sf"
+SALMON = NEW / "data/tpm/salmon_quant_janich_liver/janich_merged_quant.sf"
+SALMON_WANG = NEW / "data/tpm/salmon_quant_wang_liver/wang_merged_quant.sf"
 OUT = NEW / "results/o2_liver/o2_expressed_restricted.md"
 
 

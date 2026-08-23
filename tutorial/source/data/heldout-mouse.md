@@ -104,55 +104,55 @@ involved -- this is what the three OBSERVED call sets score against each other o
 
 | reference | compared | class | P | R | F1 | n_ref |
 |---|---|---|--:|--:|--:|--:|
-| gse243134 | janich | annotated | 0.996 | 0.995 | 0.995 | 10,529 |
-| gse243134 | wang | annotated | 0.996 | 0.988 | 0.992 | 10,529 |
-| janich | gse243134 | annotated | 0.995 | 0.996 | 0.995 | 10,515 |
-| janich | wang | annotated | 0.996 | 0.989 | 0.993 | 10,515 |
-| wang | janich | annotated | 0.989 | 0.996 | 0.993 | 10,444 |
-| wang | gse243134 | annotated | 0.988 | 0.996 | 0.992 | 10,444 |
-| gse243134 | janich | novel | 0.851 | 0.748 | 0.796 | 874 |
-| gse243134 | wang | novel | 0.848 | 0.581 | 0.690 | 874 |
-| janich | gse243134 | novel | 0.748 | 0.851 | 0.796 | 769 |
-| janich | wang | novel | 0.826 | 0.644 | 0.724 | 769 |
-| wang | janich | novel | 0.644 | 0.826 | 0.724 | 599 |
-| wang | gse243134 | novel | 0.581 | 0.848 | 0.690 | 599 |
-| gse243134 | janich | uORF | 0.890 | 0.795 | 0.840 | 806 |
-| gse243134 | wang | uORF | 0.909 | 0.560 | 0.693 | 806 |
-| janich | gse243134 | uORF | 0.795 | 0.890 | 0.840 | 720 |
-| janich | wang | uORF | 0.909 | 0.626 | 0.742 | 720 |
-| wang | janich | uORF | 0.626 | 0.909 | 0.742 | 496 |
-| wang | gse243134 | uORF | 0.560 | 0.909 | 0.693 | 496 |
-| gse243134 | janich | Overlap_uORF | 0.846 | 0.745 | 0.793 | 377 |
-| gse243134 | wang | Overlap_uORF | 0.858 | 0.546 | 0.668 | 377 |
-| janich | gse243134 | Overlap_uORF | 0.745 | 0.846 | 0.793 | 332 |
-| janich | wang | Overlap_uORF | 0.821 | 0.593 | 0.689 | 332 |
-| wang | janich | Overlap_uORF | 0.593 | 0.821 | 0.689 | 240 |
-| wang | gse243134 | Overlap_uORF | 0.546 | 0.858 | 0.668 | 240 |
-| gse243134 | janich | internal | 0.679 | 0.570 | 0.620 | 223 |
-| gse243134 | wang | internal | 0.687 | 0.453 | 0.546 | 223 |
-| janich | gse243134 | internal | 0.570 | 0.679 | 0.620 | 187 |
-| janich | wang | internal | 0.612 | 0.481 | 0.539 | 187 |
-| wang | janich | internal | 0.481 | 0.612 | 0.539 | 147 |
-| wang | gse243134 | internal | 0.453 | 0.687 | 0.546 | 147 |
-| gse243134 | janich | dORF | 0.705 | 0.577 | 0.635 | 286 |
-| gse243134 | wang | dORF | 0.757 | 0.392 | 0.516 | 286 |
-| janich | gse243134 | dORF | 0.577 | 0.705 | 0.635 | 234 |
-| janich | wang | dORF | 0.676 | 0.427 | 0.524 | 234 |
-| wang | janich | dORF | 0.427 | 0.676 | 0.524 | 148 |
-| wang | gse243134 | dORF | 0.392 | 0.757 | 0.516 | 148 |
-| gse243134 | janich | Overlap_dORF | 0.617 | 0.580 | 0.598 | 50 |
-| gse243134 | wang | Overlap_dORF | 0.600 | 0.360 | 0.450 | 50 |
-| janich | gse243134 | Overlap_dORF | 0.580 | 0.617 | 0.598 | 47 |
-| janich | wang | Overlap_dORF | 0.567 | 0.362 | 0.442 | 47 |
-| wang | janich | Overlap_dORF | 0.362 | 0.567 | 0.442 | 30 |
-| wang | gse243134 | Overlap_dORF | 0.360 | 0.600 | 0.450 | 30 |
+| gse243134 | janich | annotated | 0.996 | 0.994 | 0.995 | 10,383 |
+| gse243134 | wang | annotated | 0.996 | 0.986 | 0.991 | 10,383 |
+| janich | gse243134 | annotated | 0.994 | 0.996 | 0.995 | 10,361 |
+| janich | wang | annotated | 0.995 | 0.988 | 0.992 | 10,361 |
+| wang | janich | annotated | 0.988 | 0.995 | 0.992 | 10,282 |
+| wang | gse243134 | annotated | 0.986 | 0.996 | 0.991 | 10,282 |
+| gse243134 | janich | novel | 0.825 | 0.748 | 0.785 | 663 |
+| gse243134 | wang | novel | 0.834 | 0.575 | 0.680 | 663 |
+| janich | gse243134 | novel | 0.748 | 0.825 | 0.785 | 601 |
+| janich | wang | novel | 0.805 | 0.612 | 0.696 | 601 |
+| wang | janich | novel | 0.612 | 0.805 | 0.696 | 457 |
+| wang | gse243134 | novel | 0.575 | 0.834 | 0.680 | 457 |
+| gse243134 | janich | uORF | 0.889 | 0.782 | 0.832 | 697 |
+| gse243134 | wang | uORF | 0.917 | 0.542 | 0.682 | 697 |
+| janich | gse243134 | uORF | 0.782 | 0.889 | 0.832 | 613 |
+| janich | wang | uORF | 0.905 | 0.609 | 0.728 | 613 |
+| wang | janich | uORF | 0.609 | 0.905 | 0.728 | 412 |
+| wang | gse243134 | uORF | 0.542 | 0.917 | 0.682 | 412 |
+| gse243134 | janich | Overlap_uORF | 0.832 | 0.718 | 0.771 | 344 |
+| gse243134 | wang | Overlap_uORF | 0.865 | 0.541 | 0.665 | 344 |
+| janich | gse243134 | Overlap_uORF | 0.718 | 0.832 | 0.771 | 297 |
+| janich | wang | Overlap_uORF | 0.800 | 0.579 | 0.672 | 297 |
+| wang | janich | Overlap_uORF | 0.579 | 0.800 | 0.672 | 215 |
+| wang | gse243134 | Overlap_uORF | 0.541 | 0.865 | 0.665 | 215 |
+| gse243134 | janich | internal | 0.680 | 0.565 | 0.617 | 207 |
+| gse243134 | wang | internal | 0.674 | 0.420 | 0.518 | 207 |
+| janich | gse243134 | internal | 0.565 | 0.680 | 0.617 | 172 |
+| janich | wang | internal | 0.597 | 0.448 | 0.512 | 172 |
+| wang | janich | internal | 0.448 | 0.597 | 0.512 | 129 |
+| wang | gse243134 | internal | 0.420 | 0.674 | 0.518 | 129 |
+| gse243134 | janich | dORF | 0.670 | 0.553 | 0.606 | 246 |
+| gse243134 | wang | dORF | 0.722 | 0.370 | 0.489 | 246 |
+| janich | gse243134 | dORF | 0.553 | 0.670 | 0.606 | 203 |
+| janich | wang | dORF | 0.627 | 0.389 | 0.480 | 203 |
+| wang | janich | dORF | 0.389 | 0.627 | 0.480 | 126 |
+| wang | gse243134 | dORF | 0.370 | 0.722 | 0.489 | 126 |
+| gse243134 | janich | Overlap_dORF | 0.571 | 0.545 | 0.558 | 44 |
+| gse243134 | wang | Overlap_dORF | 0.640 | 0.364 | 0.464 | 44 |
+| janich | gse243134 | Overlap_dORF | 0.545 | 0.571 | 0.558 | 42 |
+| janich | wang | Overlap_dORF | 0.560 | 0.333 | 0.418 | 42 |
+| wang | janich | Overlap_dORF | 0.333 | 0.560 | 0.418 | 25 |
+| wang | gse243134 | Overlap_dORF | 0.364 | 0.640 | 0.464 | 25 |
 
-**Annotated CDS reproduces; nothing else does.** Annotated F1 is 0.992-0.995 across all six ordered pairs. Every other class falls away:
-uORF 0.693-0.840,
-novel 0.690-0.796,
-Overlap_uORF 0.668-0.793,
-internal 0.539-0.620,
-dORF 0.516-0.635,
+**Annotated CDS reproduces; nothing else does.** Annotated F1 is 0.991-0.995 across all six ordered pairs. Every other class falls away:
+uORF 0.682-0.832,
+novel 0.680-0.785,
+Overlap_uORF 0.665-0.771,
+internal 0.512-0.617,
+dORF 0.480-0.606,
 with `internal` and `dORF` the weakest. Judge a model's non-canonical calls against these
 numbers, never against 1.0.
 
@@ -168,75 +168,75 @@ depth gap, not a disagreement about biology.
 
 The same four classes, now for the MODEL against each dataset's observed calls. Rows are
 matched-RNA cells (RNA input from the same experiment as the Ribo reference); the full
-7-class x 9-cell x 2-arm table is `results/mouse_liver_3x3/scored/model_vs_ribo_by_class.tsv`.
+7-class x 9-cell x 2-arm table is `results/mouse_liver_3x3_canon/scored/model_vs_ribo_by_class.tsv`.
 Read each row against the same class in the ceiling table above, not against 1.0.
 
 ### Predicted shape at observed depth (`pred_obsdepth`)
 
 | class | dataset | model | P | R | F1 | n_ref |
 |---|---|---|--:|--:|--:|--:|
-| annotated | janich | attn | 0.994 | 0.978 | 0.986 | 10,515 |
-| annotated | janich | mamba4 | 0.993 | 0.989 | 0.991 | 10,515 |
-| annotated | gse243134 | attn | 0.994 | 0.983 | 0.989 | 10,529 |
-| annotated | gse243134 | mamba4 | 0.994 | 0.991 | 0.992 | 10,529 |
-| annotated | wang | attn | 0.994 | 0.977 | 0.985 | 10,444 |
-| annotated | wang | mamba4 | 0.991 | 0.985 | 0.988 | 10,444 |
-| novel | janich | attn | 0.667 | 0.602 | 0.633 | 769 |
-| novel | janich | mamba4 | 0.683 | 0.632 | 0.656 | 769 |
-| novel | gse243134 | attn | 0.656 | 0.587 | 0.620 | 874 |
-| novel | gse243134 | mamba4 | 0.668 | 0.595 | 0.629 | 874 |
-| novel | wang | attn | 0.569 | 0.633 | 0.599 | 599 |
-| novel | wang | mamba4 | 0.560 | 0.634 | 0.595 | 599 |
-| uORF | janich | attn | 0.684 | 0.625 | 0.653 | 720 |
-| uORF | janich | mamba4 | 0.699 | 0.619 | 0.657 | 720 |
-| uORF | gse243134 | attn | 0.720 | 0.656 | 0.687 | 806 |
-| uORF | gse243134 | mamba4 | 0.721 | 0.650 | 0.684 | 806 |
-| uORF | wang | attn | 0.576 | 0.351 | 0.436 | 496 |
-| uORF | wang | mamba4 | 0.605 | 0.359 | 0.451 | 496 |
-| internal | janich | attn | 0.067 | 0.011 | 0.018 | 187 |
-| internal | janich | mamba4 | 0.143 | 0.021 | 0.037 | 187 |
-| internal | gse243134 | attn | 0.029 | 0.004 | 0.008 | 223 |
-| internal | gse243134 | mamba4 | 0.088 | 0.013 | 0.023 | 223 |
-| internal | wang | attn | 0.000 | 0.000 | 0.000 | 147 |
-| internal | wang | mamba4 | 0.136 | 0.020 | 0.035 | 147 |
+| annotated | janich | attn | 0.991 | 0.976 | 0.983 | 10,361 |
+| annotated | janich | mamba4 | 0.990 | 0.986 | 0.988 | 10,361 |
+| annotated | gse243134 | attn | 0.992 | 0.980 | 0.986 | 10,383 |
+| annotated | gse243134 | mamba4 | 0.992 | 0.988 | 0.990 | 10,383 |
+| annotated | wang | attn | 0.993 | 0.974 | 0.983 | 10,282 |
+| annotated | wang | mamba4 | 0.990 | 0.982 | 0.986 | 10,282 |
+| novel | janich | attn | 0.609 | 0.571 | 0.589 | 601 |
+| novel | janich | mamba4 | 0.617 | 0.604 | 0.611 | 601 |
+| novel | gse243134 | attn | 0.595 | 0.560 | 0.577 | 663 |
+| novel | gse243134 | mamba4 | 0.606 | 0.573 | 0.589 | 663 |
+| novel | wang | attn | 0.521 | 0.617 | 0.565 | 457 |
+| novel | wang | mamba4 | 0.513 | 0.619 | 0.561 | 457 |
+| uORF | janich | attn | 0.622 | 0.643 | 0.632 | 613 |
+| uORF | janich | mamba4 | 0.633 | 0.638 | 0.635 | 613 |
+| uORF | gse243134 | attn | 0.646 | 0.658 | 0.652 | 697 |
+| uORF | gse243134 | mamba4 | 0.647 | 0.648 | 0.648 | 697 |
+| uORF | wang | attn | 0.493 | 0.337 | 0.401 | 412 |
+| uORF | wang | mamba4 | 0.527 | 0.359 | 0.427 | 412 |
+| internal | janich | attn | 0.036 | 0.006 | 0.010 | 172 |
+| internal | janich | mamba4 | 0.154 | 0.023 | 0.040 | 172 |
+| internal | gse243134 | attn | 0.028 | 0.005 | 0.008 | 207 |
+| internal | gse243134 | mamba4 | 0.103 | 0.015 | 0.025 | 207 |
+| internal | wang | attn | 0.000 | 0.000 | 0.000 | 129 |
+| internal | wang | mamba4 | 0.143 | 0.023 | 0.040 | 129 |
 
 ### Standalone, no Ribo-seq at inference (`pred_preddepth`)
 
 | class | dataset | model | P | R | F1 | n_ref |
 |---|---|---|--:|--:|--:|--:|
-| annotated | janich | attn | 0.973 | 0.997 | 0.985 | 10,515 |
-| annotated | janich | mamba4 | 0.972 | 0.982 | 0.977 | 10,515 |
-| annotated | gse243134 | attn | 0.977 | 0.996 | 0.987 | 10,529 |
-| annotated | gse243134 | mamba4 | 0.975 | 0.988 | 0.981 | 10,529 |
-| annotated | wang | attn | 0.969 | 0.998 | 0.983 | 10,444 |
-| annotated | wang | mamba4 | 0.968 | 0.997 | 0.982 | 10,444 |
-| novel | janich | attn | 0.322 | 0.724 | 0.446 | 769 |
-| novel | janich | mamba4 | 0.329 | 0.714 | 0.450 | 769 |
-| novel | gse243134 | attn | 0.347 | 0.700 | 0.464 | 874 |
-| novel | gse243134 | mamba4 | 0.359 | 0.684 | 0.471 | 874 |
-| novel | wang | attn | 0.244 | 0.735 | 0.366 | 599 |
-| novel | wang | mamba4 | 0.246 | 0.743 | 0.369 | 599 |
-| uORF | janich | attn | 0.633 | 0.669 | 0.651 | 720 |
-| uORF | janich | mamba4 | 0.694 | 0.500 | 0.581 | 720 |
-| uORF | gse243134 | attn | 0.682 | 0.676 | 0.679 | 806 |
-| uORF | gse243134 | mamba4 | 0.730 | 0.528 | 0.613 | 806 |
-| uORF | wang | attn | 0.510 | 0.369 | 0.428 | 496 |
-| uORF | wang | mamba4 | 0.517 | 0.367 | 0.429 | 496 |
-| internal | janich | attn | 0.083 | 0.016 | 0.027 | 187 |
-| internal | janich | mamba4 | 0.231 | 0.016 | 0.030 | 187 |
-| internal | gse243134 | attn | 0.026 | 0.004 | 0.008 | 223 |
-| internal | gse243134 | mamba4 | 0.087 | 0.009 | 0.016 | 223 |
-| internal | wang | attn | 0.000 | 0.000 | 0.000 | 147 |
-| internal | wang | mamba4 | 0.091 | 0.020 | 0.033 | 147 |
+| annotated | janich | attn | 0.959 | 0.998 | 0.978 | 10,361 |
+| annotated | janich | mamba4 | 0.958 | 0.982 | 0.970 | 10,361 |
+| annotated | gse243134 | attn | 0.964 | 0.996 | 0.980 | 10,383 |
+| annotated | gse243134 | mamba4 | 0.962 | 0.988 | 0.975 | 10,383 |
+| annotated | wang | attn | 0.954 | 0.998 | 0.976 | 10,282 |
+| annotated | wang | mamba4 | 0.953 | 0.997 | 0.975 | 10,282 |
+| novel | janich | attn | 0.247 | 0.712 | 0.367 | 601 |
+| novel | janich | mamba4 | 0.251 | 0.697 | 0.369 | 601 |
+| novel | gse243134 | attn | 0.262 | 0.695 | 0.380 | 663 |
+| novel | gse243134 | mamba4 | 0.269 | 0.674 | 0.384 | 663 |
+| novel | wang | attn | 0.182 | 0.720 | 0.291 | 457 |
+| novel | wang | mamba4 | 0.182 | 0.720 | 0.290 | 457 |
+| uORF | janich | attn | 0.558 | 0.693 | 0.619 | 613 |
+| uORF | janich | mamba4 | 0.613 | 0.519 | 0.562 | 613 |
+| uORF | gse243134 | attn | 0.597 | 0.684 | 0.638 | 697 |
+| uORF | gse243134 | mamba4 | 0.637 | 0.534 | 0.581 | 697 |
+| uORF | wang | attn | 0.415 | 0.362 | 0.387 | 412 |
+| uORF | wang | mamba4 | 0.429 | 0.366 | 0.395 | 412 |
+| internal | janich | attn | 0.028 | 0.006 | 0.010 | 172 |
+| internal | janich | mamba4 | 0.231 | 0.017 | 0.032 | 172 |
+| internal | gse243134 | attn | 0.026 | 0.005 | 0.008 | 207 |
+| internal | gse243134 | mamba4 | 0.087 | 0.010 | 0.017 | 207 |
+| internal | wang | attn | 0.000 | 0.000 | 0.000 | 129 |
+| internal | wang | mamba4 | 0.091 | 0.023 | 0.037 | 129 |
 
 Model F1 against the between-experiment ceiling, per class (`pred_obsdepth`, matched RNA, both models pooled):
 
 | class | model F1 range | ceiling F1 range |
 |---|--:|--:|
-| annotated | 0.985-0.992 | 0.992-0.995 |
-| novel | 0.595-0.656 | 0.690-0.796 |
-| uORF | 0.436-0.687 | 0.693-0.840 |
-| internal | 0.000-0.037 | 0.539-0.620 |
+| annotated | 0.983-0.990 | 0.991-0.995 |
+| novel | 0.561-0.611 | 0.680-0.785 |
+| uORF | 0.401-0.652 | 0.682-0.832 |
+| internal | 0.000-0.040 | 0.512-0.617 |
 
 ## Library depth and periodicity
 
@@ -256,17 +256,17 @@ That is not an outlier, it is what a large share of published Ribo-seq looks lik
 ## Model recall beats a real Ribo-seq experiment on novel ORFs and uORFs
 
 Across the novel and uORF classes, a model cell recovers MORE of the reference's calls than
-a real experiment does in **28 of 144** comparisons. Every one of those
-wins is against Wang (18 novel, 10 uORF), and the winning arm is
+a real experiment does in **25 of 144** comparisons. Every one of those
+wins is against Wang (13 novel, 12 uORF), and the winning arm is
 **always `pred_preddepth`** -- the standalone model, with no Ribo-seq for the query sample at
 any point.
 
 | class | reference | best model recall | arm | Wang's recall | margin |
 |---|---|--:|---|--:|--:|
-| novel | janich | 0.724 | `preddepth` | 0.644 | +0.081 |
-| novel | gse243134 | 0.709 | `preddepth` | 0.581 | +0.128 |
-| uORF | janich | 0.688 | `preddepth` | 0.626 | +0.061 |
-| uORF | gse243134 | 0.676 | `preddepth` | 0.560 | +0.117 |
+| novel | janich | 0.719 | `preddepth` | 0.612 | +0.107 |
+| novel | gse243134 | 0.695 | `preddepth` | 0.575 | +0.121 |
+| uORF | janich | 0.711 | `preddepth` | 0.609 | +0.103 |
+| uORF | gse243134 | 0.684 | `preddepth` | 0.542 | +0.142 |
 
 ```{admonition} Why this matters more than the F1 table suggests
 :class: tip
@@ -288,23 +288,23 @@ and free" -- which is the substitution most labs actually face.
 
 Scoring every model cell against the STRICTEST bar -- the best of the two other observed
 datasets on the same reference, same key, same universe -- the model comes out ahead in
-**22 comparisons**, and in **0 of them on F1**. That split is the point: the
+**20 comparisons**, and in **0 of them on F1**. That split is the point: the
 wins are all on one side of the precision/recall trade, never on the balanced metric.
 
 | class | reference | model | RNA | arm | metric | model | ceiling | delta |
 |---|---|---|---|---|---|--:|--:|--:|
-| all | wang | attn | wang | `pred_obsdepth` | precision | 0.938 | 0.918 | +0.021 |
-| all | wang | mamba4 | wang | `pred_obsdepth` | precision | 0.934 | 0.918 | +0.017 |
-| all | wang | mamba4 | janich | `pred_obsdepth` | precision | 0.927 | 0.918 | +0.009 |
-| annotated | wang | attn | wang | `pred_obsdepth` | precision | 0.994 | 0.989 | +0.005 |
-| annotated | wang | attn | gse243134 | `pred_obsdepth` | precision | 0.994 | 0.989 | +0.005 |
-| annotated | wang | attn | janich | `pred_obsdepth` | precision | 0.993 | 0.989 | +0.003 |
-| annotated | wang | mamba4 | gse243134 | `pred_obsdepth` | precision | 0.992 | 0.989 | +0.003 |
-| all | wang | mamba4 | gse243134 | `pred_obsdepth` | precision | 0.921 | 0.918 | +0.003 |
-| annotated | gse243134 | attn | wang | `pred_preddepth` | recall | 0.998 | 0.995 | +0.003 |
-| annotated | gse243134 | mamba4 | wang | `pred_preddepth` | recall | 0.997 | 0.995 | +0.002 |
-| annotated | gse243134 | attn | janich | `pred_preddepth` | recall | 0.997 | 0.995 | +0.002 |
-| annotated | wang | mamba4 | wang | `pred_obsdepth` | precision | 0.991 | 0.989 | +0.002 |
+| all | wang | attn | wang | `pred_obsdepth` | precision | 0.936 | 0.921 | +0.015 |
+| all | wang | mamba4 | wang | `pred_obsdepth` | precision | 0.933 | 0.921 | +0.012 |
+| annotated | wang | attn | wang | `pred_obsdepth` | precision | 0.993 | 0.988 | +0.005 |
+| annotated | wang | attn | gse243134 | `pred_obsdepth` | precision | 0.992 | 0.988 | +0.004 |
+| annotated | gse243134 | attn | wang | `pred_preddepth` | recall | 0.998 | 0.994 | +0.004 |
+| annotated | wang | attn | janich | `pred_obsdepth` | precision | 0.992 | 0.988 | +0.004 |
+| annotated | gse243134 | mamba4 | wang | `pred_preddepth` | recall | 0.997 | 0.994 | +0.003 |
+| annotated | gse243134 | attn | janich | `pred_preddepth` | recall | 0.997 | 0.994 | +0.003 |
+| annotated | wang | mamba4 | gse243134 | `pred_obsdepth` | precision | 0.991 | 0.988 | +0.003 |
+| annotated | gse243134 | attn | gse243134 | `pred_preddepth` | recall | 0.996 | 0.994 | +0.003 |
+| annotated | wang | mamba4 | wang | `pred_obsdepth` | precision | 0.990 | 0.988 | +0.003 |
+| annotated | wang | attn | wang | `pred_preddepth` | recall | 0.998 | 0.996 | +0.002 |
 
 Two clusters, and they are not equally meaningful.
 
@@ -335,22 +335,22 @@ relying on the RNA-seq being from the same experiment, the diagonal would domina
 
 | RNA input | ref=janich | ref=gse243134 | ref=wang |
 |---|--:|--:|--:|
-| janich | 0.919* | 0.912 | 0.926 |
-| gse243134 | 0.919 | 0.913* | 0.923 |
-| wang | 0.907 | 0.897 | 0.919* |
+| janich | 0.919* | 0.912 | 0.925 |
+| gse243134 | 0.918 | 0.913* | 0.923 |
+| wang | 0.908 | 0.899 | 0.922* |
 
 **The matched cell never wins its column.** Across all 12 model x reference x arm
-combinations the matched-minus-mismatched difference averages **+0.0030 F1**
-(range -0.0057 to +0.0079); every one is under 0.008 in absolute value and
+combinations the matched-minus-mismatched difference averages **+0.0035 F1**
+(range -0.0042 to +0.0070); every one is under 0.008 in absolute value and
 two are negative. Substituting an unrelated experiment's RNA-seq costs essentially nothing.
 
 The RNA effect that *is* real is input quality, not matching:
 
 | RNA input | samples | mean F1 (obsdepth, over refs and models) |
 |---|--:|--:|
-| janich | 7 | 0.9149 |
-| gse243134 | 19 | 0.9143 |
-| wang | 2 | 0.9064 |
+| janich | 7 | 0.9144 |
+| gse243134 | 19 | 0.9137 |
+| wang | 2 | 0.9086 |
 
 Wang's 2-sample RNA costs ~0.008 F1 against any reference, while 19 samples buy nothing over
 7. Depth matters up to a handful of samples and then saturates.

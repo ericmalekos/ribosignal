@@ -2,6 +2,16 @@
 
 Short answer: **no, and it matters more than expected.**
 
+```{figure} /img/C13_memorisation/C13_memorisation.png
+:width: 100%
+
+Memorisation measured at matched depth. The **greyed** left bar is the comparison a reader reaches for
+by default and it is inflated ~4x: the never-seen transcripts are shallow, and profile correlation
+rises steeply with counts. Matching seen transcripts to unseen ones on log10 P-site count and length
+(medians 67 vs 66) leaves a memorisation effect of 0.100 (attn) / 0.108 (mamba4), with disjoint 95%
+CIs. Error bars are 95% CIs; the all-seen bar has none because it is not a like-for-like comparison.
+```
+
 ## The split holds out a tissue, not transcripts
 
 `dataset.py::loto_split` holds out a TISSUE. Train and val are chromosome-split against each other

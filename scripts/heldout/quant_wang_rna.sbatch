@@ -22,7 +22,7 @@ PY=/private/groups/carpenterlab/emalekos/conda_envs/cas12a/bin/python3
 SALMON=/private/groups/carpenterlab/emalekos/conda_envs/riboseq/bin/salmon
 IDX=/private/groups/carpenterlab/emalekos/Salmon_indexes/salmon_index_decoy_vM38   # decoy-aware (rule)
 FQ=$NEW/data/external/wang2021_mouse/fastq/mouse_liver
-QD=$NEW/data/salmon_quant_wang_liver
+QD=$NEW/data/tpm/salmon_quant_wang_liver
 REF=$NEW/data/heldout_refs
 mkdir -p "$QD" "$NEW/logs/janich"
 echo "quant_wang start=$(date -Iseconds) host=$(hostname)"

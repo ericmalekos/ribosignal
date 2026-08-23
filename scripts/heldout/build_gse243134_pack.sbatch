@@ -36,7 +36,7 @@ STARIDX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_grcm39_vM3
 D=$NEW/data/external/gse243134_mouse_liver
 RD=$NEW/data/external/mouse_liver_polya_rnaseq
 B=$NEW/data/heldout_bam/mouse_gse243134_liver
-QD=$NEW/data/salmon_quant_gse302188_liver
+QD=$NEW/data/tpm/salmon_quant_gse302188_liver
 COVDIR=$NEW/data/heldout_rnaseq_coverage/mouse_gse302188_liver
 REF=$NEW/data/heldout_refs
 mkdir -p "$QD" "$COVDIR"
@@ -127,7 +127,7 @@ echo "  ribo BAMs (GSE243134): $(echo "$RIBOBAMS" | wc -l)   rna coverage (GSE30
   --universe-tx "$REF/mouse_gse243134_universe_tx.txt" \
   --fasta "$REF/mouse_gse243134_universe.fa" \
   --annot "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot" \
-  --ncrna-tx "$ECH/data/phase31/mouse_ncrna_tx.txt" \
+  --ncrna-tx "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/ncrna_tx_mouse_vM38.txt" \
   --tx-to-gene "$NEW/data/heldout_refs/mouse_tx_to_gene.tsv" \
   --tx2biotype "$NEW/data/tx2biotype_mouse.tsv" \
   --build-orf-track --kozak none \

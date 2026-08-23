@@ -14,7 +14,7 @@ NEW=$BASE/RNAZoo/experiments/riboseq_signal_model
 ECH=$BASE/RNAZoo/experiments/biotype_probe/expression_context_human
 RUN=${RUN:-results/loto/orf_v2_attn_holdout_Hepatocytes}
 PROFILES=$NEW/$RUN/dropin/pred_profiles.npz
-ANNOT=$ECH/data/ribocode_annot
+ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary
 OUT=$NEW/$RUN/dropin
 PY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
 mkdir -p "$NEW/logs/dropin" "$OUT"

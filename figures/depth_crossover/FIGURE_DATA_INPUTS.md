@@ -49,7 +49,7 @@ sbatch $NEW/scripts/subsample_depth.sbatch                         # pilot: 6 de
 # 2) aggregate -> curve + crossover
 $PY $NEW/scripts/subsample_depth_curve.py \
   --dropin_dir $NEW/$RUN/dropin \
-  --official $ECH/data/ribocode_per_tissue/Hepatocytes/Hepatocytes_collapsed.txt \
+  --official /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/ribocode_per_tissue/Hepatocytes/Hepatocytes_collapsed.txt \
   --profiles $NEW/$RUN/dropin/pred_profiles.npz --out $FIG
 
 # 3) figure

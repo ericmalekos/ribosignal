@@ -1,4 +1,7 @@
 {
+  "model": "mamba4",
+  "source": "results/loto/orf_v2_{MODEL}_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes",
+  "provenance_note": "UNSUFFIXED = mamba4 by the generator's own convention: MODEL=os.environ.get('FIG_MODEL','mamba4'), SUF='' if MODEL=='mamba4'. Main figure per locked decision D1b (2026-07-31).",
   "all": {
     "auroc_pred_frame0_lengthctrl": 0.8860703074082132,
     "auroc_pred_density_lengthctrl": 0.7760570313725232,

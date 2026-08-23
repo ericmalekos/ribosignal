@@ -1,0 +1,140 @@
+{
+  "model": "mamba4",
+  "model_rna": "gse243134",
+  "arm": "pred_preddepth",
+  "view": "annotated CDS",
+  "keying": "genomic (gene_id, ORF_gstop)",
+  "n_test_tx": 22974,
+  "set_sizes": {
+    "janich": 10361,
+    "gse243134": 10383,
+    "wang": 10282,
+    "mamba4": 10662
+  },
+  "alt_model_set_sizes_by_rna": {
+    "janich": 13108,
+    "wang": 13124
+  },
+  "intersections": [
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "mamba4": true
+      },
+      "n": 10094
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": false,
+        "mamba4": true
+      },
+      "n": 342
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "mamba4": false
+      },
+      "n": 123
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "mamba4": true
+      },
+      "n": 99
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "mamba4": true
+      },
+      "n": 38
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": false,
+        "mamba4": true
+      },
+      "n": 26
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "mamba4": true
+      },
+      "n": 24
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "mamba4": true
+      },
+      "n": 22
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": true,
+        "mamba4": true
+      },
+      "n": 17
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "mamba4": false
+      },
+      "n": 2
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "mamba4": false
+      },
+      "n": 2
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "mamba4": false
+      },
+      "n": 1
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "mamba4": false
+      },
+      "n": 1
+    }
+  ],
+  "bars_drawn": 13,
+  "bars_omitted": 0,
+  "orfs_in_omitted_bars": 0
+}

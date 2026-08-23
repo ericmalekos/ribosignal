@@ -1,0 +1,92 @@
+{
+  "source_tsv": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/chothani_regeneration/divergence_by_tissue.tsv",
+  "n_tissues": 8,
+  "median_pct_of_signal": 3.8596196768741216,
+  "min_pct": 3.038917207537466,
+  "max_pct": 11.655601634507638,
+  "min_r": 0.43201817763928846,
+  "max_r": 0.9800036010130236,
+  "highlighted": "HUVEC",
+  "tissues": [
+    {
+      "tissue": "Hepatocytes",
+      "pack": "packed_union_Hepatocytes",
+      "n_bams": "5",
+      "old_psites": "1159703745",
+      "new_psites": "1134988915",
+      "pct_total_change": "-2.1311330679543508",
+      "pct_of_signal": "3.162565970673829",
+      "pearson": "0.9678742244517148"
+    },
+    {
+      "tissue": "Fibroblast",
+      "pack": "packed_union",
+      "n_bams": "32",
+      "old_psites": "1093425533",
+      "new_psites": "1069763798",
+      "pct_total_change": "-2.1640005913415963",
+      "pct_of_signal": "3.7065434981021244",
+      "pearson": "0.937357151934636"
+    },
+    {
+      "tissue": "HCAEC",
+      "pack": "packed_union_HCAEC",
+      "n_bams": "5",
+      "old_psites": "714826272",
+      "new_psites": "698883779",
+      "pct_total_change": "-2.230261201143989",
+      "pct_of_signal": "3.2022495390320516",
+      "pearson": "0.918529984498176"
+    },
+    {
+      "tissue": "Fat",
+      "pack": "packed_union_Fat",
+      "n_bams": "6",
+      "old_psites": "581557882",
+      "new_psites": "565127456",
+      "pct_total_change": "-2.825243455302356",
+      "pct_of_signal": "11.655601634507638",
+      "pearson": "0.8441980531135999"
+    },
+    {
+      "tissue": "ES",
+      "pack": "packed_union_ES",
+      "n_bams": "6",
+      "old_psites": "508576671",
+      "new_psites": "494036270",
+      "pct_total_change": "-2.859038140976781",
+      "pct_of_signal": "4.012695855646119",
+      "pearson": "0.9800036010130236"
+    },
+    {
+      "tissue": "VSMC",
+      "pack": "packed_union_VSMC",
+      "n_bams": "11",
+      "old_psites": "486734365",
+      "new_psites": "474479065",
+      "pct_total_change": "-2.5178620786309183",
+      "pct_of_signal": "5.852911988246402",
+      "pearson": "0.8373085604028164"
+    },
+    {
+      "tissue": "HA_EC",
+      "pack": "packed_union_HA_EC",
+      "n_bams": "6",
+      "old_psites": "173184690",
+      "new_psites": "168061399",
+      "pct_total_change": "-2.958281704924379",
+      "pct_of_signal": "8.00922471842055",
+      "pearson": "0.43201817763928846"
+    },
+    {
+      "tissue": "HUVEC",
+      "pack": "packed_union_HUVEC",
+      "n_bams": "3",
+      "old_psites": "95959146",
+      "new_psites": "93886013",
+      "pct_total_change": "-2.160432940910083",
+      "pct_of_signal": "3.038917207537466",
+      "pearson": "0.9566942211379967"
+    }
+  ]
+}

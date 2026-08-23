@@ -1,0 +1,33 @@
+# P9_values_2models.json -> WIDE (record table at 'intersections', 31 rows)
+model	model_rna	arm	view	keying	n_test_tx	bars_drawn	bars_omitted	orfs_in_omitted_bars	pattern	n
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":true,"wang":true,"attn":true,"mamba4":true}	10648
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":false,"wang":false,"attn":true,"mamba4":true}	1504
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":false,"wang":false,"attn":true,"mamba4":false}	552
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":false,"wang":false,"attn":false,"mamba4":true}	438
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":true,"wang":false,"attn":false,"mamba4":false}	344
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":true,"wang":true,"attn":false,"mamba4":false}	309
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":true,"wang":false,"attn":true,"mamba4":true}	294
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":true,"wang":false,"attn":false,"mamba4":false}	255
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":true,"wang":true,"attn":true,"mamba4":false}	210
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":false,"wang":false,"attn":false,"mamba4":false}	187
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":true,"wang":false,"attn":true,"mamba4":true}	139
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":false,"wang":true,"attn":false,"mamba4":false}	119
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":false,"wang":false,"attn":true,"mamba4":true}	79
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":true,"wang":false,"attn":true,"mamba4":false}	72
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":true,"wang":true,"attn":false,"mamba4":false}	70
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":true,"wang":true,"attn":false,"mamba4":true}	66
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":true,"wang":true,"attn":true,"mamba4":true}	57
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":true,"wang":false,"attn":true,"mamba4":false}	53
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":false,"wang":true,"attn":true,"mamba4":true}	41
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":false,"wang":false,"attn":true,"mamba4":false}	40
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":false,"wang":true,"attn":true,"mamba4":true}	36
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":false,"wang":true,"attn":false,"mamba4":false}	35
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":true,"wang":false,"attn":false,"mamba4":true}	30
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":true,"wang":false,"attn":false,"mamba4":true}	16
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":true,"wang":true,"attn":true,"mamba4":false}	15
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":false,"wang":false,"attn":false,"mamba4":true}	15
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":false,"wang":true,"attn":true,"mamba4":false}	14
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":false,"wang":true,"attn":false,"mamba4":true}	7
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":false,"wang":true,"attn":false,"mamba4":true}	7
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":false,"gse243134":true,"wang":true,"attn":false,"mamba4":true}	6
+mamba4	gse243134	pred_preddepth	all ORF classes	genomic (gene_id, ORF_gstop)	22974	20	11	187	{"janich":true,"gse243134":false,"wang":true,"attn":true,"mamba4":false}	6

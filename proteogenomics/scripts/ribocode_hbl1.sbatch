@@ -10,7 +10,7 @@ set -euo pipefail
 NEW=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
 ECH=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human
 RC=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin
-ANNOT=$ECH/data/ribocode_annot                      # existing v49 prepared-transcripts (same as training)
+ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary                      # existing v49 prepared-transcripts (same as training)
 RB=$NEW/proteogenomics/data/HBL1_pilot/riboseq
 OUT=$NEW/proteogenomics/data/HBL1_pilot/ribocode; mkdir -p "$OUT"
 

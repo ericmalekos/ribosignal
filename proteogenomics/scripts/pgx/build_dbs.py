@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -184,7 +185,19 @@ def main():
     ap.add_argument("--arm", default="poisson", help="label for the model DB (db_model_<arm>)")
     ap.add_argument("--dbs", default="gencode,model,null_atg,null_nc",
                     help="which databases to build")
-    ap.add_argument("--min-aa", type=int, default=7, help="minimum protein length (detectability)")
+    # STANDING RULE: the ORF-length floor is set BY ASSAY, not by pipeline default.
+    #   tryptic whole-cell lysate -> 30 aa (the same floor the ORF-call track applies)
+    #   MHC / HLA immunopeptidomics -> 7 aa (HLA-I peptides are 8-11 aa)
+    # Leaving 7 aa on a tryptic search imports a large sub-30-aa population that the ORF-call track
+    # excludes by rule. Measured cost of the floor (orf_length_audit.py): 0.0% of model discoveries
+    # on mouse macrophage tryptic data, but 26.9-32.9% on human HLA-I -- so the two assays genuinely
+    # need different floors, and neither number transfers to the other.
+    ap.add_argument("--assay", choices=["tryptic", "mhc"], default=None,
+                    help="assay type; SETS --min-aa (tryptic=30, mhc=7) and is the preferred way to "
+                         "specify it. Passing --min-aa as well is allowed only if it agrees.")
+    ap.add_argument("--min-aa", type=int, default=None,
+                    help="minimum protein length. Prefer --assay. Defaults to 7 with a warning "
+                         "when neither is given, for backward compatibility.")
     ap.add_argument("--null-starts", default="ATG", help="start codons for db_null_atg")
     ap.add_argument("--nc-starts", default="near_cognate", help="start codons for db_null_nc")
     ap.add_argument("--ext-qvalue", type=float, default=None,
@@ -198,6 +211,28 @@ def main():
                         tx2biotype=a.tx2biotype)
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     want = {x.strip() for x in a.dbs.split(",") if x.strip()}
+
+    # Resolve the floor from the assay, and refuse a contradiction rather than silently picking one.
+    ASSAY_MIN_AA = {"tryptic": 30, "mhc": 7}
+    if a.assay:
+        # NOT `want` -- that name is already the SET of databases to build (line ~213), and
+        # shadowing it with an int made `if "gencode" in want` raise
+        # "TypeError: argument of type 'int' is not iterable" AFTER the assay had resolved
+        # correctly, so the log showed a working floor and a crash together.
+        want_min_aa = ASSAY_MIN_AA[a.assay]
+        if a.min_aa is not None and a.min_aa != want_min_aa:
+            sys.exit(f"ABORT: --assay {a.assay} requires --min-aa {want_min_aa}, got {a.min_aa}. "
+                     "The floor is set by the assay (see docs/PIPELINE_POLICY.md).")
+        a.min_aa = want_min_aa
+        print(f"assay={a.assay} -> min_aa={a.min_aa}")
+    elif a.min_aa is None:
+        a.min_aa = 7
+        print("WARNING: neither --assay nor --min-aa given; defaulting to min_aa=7 (MHC). "
+              "Tryptic whole-cell-lysate databases MUST use --assay tryptic (30 aa).",
+              file=sys.stderr)
+    else:
+        print(f"WARNING: --min-aa {a.min_aa} given without --assay; the floor should be set by "
+              "assay (tryptic=30, mhc=7).", file=sys.stderr)
 
     canon = load_canonical(refs["gencode_proteome"], a.min_aa)
     canon_seqs = set(canon)

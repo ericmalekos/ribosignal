@@ -21,7 +21,15 @@ set -euo pipefail
 # nine cells shared one. RIBO_ORF_TRACK and RIBO_ONEHOT_FASTA are set per task and must move together
 # with the pack -- they define one universe between them.
 #
+# PACKSUF selects the pack VARIANT without forking this script. Empty (default) = the original
+# packs; `_canon` = the realigned with the final recipe ones (data/packed_heldout_<name>_canon), which write
+# to results/human_orf_calls_canon/. The universe, ORF track and one-hot FASTA are unchanged by a
+# final-recipe rebuild (rebuild_heldout_canon.sbatch asserts tx_order and lengths identical and copies
+# the track), so only the pack and output paths move. Forking this file into a `human_02_dump_canon`
+# is exactly the mistake train_canon.sbatch made -- see docs/CANONICAL_ENTRYPOINTS.md.
+#
 #   sbatch --array=0-5%3 scripts/human_02_dump.sbatch
+#   PACKSUF=_canon sbatch --array=2,5 scripts/human_02_dump.sbatch      # CAR-T only, both models
 BASE=/private/groups/carpenterlab/emalekos/RNAZoo_meta
 NEW=$BASE/RNAZoo/experiments/riboseq_signal_model
 SIFDIR=/private/groups/carpenterlab/emalekos/singularity_cache
@@ -49,12 +57,16 @@ case "$M" in
                                         exit 1; } ;;
 esac
 
+PACKSUF=${PACKSUF:-}
 NAME=human_$D
-PACK=$NEW/data/packed_heldout_$NAME
+PACK=$NEW/data/packed_heldout_${NAME}${PACKSUF}
 ORFTRACK=$PACK/orf_track_v2_nokozak.npy
 FASTA=$REF/${U}_universe.fa
 TXLIST=$REF/${U}_tx.txt
-OUT=$NEW/results/human_orf_calls/${M}_${D}
+OUT=$NEW/results/human_orf_calls${PACKSUF}/${M}_${D}
+# The pack variant must not silently score against the wrong universe: dump_pred_profiles resolves
+# the pack from --heldout, so that name has to carry the suffix too.
+NAME=${NAME}${PACKSUF}
 mkdir -p "$OUT"
 
 for f in "$ORFTRACK" "$FASTA" "$TXLIST" "$NEW/$RUN/best.pt" "$PACK/tx_order.txt"; do
@@ -65,11 +77,19 @@ if [[ -s "$META" ]]; then
   grep -q '"kozak": *"none"' "$META" || { echo "ABORT: $META is not kozak=none" >&2; exit 1; }
 fi
 NTX=$(wc -l < "$PACK/tx_order.txt")
-echo "task=$SLURM_ARRAY_TASK_ID model=$M dataset=$D tx=$NTX device=$DEVICE host=$(hostname) start=$(date -Iseconds)"
+echo "task=$SLURM_ARRAY_TASK_ID model=$M dataset=$D pack=${PACKSUF:-<default>} tx=$NTX device=$DEVICE threads=${SLURM_CPUS_PER_TASK:-8} host=$(hostname) start=$(date -Iseconds)"
 
 if [[ ! -s "$OUT/pred_profiles.npz" ]]; then
+  # THREAD COUNT MUST BE PASSED EXPLICITLY. --cleanenv drops the host environment, so torch inside
+  # the container sees the NODE's core count (256 on a phoenix GPU node), not this job's cgroup
+  # allocation, and spawns that many OMP threads. Oversubscribing ~4x is typically SLOWER than
+  # running single-threaded, and is the likely reason an earlier CPU attempt ran 2h50m without
+  # finishing a comparable dataset. Harmless on the GPU path, decisive on the CPU path.
+  NTHREADS=${SLURM_CPUS_PER_TASK:-8}
   singularity exec "${NVFLAG[@]}" --no-home --cleanenv --env PYTHONNOUSERSITE=1 \
     --env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+    --env OMP_NUM_THREADS="$NTHREADS" --env MKL_NUM_THREADS="$NTHREADS" \
+    --env OPENBLAS_NUM_THREADS="$NTHREADS" --env NUMEXPR_NUM_THREADS="$NTHREADS" \
     --env RIBO_ORF_TRACK="$ORFTRACK" --env RIBO_ONEHOT_FASTA="$FASTA" \
     -B "$BASE" "$SIF" \
     python3 "$NEW/scripts/dump_pred_profiles.py" --run "$NEW/$RUN" \

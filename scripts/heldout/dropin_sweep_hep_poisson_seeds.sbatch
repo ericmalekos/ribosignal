@@ -16,4 +16,4 @@ SEED=$(( 1 + SLURM_ARRAY_TASK_ID / 10 ))
 TH=${THETAS[$(( SLURM_ARRAY_TASK_ID % 10 ))]}
 OUT=$RUN/dropin_sweep_poisson_seed${SEED}/theta_${TH}; rm -rf "$OUT"; mkdir -p "$OUT"
 export PYTHONNOUSERSITE=1
-"$PY" /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/scripts/ribocode_dropin.py --profiles "$RUN/dropin/pred_profiles.npz"   --annot $ECH/data/ribocode_annot --variant pred_preddepth --pred_scale "$TH" --pred_poisson   --seed "$SEED" --out "$OUT" --min_aa 5 --pval 0.05
+"$PY" /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/scripts/ribocode_dropin.py --profiles "$RUN/dropin/pred_profiles.npz"   --annot /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary --variant pred_preddepth --pred_scale "$TH" --pred_poisson   --seed "$SEED" --out "$OUT" --min_aa 5 --pval 0.05

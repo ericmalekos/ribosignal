@@ -1,0 +1,4 @@
+# B5_values.json -> WIDE (record table at '<root>', 2 rows)
+key	auroc_pred_frame0_lengthctrl	auroc_pred_density_lengthctrl	auroc_obs_density_ceiling	shape_minus_best_magnitude
+all	0.88607031	0.77605703	0.75135157	0.11001328
+noncanonical	0.82775643	0.76028659	0.74467577	0.067469842

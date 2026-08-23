@@ -27,7 +27,7 @@ TARGET = NEW / "data" / "target" / "Fibroblast_psites_pooled.hd5"
 TARGET_SUM = NEW / "data" / "target" / "Fibroblast_psites_summary.tsv"
 COV1 = NEW / "data" / "rnaseq_coverage" / "per_sample" / "SRR15513236_coverage.hd5"
 UNIV = NEW / "data" / "fibroblast_universe.tsv"
-SALMON = NEW / "data" / "fibroblast_salmon_mean_tpm.tsv"
+SALMON = NEW / "data" / "tpm" / "fibroblast_salmon_mean_tpm.tsv"
 
 SEED = 42
 N_SAMPLE = 1500       # transcripts sampled for per-nt stats

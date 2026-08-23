@@ -41,14 +41,19 @@ from matplotlib.patches import Patch
 NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/riboseq_signal_model")
 # Must match select_profile_exemplars.DATASETS.
-DUMPS = {
-    "human_hepatocytes":
-        "results/loto/orf_v2_mamba4_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/dropin",
-    "human_ruizorera": "results/heldout/human_ruizorera/released_mamba4/dropin",
-    "mouse_wang_liver": "results/liver_released/mamba4_mouse_wang_liver",
-    "mouse_janich_liver": "results/liver_released/mamba4_mouse_janich_liver_decon",
-    "mouse_gse243134_liver": "results/liver_released/mamba4_mouse_gse243134_liver",
-}
+def dumps_for(model):
+    """Dump dir per dataset, as a function of architecture (see select_profile_exemplars)."""
+    return {
+        "human_hepatocytes":
+            f"results/loto/orf_v2_{model}_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/dropin",
+        "human_ruizorera": f"results/heldout/human_ruizorera/released_{model}/dropin",
+        "mouse_wang_liver": f"results/liver_released/{model}_mouse_wang_liver",
+        "mouse_janich_liver": f"results/liver_released/{model}_mouse_janich_liver_decon",
+        "mouse_gse243134_liver": f"results/liver_released/{model}_mouse_gse243134_liver",
+    }
+
+
+DUMPS = dumps_for("mamba4")
 # One-hot universe FASTA per dataset -- EXACTLY the file each dump was produced with, so the sequence
 # under a profile is the sequence the model actually saw. Taking the "obvious" species-level FASTA
 # instead would silently mis-pair transcripts whose universe differs between arms.
@@ -334,7 +339,21 @@ def main():
                     help="mirror = observed up / predicted down (default, both visible); "
                          "overlay = observed fill with the predicted line on top")
     ap.add_argument("--out", default=str(NEW / "figures/profile_exemplars/profile_exemplars"))
+    ap.add_argument("--model", default="mamba4", choices=["mamba4", "attn"],
+                    help="architecture whose dump supplies the predicted profile. MUST match the "
+                         "model the --tsv exemplars were selected from.")
     a = ap.parse_args()
+    globals()["DUMPS"] = dumps_for(a.model)
+    # A TSV selected from one architecture plotted against another's dump would silently pair the
+    # wrong predicted profile with the right observed one, so the mismatch is refused rather than
+    # drawn. Older TSVs have no `model` column and are let through with a warning.
+    _mods = {r.get("model") for r in read_tsv(a.tsv, a.dataset) if r.get("model")}
+    if _mods and _mods != {a.model}:
+        raise SystemExit(f"--model {a.model} but {a.tsv} was selected from {sorted(_mods)}. "
+                         f"Re-run select_profile_exemplars.py --model {a.model}, or pass "
+                         f"--model {sorted(_mods)[0]}.")
+    if not _mods:
+        print(f"  WARNING: {a.tsv} has no `model` column (pre-2026-08-15). Assuming {a.model}.")
 
     rows = read_tsv(a.tsv, a.dataset)
     if not rows:

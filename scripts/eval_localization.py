@@ -67,7 +67,7 @@ NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
 ECH = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/biotype_probe/expression_context_human")
 FASTA = NEW / "data" / "fibroblast_universe.fa"
-RIBOCODE = ECH / "data" / "ribocode_per_tissue"
+RIBOCODE = NEW / "data" / "ribocode_per_tissue"
 STOP = frozenset({"TAA", "TAG", "TGA"})
 # ORF_type groups: canonical (annotated CDS) vs the non-canonical classes this project targets.
 NONCANON = ("uORF", "Overlap_uORF", "dORF", "Overlap_dORF", "novel", "internal")

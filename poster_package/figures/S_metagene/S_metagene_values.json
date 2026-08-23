@@ -1,0 +1,35 @@
+{
+  "position_semantics": "P-SITE, not read 5' end. Pack targets come from RiboCode process_bam after applying the metaplots-derived per-read-length offset.",
+  "anchor_zero": "start: first nt of the start codon (A of AUG). stop: first nt of the stop codon.",
+  "n_tx": 71116,
+  "n_tissues": 8,
+  "tissues": [
+    "Fibroblast",
+    "ES",
+    "Fat",
+    "HA_EC",
+    "HCAEC",
+    "HUVEC",
+    "Hepatocytes",
+    "VSMC"
+  ],
+  "cds_frame_fraction_first150nt": {
+    "frame0": 0.8225834119970933,
+    "frame1": 0.09095087356247657,
+    "frame2": 0.0864657144404302
+  },
+  "start_peak_psites_per_tx": 83.86918731368469,
+  "mean_5utr_psites_per_tx": 1.7094426224076047,
+  "mean_cds_psites_per_tx": 7.83201606721265,
+  "start_peak_over_utr": 49.062300316089036,
+  "cds_over_utr": 4.581619742335616,
+  "start_window": [
+    -50,
+    150
+  ],
+  "stop_window": [
+    -150,
+    50
+  ],
+  "source": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/metagene"
+}

@@ -1,5 +1,6 @@
 {
   "model": "mamba4",
+  "source": "results/mouse_liver_3x3_canon/scored",
   "datasets": [
     "janich",
     "gse243134",
@@ -13,40 +14,43 @@
   "grids": {
     "pred_obsdepth": [
       [
-        0.9194,
-        0.9121,
-        0.926
+        0.9192,
+        0.9125,
+        0.9251
       ],
       [
-        0.919,
+        0.9177,
         0.9126,
-        0.9232
+        0.9229
       ],
       [
-        0.9066,
-        0.8972,
-        0.9189
+        0.9077,
+        0.8995,
+        0.9221
       ]
     ],
     "pred_preddepth": [
       [
-        0.8772,
-        0.8741,
-        0.8773
+        0.8678,
+        0.8644,
+        0.8668
       ],
       [
-        0.8802,
-        0.8764,
-        0.8798
+        0.8706,
+        0.8669,
+        0.8684
       ],
       [
-        0.8677,
-        0.8642,
-        0.8731
+        0.8594,
+        0.8554,
+        0.8634
       ]
     ]
   },
-  "delta_mean": 0.0030250000000000003,
-  "delta_min": -0.0057,
-  "delta_max": 0.0079
+  "delta_mean": 0.0028,
+  "delta_min": -0.0042,
+  "delta_max": 0.007,
+  "n_deltas": 6,
+  "n_deltas_negative": 2,
+  "aggregation": "deltas are matched-minus-mismatched F1, filtered to this model (3 ribo references x 2 arms = 6). They were previously read UNFILTERED (12, both architectures) while the grid was single-model."
 }

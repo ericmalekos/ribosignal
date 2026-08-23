@@ -1,0 +1,142 @@
+{
+  "model": "attn",
+  "arms": [
+    "pred_obsdepth",
+    "pred_preddepth"
+  ],
+  "source_per_dataset": {
+    "THP-1\n(GSE208041)": "results/human_orf_calls_canon/scored/human_by_class.tsv",
+    "CAR-T\n(GSE304796)": "results/human_orf_calls_canon/scored/human_by_class.tsv"
+  },
+  "cart_source_is_canonical": true,
+  "substrate": {
+    "hepatocyte\n(LOTO holdout)": {
+      "pack": "data/packed_canon_Hepatocytes",
+      "canonical": true,
+      "note": "re-dumped on the final-recipe pack (dropin_canonpack, task #86). Its previous packed_union/mm1 dropin gave F1 0.909 / n_ref 16,329; the change is +0.002 / -0.6%, far smaller than THP-1's -7.5% because packed_union was ALREADY ncRNA + cross-gene filtered"
+    },
+    "iPSC-CM\n(Ruiz-Orera, cross-study)": {
+      "pack": "data/packed_heldout_human_ruizorera_canon",
+      "canonical": true,
+      "note": "REBUILT on the final recipe 2026-08-16 (task #92): FASTQs re-fetched from ENA PRJEB65856 (md5-verified), 5 Ribo runs realigned EndToEnd+mm1+filter, universe and RNA coverage reused verbatim. P-sites -2.5%, n_ref -0.5% -- so the old pack HAD been filtered after all"
+    },
+    "THP-1\n(GSE208041)": {
+      "pack": "data/packed_heldout_human_gse208041_canon",
+      "canonical": true,
+      "note": ""
+    },
+    "CAR-T\n(GSE304796)": {
+      "pack": "data/packed_heldout_human_cart_canon",
+      "canonical": true,
+      "note": ""
+    }
+  },
+  "n_arms_canonical": 4,
+  "n_arms": 4,
+  "mixed_substrate": false,
+  "mixed_substrate_warning": "The final-recipe alignment redo LOWERS scores where applied (THP-1 0.851->0.831, CAR-T 0.904->0.886). Arms marked canonical=false predate it and are likely overstated by a similar margin. iPSC-CM cannot be rebuilt from local data: its source hd5 and its 5 ENA BAMs are both deleted.",
+  "provenance": {
+    "hepatocyte\n(LOTO holdout)": "results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/dropin_canonpack/dropin_metrics.json",
+    "iPSC-CM\n(Ruiz-Orera, cross-study)": "results/heldout/human_ruizorera/released_attn/dropin_canonpack/dropin_metrics.json",
+    "THP-1\n(GSE208041)": "results/human_orf_calls_canon/scored/human_by_class.tsv",
+    "CAR-T\n(GSE304796)": "results/human_orf_calls_canon/scored/human_by_class.tsv"
+  },
+  "data": {
+    "hepatocyte\n(LOTO holdout)": {
+      "pred_obsdepth": {
+        "f1": 0.9075977821069984,
+        "precision": 0.8839395177768696,
+        "recall": 0.9325572801182558,
+        "n_ref": 16236,
+        "annot_recall": 0.9974258025439128,
+        "noncanon_recall": 0.6496036988110965,
+        "n_annot": 13208,
+        "n_noncanon": 3028
+      },
+      "pred_preddepth": {
+        "f1": 0.9105512960934647,
+        "precision": 0.8997113997113997,
+        "recall": 0.9216555801921655,
+        "n_ref": 16236,
+        "annot_recall": 0.9968201090248334,
+        "noncanon_recall": 0.5937912813738441,
+        "n_annot": 13208,
+        "n_noncanon": 3028
+      }
+    },
+    "iPSC-CM\n(Ruiz-Orera, cross-study)": {
+      "pred_obsdepth": {
+        "f1": 0.9299191374663073,
+        "precision": 0.9372816890475821,
+        "recall": 0.9226713532513181,
+        "n_ref": 13087,
+        "annot_recall": 0.9867693701857725,
+        "noncanon_recall": 0.5779727095516569,
+        "n_annot": 11035,
+        "n_noncanon": 2052
+      },
+      "pred_preddepth": {
+        "f1": 0.8750721292556262,
+        "precision": 0.8286319240489037,
+        "recall": 0.927026820508902,
+        "n_ref": 13087,
+        "annot_recall": 0.9971001359311282,
+        "noncanon_recall": 0.5501949317738791,
+        "n_annot": 11035,
+        "n_noncanon": 2052
+      }
+    },
+    "THP-1\n(GSE208041)": {
+      "pred_obsdepth": {
+        "f1": 0.9084,
+        "precision": 0.9512,
+        "recall": 0.8693,
+        "n_ref": 13225,
+        "annot_recall": 0.984,
+        "noncanon_recall": 0.458592132505176,
+        "n_annot": 10327,
+        "n_noncanon": 2898,
+        "f1_source": "human_overall.tsv",
+        "tp_class_disagreement": 6
+      },
+      "pred_preddepth": {
+        "f1": 0.8307,
+        "precision": 0.7755,
+        "recall": 0.8942,
+        "n_ref": 13225,
+        "annot_recall": 0.9973,
+        "noncanon_recall": 0.5248447204968945,
+        "n_annot": 10327,
+        "n_noncanon": 2898,
+        "f1_source": "human_overall.tsv",
+        "tp_class_disagreement": 6
+      }
+    },
+    "CAR-T\n(GSE304796)": {
+      "pred_obsdepth": {
+        "f1": 0.928,
+        "precision": 0.9349,
+        "recall": 0.9211,
+        "n_ref": 8253,
+        "annot_recall": 0.9796,
+        "noncanon_recall": 0.5571054925893636,
+        "n_annot": 7106,
+        "n_noncanon": 1147,
+        "f1_source": "human_overall.tsv",
+        "tp_class_disagreement": 2
+      },
+      "pred_preddepth": {
+        "f1": 0.8864,
+        "precision": 0.8412,
+        "recall": 0.9366,
+        "n_ref": 8253,
+        "annot_recall": 0.9938,
+        "noncanon_recall": 0.5797733217088056,
+        "n_annot": 7106,
+        "n_noncanon": 1147,
+        "f1_source": "human_overall.tsv",
+        "tp_class_disagreement": 3
+      }
+    }
+  }
+}

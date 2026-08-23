@@ -1,0 +1,40 @@
+{
+  "model": [
+    "attn",
+    "mamba4"
+  ],
+  "source": "results/loto/orf_v2_{attn,mamba4}_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/dropin/pred_profiles.npz",
+  "provenance_note": "Both arms read from their own dropin npz so they are directly comparable. Predicted SHAPES are rescaled to the observed total for plotting; the profile head is scale-free.",
+  "transcript": "ENST00000901263.1",
+  "length": 5178,
+  "cds": [
+    451,
+    3324
+  ],
+  "obs_total": 13258,
+  "pred_total_attn": 6929.84912109375,
+  "pred_total_mamba4": 6852.42822265625,
+  "pearson": {
+    "attn": 0.9049,
+    "mamba4": 0.8756,
+    "attn_vs_mamba": 0.928
+  },
+  "observed": {
+    "frac_in_orf": 0.9099,
+    "frame0_in_orf": 0.8554,
+    "max_pos": 269,
+    "top1_frac": 0.0345
+  },
+  "attn": {
+    "frac_in_orf": 0.9286,
+    "frame0_in_orf": 0.8853,
+    "max_pos": 1011,
+    "top1_frac": 0.0302
+  },
+  "mamba4": {
+    "frac_in_orf": 0.9209,
+    "frame0_in_orf": 0.8281,
+    "max_pos": 639,
+    "top1_frac": 0.0287
+  }
+}

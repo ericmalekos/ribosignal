@@ -18,7 +18,7 @@ ENV=/private/groups/carpenterlab/emalekos/conda_envs/riboseq
 PY=/private/groups/carpenterlab/emalekos/conda_envs/cas12a/bin/python3
 IDX=/private/groups/carpenterlab/emalekos/Salmon_indexes/salmon_index_decoy_vM38
 FQ=$NEW/data/external/mouse_liver_polya_rnaseq/fastq
-QD=$NEW/data/salmon_quant_gse302188_liver
+QD=$NEW/data/tpm/salmon_quant_gse302188_liver
 RUN=${SCREEN_RUN:-SRR34449471}
 mkdir -p "$QD"
 
@@ -45,7 +45,7 @@ echo "===== SCREEN VERDICT ====="
 SCREEN_RUN=$RUN "$PY" - <<'PY'
 import json, os
 NEW = "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model"
-QD  = f"{NEW}/data/salmon_quant_gse302188_liver"
+QD  = f"{NEW}/data/tpm/salmon_quant_gse302188_liver"
 RUN = os.environ.get("SCREEN_RUN", "SRR34449471")
 name = {}
 with open(f"{NEW}/data/mouse_tx2biotype.tsv") as f:

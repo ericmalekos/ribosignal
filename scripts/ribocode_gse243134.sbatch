@@ -49,6 +49,10 @@ while read -r srr; do
   # sed -n 1p, NOT `head -1 | grep -q`: under `set -o pipefail` the early-exiting head/grep SIGPIPE
   # the upstream samtools and the test reads FALSE even when the tag is present. That exact bug made
   # this job abort on a BAM that had just been correctly sorted.
+  # quickcheck as well as the header: a BAM truncated mid-write keeps a VALID header and would
+  # be waved through. That is how job 36834132 died after 92 min of work (2026-08-21).
+  "$SAMTOOLS" quickcheck "$b" 2>/dev/null \
+    || { echo "$b is TRUNCATED (quickcheck failed)" >&2; exit 1; }
   [[ "$("$SAMTOOLS" view -H "$b" | sed -n 1p)" == *SO:coordinate* ]] \
     || { echo "$b is NOT coordinate-sorted; run sort_archived_tx_bams.sbatch first" >&2; exit 1; }
   [[ -s "$b.bai" ]] || "$SAMTOOLS" index -@ "$T" "$b"

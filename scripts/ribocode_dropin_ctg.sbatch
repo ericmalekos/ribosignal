@@ -21,7 +21,7 @@ ECH=$BASE/RNAZoo/experiments/biotype_probe/expression_context_human
 RUN=${RUN:-results/loto/orf_v2_attn_onehot_holdout_Hepatocytes}
 ALT=${ALT:-CTG}                            # e.g. "CTG,GTG,TTG,ACG,ATA,ATT,ATC,AAG,AGG" for all near-cognates
 PROFILES=$NEW/$RUN/dropin/pred_profiles.npz
-ANNOT=${ANNOT:-$ECH/data/ribocode_annot}   # mouse: "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot"
+ANNOT=${ANNOT:-/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary}   # mouse: "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/mouse_ribocode_annot"
 OUT=$NEW/$RUN/${OUTSUB:-dropin_ctg}        # OUTSUB=dropin_allalt for the all-near-cognate run
 PY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
 mkdir -p "$NEW/logs/dropin" "$OUT"

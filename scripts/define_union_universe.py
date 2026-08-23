@@ -11,6 +11,19 @@ Outputs (data/):
   union_universe.tsv  (tx_id, type, gene_id, gene_name, chrom, length, max_tpm, n_tissues)
   union_universe.fa   (bare versioned-ENST headers, one sequence per line)
 """
+
+# ============================================================================
+# CANNOT RUN AS-IS -- input lost 2026-08-15.
+#
+# SAL/SALMON below points at expression_context_human/data/salmon_quant_chothani_decoy, which went
+# with the deleted biotype_probe tree. There is NO surviving copy: no salmon quant anywhere under
+# data/ holds the Chothani SRR15513* accessions (data/tpm/salmon_human_rna is a different cohort).
+# It was deliberately NOT repointed, because there is nothing to point at.
+#
+# This script's OUTPUT survives, so nothing downstream is blocked today. What is lost is the
+# ability to REBUILD that output from source. Re-deriving it means re-running salmon on the 69
+# Chothani RNA libraries; the BAMs are still in data/rnaseq_bam_mm1/.
+# ============================================================================
 import collections
 import glob
 import os

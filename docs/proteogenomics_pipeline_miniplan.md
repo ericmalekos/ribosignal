@@ -314,7 +314,7 @@ validated template has `P`, i.e. classic trypsin, which does NOT cut before prol
 value silently switches the search to trypsin/P and changes the peptide space.
 
 Caught by comparing baselines rather than by reading the code: the GENCODE-only baseline came out
-at **352,307** PSMs against the legacy canonical arm's **335,548**, a +5.0% gap on databases that
+at **352,307** PSMs against the legacy final-recipe arm's **335,548**, a +5.0% gap on databases that
 were verified byte-identical (57,226 target sequences, same sequence set). A `diff` of the rendered
 parameters against the template isolated it to that one character. All four first-round searches
 were discarded and rerun. The tryptic block now renders identical to
@@ -381,12 +381,19 @@ question S10 answers is whether calling ORFs properly improves on that, at 9x fe
 | **model_poisson** | 121 | 40 | 20 | **1,533** | 335,187 | **-361** | -61 | **3** |
 | null_atg | 177 | 50 | 104 | 235,686 | 325,254 | **-10,294** | -2,048 | 0 |
 
-The GENCODE baseline reproduces the legacy canonical arm EXACTLY (335,548 both), confirming the
+The GENCODE baseline reproduces the legacy final-recipe arm EXACTLY (335,548 both), confirming the
 enzyme fix and putting both builds on identical footing.
 
 154x smaller DB, 28x lower canonical cost, 123x higher discovery density (26.1 vs 0.21 novel
 peptides per 1,000 DB sequences). Using the null instead buys +10 novel peptides for -1,987
 canonical peptides.
+
+> **These are BMDM numbers and BMDM is the most favourable of the 12 macrophage populations.** Do
+> not generalise them. On TOTAL unique peptides BMDM gains +31, the best of the 12; the median
+> across all populations is **-8**, and the model is above the GENCODE-only baseline in only **5 of
+> 12** (the naive AUG null in 0 of 12, median -1,784). Medians across the 12: DB 156x smaller,
+> discovery density 111x higher. The defensible cross-population claim is COST-NEUTRALITY, not a
+> gain. See `figures/P11_bmdm_proteomics/FIGURE_DATA_INPUTS.md` and results.md 2026-08-14.
 
 **Peptide overlap: 23 shared, 17 model-only, 27 null-only.** Every model-only peptide is explained:
 

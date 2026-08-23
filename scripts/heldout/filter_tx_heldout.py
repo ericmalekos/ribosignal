@@ -38,6 +38,23 @@ def main(bam_path, ncrna_file, t2g_file):
 
     n_total = n_ncrna = n_xgene = n_uniq = n_wg = 0
     n_reads_kept = n_reads_xgene = 0
+    # HARD GUARD: this filter groups records by query name to detect cross-gene reads, so the input
+    # MUST be query-grouped (raw STAR TranscriptomeSAM output). On a COORDINATE-SORTED bam the
+    # grouping silently collapses -- every record looks like a singleton, cross-gene detection never
+    # fires, and the filter reports a plausible ~0.3% drop instead of the true 10-22%. That exact
+    # failure produced a wrong "the filter is a no-op" conclusion on 2026-08-12. Fail loudly instead.
+    _probe = pysam.AlignmentFile(str(bam_in_path), "rb")
+    _hdr = _probe.header.to_dict().get("HD", {})
+    if _hdr.get("SO") == "coordinate":
+        _probe.close()
+        sys.exit(f"REFUSING coordinate-sorted input: {bam_in_path}\n"
+                 "  filter_tx_heldout requires query-name-grouped records (raw STAR "
+                 "--quantMode TranscriptomeSAM output).\n"
+                 "  On a coordinate-sorted bam cross-gene detection silently fails and the drop rate "
+                 "is meaningless.\n"
+                 "  Run this BEFORE sorting; it sorts and indexes the output itself.")
+    _probe.close()
+
     bam_in = pysam.AlignmentFile(str(bam_in_path), "rb")
     bam_out = pysam.AlignmentFile(str(out_path), "wb", template=bam_in)
 

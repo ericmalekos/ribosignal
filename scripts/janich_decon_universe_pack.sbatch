@@ -29,7 +29,7 @@ set -euo pipefail
 NEW=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
 PY=/private/groups/carpenterlab/emalekos/conda_envs/cas12a/bin/python3
 S=$NEW/proteogenomics/scripts
-Q=$NEW/data/salmon_quant_janich_liver_decontam
+Q=$NEW/data/tpm/salmon_quant_janich_liver_decontam
 REF=$NEW/data/heldout_refs
 COV=$NEW/data/heldout_rnaseq_coverage/mouse_janich_liver
 OLDPACK=$NEW/data/packed_heldout_mouse_janich_liver

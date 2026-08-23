@@ -1,0 +1,103 @@
+{
+  "model": null,
+  "source": "data/packed_union_Hepatocytes/target_counts.npy (observed P-sites); CDS from data/human_ribocode_annot_primary/transcripts_cds.txt; TPM from data/union_universe.tsv",
+  "provenance_note": "MODEL-FREE: observed Ribo-seq only. Frame is relative to each isoform's OWN annotated CDS start, so identical shared footprints receive different frame labels across isoforms.",
+  "gene": "GTF2I",
+  "n_isoforms": 10,
+  "top_n_by_tpm": 10,
+  "frame0_frac_min": 0.8543,
+  "frame0_frac_max": 0.8581,
+  "frame0_frac_median": 0.8557,
+  "isoforms": [
+    {
+      "tx": "ENST00000620879.4",
+      "tpm": 50.3097265,
+      "cds_start": 317,
+      "cds_end": 3190,
+      "total_psites": 13138,
+      "psites_in_cds": 12064,
+      "frame0_frac_in_cds": 0.8554
+    },
+    {
+      "tx": "ENST00000614986.4",
+      "tpm": 49.732292,
+      "cds_start": 317,
+      "cds_end": 3253,
+      "total_psites": 13044,
+      "psites_in_cds": 11970,
+      "frame0_frac_in_cds": 0.8559
+    },
+    {
+      "tx": "ENST00000901264.1",
+      "tpm": 20.542890166666666,
+      "cds_start": 404,
+      "cds_end": 3340,
+      "total_psites": 13102,
+      "psites_in_cds": 11970,
+      "frame0_frac_in_cds": 0.8559
+    },
+    {
+      "tx": "ENST00000443166.5",
+      "tpm": 13.53063,
+      "cds_start": 44,
+      "cds_end": 868,
+      "total_psites": 11161,
+      "psites_in_cds": 11138,
+      "frame0_frac_in_cds": 0.8581
+    },
+    {
+      "tx": "ENST00000573035.6",
+      "tpm": 7.3169265,
+      "cds_start": 357,
+      "cds_end": 3353,
+      "total_psites": 13007,
+      "psites_in_cds": 11933,
+      "frame0_frac_in_cds": 0.8548
+    },
+    {
+      "tx": "ENST00000901278.1",
+      "tpm": 6.5832295,
+      "cds_start": 377,
+      "cds_end": 3310,
+      "total_psites": 13159,
+      "psites_in_cds": 12027,
+      "frame0_frac_in_cds": 0.8543
+    },
+    {
+      "tx": "ENST00000932179.1",
+      "tpm": 4.808725166666666,
+      "cds_start": 98,
+      "cds_end": 2971,
+      "total_psites": 12012,
+      "psites_in_cds": 12012,
+      "frame0_frac_in_cds": 0.8557
+    },
+    {
+      "tx": "ENST00000901269.1",
+      "tpm": 4.287648666666667,
+      "cds_start": 512,
+      "cds_end": 3385,
+      "total_psites": 13144,
+      "psites_in_cds": 12013,
+      "frame0_frac_in_cds": 0.8557
+    },
+    {
+      "tx": "ENST00000932158.1",
+      "tpm": 4.108744000000001,
+      "cds_start": 369,
+      "cds_end": 3299,
+      "total_psites": 13102,
+      "psites_in_cds": 11970,
+      "frame0_frac_in_cds": 0.8559
+    },
+    {
+      "tx": "ENST00000932149.1",
+      "tpm": 3.7676728333333336,
+      "cds_start": 405,
+      "cds_end": 3275,
+      "total_psites": 13202,
+      "psites_in_cds": 12070,
+      "frame0_frac_in_cds": 0.8555
+    }
+  ]
+}

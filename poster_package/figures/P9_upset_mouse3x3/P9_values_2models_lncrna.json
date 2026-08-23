@@ -1,0 +1,334 @@
+{
+  "model": "mamba4",
+  "model_rna": "gse243134",
+  "arm": "pred_preddepth",
+  "view": "lncRNA ORFs (RiboCode 'novel')",
+  "keying": "genomic (gene_id, ORF_gstop)",
+  "n_test_tx": 22974,
+  "set_sizes": {
+    "janich": 601,
+    "gse243134": 663,
+    "wang": 457,
+    "attn": 1637,
+    "mamba4": 1665
+  },
+  "alt_model_set_sizes_by_rna": {
+    "janich": 13108,
+    "wang": 13124
+  },
+  "intersections": [
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": false,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 873
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": false,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 278
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": false,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 244
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 243
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 92
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 61
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 59
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 50
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 42
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 28
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": false,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 28
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": false,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 25
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 23
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 21
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": true,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 15
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": true,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 14
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": false,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 14
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 14
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 13
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "attn": true,
+        "mamba4": true
+      },
+      "n": 11
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": true,
+        "attn": false,
+        "mamba4": false
+      },
+      "n": 9
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": false,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 9
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": true,
+        "wang": false,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 9
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 8
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": false,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 8
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 5
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 5
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": true,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 4
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": false,
+        "wang": true,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 3
+    },
+    {
+      "pattern": {
+        "janich": true,
+        "gse243134": false,
+        "wang": true,
+        "attn": true,
+        "mamba4": false
+      },
+      "n": 1
+    },
+    {
+      "pattern": {
+        "janich": false,
+        "gse243134": true,
+        "wang": true,
+        "attn": false,
+        "mamba4": true
+      },
+      "n": 1
+    }
+  ],
+  "bars_drawn": 20,
+  "bars_omitted": 11,
+  "orfs_in_omitted_bars": 62
+}

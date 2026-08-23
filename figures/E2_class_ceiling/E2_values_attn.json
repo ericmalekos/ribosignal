@@ -1,0 +1,112 @@
+{
+  "model": "attn",
+  "n_cells_per_arm": {
+    "pred_obsdepth": 9,
+    "pred_preddepth": 9
+  },
+  "aggregation": "mean over model cells; 'both' pools BOTH architectures (2 models x 9 RNA/Ribo combinations). Per-architecture means are in the model_<arm>_mean_<attn|mamba4> fields regardless of --model.",
+  "models_present": [
+    "attn",
+    "mamba4"
+  ],
+  "ceiling": "ribo_vs_ribo, the 6 ordered experiment pairs; no model involved",
+  "source": "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/mouse_liver_3x3_canon/scored",
+  "classes": [
+    {
+      "orf_class": "annotated",
+      "ceiling_min": 0.9912,
+      "ceiling_max": 0.9948,
+      "ceiling_mean": 0.9925,
+      "model_pred_obsdepth_mean": 0.9837555555555555,
+      "model_pred_preddepth_mean": 0.9777444444444444,
+      "model_pred_obsdepth_mean_attn": 0.9837555555555555,
+      "n_cells_pred_obsdepth_attn": 9,
+      "model_pred_preddepth_mean_attn": 0.9777444444444444,
+      "n_cells_pred_preddepth_attn": 9,
+      "model_pred_obsdepth_mean_mamba4": 0.9879333333333334,
+      "n_cells_pred_obsdepth_mamba4": 9,
+      "model_pred_preddepth_mean_mamba4": 0.9730333333333334,
+      "n_cells_pred_preddepth_mamba4": 9
+    },
+    {
+      "orf_class": "uORF",
+      "ceiling_min": 0.6817,
+      "ceiling_max": 0.8321,
+      "ceiling_mean": 0.7472,
+      "model_pred_obsdepth_mean": 0.5411111111111111,
+      "model_pred_preddepth_mean": 0.5192777777777778,
+      "model_pred_obsdepth_mean_attn": 0.5411111111111111,
+      "n_cells_pred_obsdepth_attn": 9,
+      "model_pred_preddepth_mean_attn": 0.5192777777777778,
+      "n_cells_pred_preddepth_attn": 9,
+      "model_pred_obsdepth_mean_mamba4": 0.5524333333333334,
+      "n_cells_pred_obsdepth_mamba4": 9,
+      "model_pred_preddepth_mean_mamba4": 0.5007222222222222,
+      "n_cells_pred_preddepth_mamba4": 9
+    },
+    {
+      "orf_class": "novel",
+      "ceiling_min": 0.6804,
+      "ceiling_max": 0.7848,
+      "ceiling_mean": 0.7203,
+      "model_pred_obsdepth_mean": 0.569288888888889,
+      "model_pred_preddepth_mean": 0.3441222222222222,
+      "model_pred_obsdepth_mean_attn": 0.569288888888889,
+      "n_cells_pred_obsdepth_attn": 9,
+      "model_pred_preddepth_mean_attn": 0.3441222222222222,
+      "n_cells_pred_preddepth_attn": 9,
+      "model_pred_obsdepth_mean_mamba4": 0.5819333333333332,
+      "n_cells_pred_obsdepth_mamba4": 9,
+      "model_pred_preddepth_mean_mamba4": 0.34536666666666666,
+      "n_cells_pred_preddepth_mamba4": 9
+    },
+    {
+      "orf_class": "Overlap_uORF",
+      "ceiling_min": 0.6655,
+      "ceiling_max": 0.7707,
+      "ceiling_mean": 0.7027,
+      "model_pred_obsdepth_mean": 0.4265555555555556,
+      "model_pred_preddepth_mean": 0.4352333333333333,
+      "model_pred_obsdepth_mean_attn": 0.4265555555555556,
+      "n_cells_pred_obsdepth_attn": 9,
+      "model_pred_preddepth_mean_attn": 0.4352333333333333,
+      "n_cells_pred_preddepth_attn": 9,
+      "model_pred_obsdepth_mean_mamba4": 0.4341777777777778,
+      "n_cells_pred_obsdepth_mamba4": 9,
+      "model_pred_preddepth_mean_mamba4": 0.4219777777777778,
+      "n_cells_pred_preddepth_mamba4": 9
+    },
+    {
+      "orf_class": "dORF",
+      "ceiling_min": 0.4802,
+      "ceiling_max": 0.6058,
+      "ceiling_mean": 0.5250666666666667,
+      "model_pred_obsdepth_mean": 0.12283333333333332,
+      "model_pred_preddepth_mean": 0.1064,
+      "model_pred_obsdepth_mean_attn": 0.12283333333333332,
+      "n_cells_pred_obsdepth_attn": 9,
+      "model_pred_preddepth_mean_attn": 0.1064,
+      "n_cells_pred_preddepth_attn": 9,
+      "model_pred_obsdepth_mean_mamba4": 0.08284444444444444,
+      "n_cells_pred_obsdepth_mamba4": 9,
+      "model_pred_preddepth_mean_mamba4": 0.07235555555555556,
+      "n_cells_pred_preddepth_mamba4": 9
+    },
+    {
+      "orf_class": "internal",
+      "ceiling_min": 0.5116,
+      "ceiling_max": 0.6174,
+      "ceiling_mean": 0.5489666666666667,
+      "model_pred_obsdepth_mean": 0.014444444444444446,
+      "model_pred_preddepth_mean": 0.013033333333333334,
+      "model_pred_obsdepth_mean_attn": 0.014444444444444446,
+      "n_cells_pred_obsdepth_attn": 9,
+      "model_pred_preddepth_mean_attn": 0.013033333333333334,
+      "n_cells_pred_preddepth_attn": 9,
+      "model_pred_obsdepth_mean_mamba4": 0.029888888888888892,
+      "n_cells_pred_obsdepth_mamba4": 9,
+      "model_pred_preddepth_mean_mamba4": 0.026433333333333336,
+      "n_cells_pred_preddepth_mamba4": 9
+    }
+  ]
+}

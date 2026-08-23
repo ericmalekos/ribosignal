@@ -1,0 +1,37 @@
+{
+  "model": "mamba4",
+  "sources": {
+    "Held-out\nHepatocytes": "results/loto/orf_v2_mamba4_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/localization_metrics.json",
+    "Cross-study\nRuiz-Orera": "results/heldout/human_ruizorera/released_mamba4/localization_metrics_human_ruizorera.json"
+  },
+  "values": {
+    "Held-out\nHepatocytes": {
+      "all": {
+        "pred": 0.8860703074082132,
+        "obs": 0.8278544111721517,
+        "pred_raw": 0.9322095746507817,
+        "obs_raw": 0.9067314544493491
+      },
+      "noncanonical": {
+        "pred": 0.8277564333469764,
+        "obs": 0.8786968993098985,
+        "pred_raw": 0.8320481338400907,
+        "obs_raw": 0.885549993009834
+      }
+    },
+    "Cross-study\nRuiz-Orera": {
+      "all": {
+        "pred": 0.8924718922212754,
+        "obs": 0.8246643617879447,
+        "pred_raw": 0.9391894013093229,
+        "obs_raw": 0.9076909456555301
+      },
+      "noncanonical": {
+        "pred": 0.841212847021253,
+        "obs": 0.8736394716165947,
+        "pred_raw": 0.8489332614214616,
+        "obs_raw": 0.8870220364382768
+      }
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "universe_tx": 84472,
+  "holdout": "Hepatocytes",
+  "n_training_tissues": 7,
+  "n_ribo_libraries_total": 74,
+  "depth_spread_train": 11.394282958847128,
+  "tissues": [
+    {
+      "tissue": "Fibroblast",
+      "pack": "packed_canon",
+      "n_ribo": 32,
+      "psites": 1069763798,
+      "holdout": false
+    },
+    {
+      "tissue": "VSMC",
+      "pack": "packed_canon_VSMC",
+      "n_ribo": 11,
+      "psites": 474479065,
+      "holdout": false
+    },
+    {
+      "tissue": "ES",
+      "pack": "packed_canon_ES",
+      "n_ribo": 6,
+      "psites": 494036270,
+      "holdout": false
+    },
+    {
+      "tissue": "Fat",
+      "pack": "packed_canon_Fat",
+      "n_ribo": 6,
+      "psites": 565127456,
+      "holdout": false
+    },
+    {
+      "tissue": "HA_EC",
+      "pack": "packed_canon_HA_EC",
+      "n_ribo": 6,
+      "psites": 168061399,
+      "holdout": false
+    },
+    {
+      "tissue": "HCAEC",
+      "pack": "packed_canon_HCAEC",
+      "n_ribo": 5,
+      "psites": 698883779,
+      "holdout": false
+    },
+    {
+      "tissue": "HUVEC",
+      "pack": "packed_canon_HUVEC",
+      "n_ribo": 3,
+      "psites": 93886013,
+      "holdout": false
+    },
+    {
+      "tissue": "Hepatocytes",
+      "pack": "packed_canon_Hepatocytes",
+      "n_ribo": 5,
+      "psites": 1134988915,
+      "holdout": true
+    }
+  ]
+}

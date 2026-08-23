@@ -31,7 +31,7 @@ SALMON=/private/groups/carpenterlab/emalekos/conda_envs/riboseq/bin/salmon
 CUTADAPT=/private/groups/carpenterlab/emalekos/conda_envs/riboseq/bin/cutadapt
 IDX=/private/groups/carpenterlab/emalekos/Salmon_indexes/salmon_index_decoy_vM38   # decoy-aware (rule)
 FQ=$NEW/data/external/janich_liver_rnaseq
-QD=$NEW/data/salmon_quant_janich_liver
+QD=$NEW/data/tpm/salmon_quant_janich_liver
 REF=$NEW/data/heldout_refs
 mkdir -p "$QD" "$NEW/logs/janich"
 echo "rebuild_janich start=$(date -Iseconds) host=$(hostname)"
@@ -98,7 +98,7 @@ echo "  new Janich universe: $NTX tx (was 2,434 from the broken quant)"
 
 # ---- 4. pack + no-Kozak ORF track on the NEW universe ----
 "$PY" "$NEW/scripts/prepare/prepare_pack.py" \
-  --ribo-psites "$ECH/data/ribocode_mouse_liver/Liver_5samp" \
+  --ribo-psites "/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/merged_liver_ribocode/merged_liver" \
   --rna-coverage "$NEW/data/heldout_rnaseq_coverage/mouse_janich_liver" \
   --universe-tx "$REF/mouse_janich_universe_tx.txt" \
   --fasta "$REF/mouse_janich_universe.fa" \

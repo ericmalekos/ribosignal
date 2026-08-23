@@ -1,5 +1,7 @@
 # Methods: Ribo-seq signal prediction model
 
+> Current vs superseded results: **`docs/STATUS_CURRENT_VS_ARCHIVED.md`**.
+
 Goal: train a transformer to predict per-nucleotide Ribo-seq P-site signal directly
 from (a) foundation-model per-token embeddings of the transcript (RiNALMo and/or
 Orthrus) and (b) per-nucleotide binned RNAseq coverage, using the Chothani matched
@@ -1411,7 +1413,7 @@ Which FDR where:
   across databases of different size.
 
 Do NOT apply class-specific FDR to the canonical side. A large novel space cannibalises canonical
-DECOYS faster than canonical targets (macrophage BMDM: `other_d` -29.5% vs `canon_t` -13.2%), which
+DECOYS faster than final-recipe targets (macrophage BMDM: `other_d` -29.5% vs `canon_t` -13.2%), which
 deflates the estimated canonical FDR, relaxes its threshold, and makes a pure-junk database appear to
 GAIN canonical identifications (+3,317 peptides over a canonical-only search, which is impossible).
 Both the unfiltered and the naive class-specific versions are biased toward the larger database, by
@@ -1481,6 +1483,34 @@ automatically once that lands.
 
 Reference impl: `proteogenomics/scripts/proteomics_table.py --tag --reuse-tag --out`.
 
+### 7.5 Project rule: the ORF-length floor is set BY ASSAY (2026-08-15)
+
+**The rule.** Tryptic whole-cell-lysate proteomics uses a **30 amino acid** minimum ORF length. MHC /
+HLA immunopeptidomics uses **7**. Nothing else sets it -- not the dataset, not convenience, not what
+a previous run happened to use.
+
+**Why the two differ.** 30 aa is not a proteomics threshold at all: it is `build_loader`'s ORF-call
+filter (>= 90 nt, and `ORF_length` excludes the stop codon, so 90/3 = exactly 30 residues), applied
+identically to model calls and reference calls. A proteogenomics database built below it therefore
+searches ORFs the ORF-call track excludes **by rule**, and the two halves of the project stop being
+comparable. HLA-I is the one genuine exception: its peptides are 8-11 residues and are not tryptic
+products, so a 30-aa floor would exclude the biology being measured.
+
+**Classify from the search parameters, never from a name.** `fragger.params` with `trypsin` and
+`termini = 2` is tryptic. In this project: the 12 mouse macrophage populations and A549 are tryptic;
+HBL-1, SU-DHL-4, DoHH2, THP-1 and B721.221 are MHC.
+
+**Enforcement.** `pgx/build_dbs.py --assay {tryptic,mhc}` SETS `min_aa` (30 / 7) and aborts if an
+explicit `--min-aa` contradicts it. `pgx/filter_db_min_aa.py` length-filters an existing database and
+asserts target/decoy balance, which is exact: `min_aa` is a pure length filter, so filtering a built
+FASTA is equivalent to rebuilding at the higher floor.
+
+**Why it matters quantitatively.** At 7 aa the macrophage AUG null carried 235,686 sequences, ~65% of
+them sub-30-aa. Two P11 headline ratios were inflated as a result -- database size 156x -> **78x**,
+discovery density 111x -> **43x**. In the human immunopeptidome data the floor is load-bearing in the
+other direction: 27-33% of model discoveries come only from sub-30-aa ORFs, versus 0% for CPAT/CPC2,
+so applying 30 aa there would delete the model's advantage along with the biology.
+
 ## 5S. RNA-quality factorial: separating the two paths RNA-seq takes into the model (Task 68, 2026-08-08)
 
 **Motivation.** Every mouse-liver arm in the project varies RNA-seq and Ribo-seq together, so "better
@@ -1534,3 +1564,393 @@ paths cannot drift; the script now aborts immediately on `mamba4 + DEVICE=cpu` r
 Reference impl: `scripts/rna_quality_factorial_packs.sbatch` (stage 1, packs),
 `scripts/rna_quality_factorial_dump.sbatch` (stage 2, dumps + 3 drop-in variants),
 `scripts/score_rna_quality_factorial.py` (stage 3, the two contrasts).
+
+## 5T. Canonical alignment recipe, its enforcement, and the redo it forced (2026-08-13)
+
+### The recipe
+
+`scripts/riboseq_align.sbatch` is the single Ribo-seq aligner for both species, samplesheet-driven
+(`dataset, run, fastq, adapter, species`). Species selects only the STAR index, the ncRNA transcript
+list, and the tx->gene map. Fixed for every run:
+
+- `--alignEndsType EndToEnd`. Soft-clipping shifts the inferred P-site, which is the exact quantity
+  the model predicts. Measured on HUVEC against its reference pack with alignment as the only
+  variable: EndToEnd r = 0.935, soft-clipped r = 0.583.
+- `--outFilterMultimapNmax 1`. RiboCode does not drop multi-mappers itself.
+- `--quantMode TranscriptomeSAM`, then coordinate-sort, index, and `filter_tx_heldout`
+  (ncRNA-transcript drop + cross-gene read drop).
+
+Four other STAR filters were swept on HUVEC across 13 arms
+(`--outFilterMismatchNoverLmax`, `--outFilterMatchNminOverLread`, `--outFilterScoreMinOverLread`,
+`--seedSearchStartLmax`). In-frame fraction was 55.95-56.05% in every arm, a 0.10-point spread
+across a 3x change in allowed mismatch rate. They stay at STAR defaults: tightening costs up to 5.3%
+of reads, buys no frame purity, and would widen divergence from the training packs.
+
+### Two guards, both of which fired
+
+- **`filter_tx_heldout.py` refuses coordinate-sorted input.** Cross-gene detection needs
+  query-grouped records; fed a coordinate-sorted BAM it silently reports ~0.30% dropped instead of
+  the true 9-22%. That false negative had already produced a wrong conclusion ("the filter is a
+  no-op") and, downstream of it, a wrong claim that the training data could not be reproduced to
+  better than 13%.
+- **`prepare_from_bams.py` requires the ncRNA filter arguments** whenever `--ribo-bam` is passed,
+  unless `--no-ncrna-filter` is given explicitly. Deviation by declaration, never by omission.
+
+### Reproducibility, resolved
+
+Under the final recipe, `packed_union_HUVEC` reproduces at **3.04% P-site divergence, r = 0.957**
+(reference Janich: 1.69%). Earlier reconstructions reached 11.69% and 12.82%. The gap was recipe
+drift across three compounding errors, not a property of the data: the pipeline and the training
+data were aligned all along.
+
+### The redo
+
+Everything built off-recipe was rebuilt rather than annotated: 40 Ribo alignments -> 3 pools ->
+9 packs -> 18 dumps -> rescore, plus the three interpretability analyses. Outputs went to `*_canon`
+paths alongside the archived originals (`results/_archive_offrecipe_2026_08_13/`) so each finding
+could be compared old-vs-new instead of silently replaced, and expectations were written down before
+the comparison. Final-recipe pooling removes 3.5-4.9% of P-sites and 3.8-4.3% of observed ORF calls.
+Every qualitative conclusion held; see results.md.
+
+### New scripts this sprint
+
+| script | purpose |
+|---|---|
+| `scripts/riboseq_align.sbatch` | THE canonical aligner; replaces 5 one-off `align_*` scripts |
+| `scripts/score_channel_ablation.py` | scores the ORF-track channel ablation; previously an inline shell heredoc |
+| `scripts/prepare/extract_universe_fasta.py` | subset a universe FASTA from GENCODE; generalizes the Fibroblast-hardcoded `define_universe_and_fasta.py` |
+| `scripts/rebuild_heldout_canon.sbatch` | rebuild a held-out pack on canonical Ribo alignments, keeping its universe and ORF track |
+| `docs/PIPELINE_POLICY.md` | the three standing rules, with the actual failure as the worked example |
+
+### A near-miss worth recording
+
+The leukocyte rebuild initially globbed `data/heldout_bam/<arm>/*.bam` for RNA inputs. Those
+directories are COMBINED: they hold the arm's RNA alignments, the old off-recipe Ribo alignments,
+and (for the GSE120762 arms) genome-coordinate BAMs beside transcriptome ones. The glob would have
+fed Ribo runs in as RNA coverage and double-counted samples present as both BAM types, producing a
+plausible pack rather than a crash. Caught by reading the job's own echoed input list within a
+minute of submission, and cancelled.
+
+The fix is explicit per-arm RNA run lists (`data/heldout_refs/<arm>_rna_runs.txt`) plus a guard that
+aborts if any Ribo run appears among the RNA inputs. Those lists were then checked against
+`scripts/heldout/heldout_config.sh`, the authoritative record of the original splits, and match its
+`RNA_SRRS` exactly (lps 41/42, nt 38/39/40, tcell 20/21/22) -- confirming the ORIGINAL packs were
+built on the correct RNA runs, so their only deviation is the alignment recipe. The general lesson
+matches `feedback_blast_radius_scan_by_artifact`: the scan was run over the artifact (every RNA BAM
+directory, every script using that glob idiom) rather than the one arm where it was noticed, which
+is what showed `mouse_janich_liver` to be clean and bounded the problem to two directories.
+
+### The aligner grew two samplesheet columns, and why that is the point
+
+`scripts/riboseq_align.sbatch` gained optional `umi` and `cutadapt_extra` columns (5-column
+samplesheets still parse unchanged). With them, all four datasets this project handles are expressible
+as samplesheet ROWS rather than as branches inside a script, which is the operational content of
+policy rule 1. `docs/PIPELINE_POLICY.md` had already declared UMI a legitimate per-dataset knob; the
+script simply had not implemented it, and that gap was what blocked the human rebuild.
+
+UMI ordering is forced, not chosen: `filter_tx_heldout` needs query-grouped input, `umi_tools dedup`
+needs coordinate-sorted + indexed input, and the filter leaves the latter behind. STAR -> filter ->
+dedup is the only order that satisfies both, and running dedup first now trips the sorted-input guard
+rather than silently under-filtering.
+
+### CAR-T: deduplication that ran on a file the pack never read
+
+Found while scoping the human rebuild. `process_cart_gse304796.sbatch` runs `umi_tools dedup`, but on
+the GENOME BAM. It then copies the raw STAR transcriptome BAM to `${RUN}.toTranscriptome.bam`, and the
+pack is built from exactly that file (confirmed via `_work/psites/SRR34901743.toTranscriptome_psites.hd5`).
+The deduplication was real and the log looked correct; it just applied to a different BAM.
+
+Duplicate rate, from the pipeline's own `read_counts.txt`:
+
+| run | aligned | deduped | PCR duplicates |
+|---|--:|--:|--:|
+| SRR34901743 | 33,114,136 | 23,888,001 | 27.9% |
+| SRR34901744 | 43,372,505 | 30,637,962 | 29.4% |
+| SRR34901745 | 45,122,621 | 31,747,439 | 29.6% |
+
+So the CAR-T pack carries ~29% PCR duplicates plus the ~9.7% the filter would have removed.
+Duplicates concentrate at specific positions rather than spreading evenly, so profile SHAPE is
+affected and not merely depth. Every CAR-T-derived number is provisional pending the rebuild,
+including the human codon-occupancy value of 0.548, which pools THP-1 with CAR-T; the mouse codon
+number, which is what the transfer argument rests on, is untouched. Flagged in
+`docs/PIPELINE_POLICY.md` and in the tutorial's codon page rather than left implicit.
+
+This is the same failure shape as the coordinate-sorted filter earlier in the sprint: a step that ran,
+logged success, and had no effect on the artifact downstream actually consumed. Both are invisible to
+exit status and visible only by asking which file the next stage opens.
+
+### Status of the human rebuild
+
+Ribo arms only (RNA-seq is unchanged and not re-aligned): 5 GSE208041 + 3 GSE39561 + 3 CAR-T = 11
+runs, samplesheet `data/human_ribo_canon_samplesheet.tsv` with its deviations recorded in the sibling
+README. Two deviations from the previous human processing are declared there: no bowtie2 snoRNA
+depletion (the final recipe has none and mouse never did; measured 0.01-0.87% of reads, a null),
+and CAR-T dedup now acting on the BAM the pack reads. The first means a rebuilt GSE208041 pack differs
+from the current one by two changes rather than one -- the filter dominates by two orders of
+magnitude, but the comparison is not single-variable and should not be described as one.
+
+## 5U. What the final-recipe rebuild actually changed (2026-08-13/14)
+
+The rebuild was undertaken for reproducibility, but it produced a substantive result about the
+reference data that any non-canonical number depends on.
+
+### The model did not change; the reference did
+
+The deployed checkpoint is frozen and its inputs are sequence, the ORF track, and RNA-seq coverage.
+RNA-seq was never re-aligned, so none of those moved. Verified rather than assumed, on the matched
+3x3 cell:
+
+| file | off-recipe md5 | canonical md5 | |
+|---|---|---|---|
+| `pred_preddepth_collapsed.txt` | `27d5084b` | `27d5084b` | **byte-identical**, 19,601 calls both |
+| `pred_obsdepth_collapsed.txt` | `556409b1` | `15c6ab49` | differs -- scaled by OBSERVED depth |
+| `real_collapsed.txt` | `488e747a` | `88c4e3cf` | differs, 15,771 -> 14,877 |
+
+So the standalone arm's F1 change (0.8762 -> 0.8661) is entirely the reference moving.
+
+### The reference lost non-canonical calls, disproportionately
+
+| class | off-recipe | canonical | change |
+|---|--:|--:|--:|
+| annotated | 10,535 | 10,385 | -1.4% |
+| uORF | 2,587 | 2,263 | **-12.5%** |
+| novel | 1,228 | 954 | **-22.3%** |
+| dORF | 414 | 362 | -12.6% |
+| Overlap_uORF | 591 | 534 | -9.6% |
+| internal | 355 | 324 | -8.7% |
+| TOTAL | 15,771 | 14,877 | -5.7% |
+
+Canonical alignment strips 22.3% of novel and 12.5% of uORF reference calls while touching annotated
+CDS by 1.4%. That asymmetry is the signature of soft-clipped and unfiltered reads manufacturing
+spurious non-canonical ORFs, which is what `EndToEnd` and `filter_tx_heldout` exist to remove: deep,
+unambiguous CDS is unaffected, and marginal low-count calls are where artifacts land.
+
+**Therefore the off-recipe non-canonical F1 was INFLATED** -- the model was credited for matching
+alignment artifacts. Canonical non-canonical numbers are the honest ones and must never be compared
+against previously reported values, which were measured against a reference containing ~22% more
+novel calls. It also means the recipe's value exceeds what the P-site totals suggest: a 4.9% drop in
+P-sites removed 22% of novel calls.
+
+### Reproducibility is heterogeneous across tissues
+
+Extending the single-tissue test to all eight (74 runs re-aligned, per-tissue re-pool, same metric;
+the generalised script reproduces the HUVEC number exactly at 3.04% / r 0.9567): median **3.86%**,
+range 3.04-11.66%, per-nt r 0.432-0.980. **HUVEC is the best of the eight**, so the single-tissue
+number understated the typical case and understated the worst by nearly 4x. Divergence and
+correlation are partly decoupled (Fat moved most signal but coherently; HA_EC less but incoherently),
+and there is NO depth relationship. HA_EC (r = 0.432) remains an unexplained outlier with four
+hypotheses tested and rejected; no causal story about it belongs in the manuscript.
+
+Table `results/chothani_regeneration/divergence_by_tissue.tsv`, figure `figures/S_reproducibility/`.
+
+## 5V. Merged 28-library reference and the over-call validation (2026-08-14, results.md 2026-08-14)
+
+**Purpose.** Every observed reference in this project is one dataset deep, so none of them can
+distinguish a model false positive from a real ORF that dataset was too shallow to call. This builds
+a deeper arbiter and, critically, the control that makes its verdict interpretable.
+
+### Building the merged reference
+
+`scripts/merged_liver_ribocode.sbatch` (job 36780045, medium partition, 12 cpus, 180 GB, 2h01m).
+
+- **Inputs:** 28 aligned with the final recipe mouse-liver Ribo-seq transcriptome BAMs -- Janich 5,
+  GSE243134 21, Wang 2. GSE243134's members come from `data/liver3x3/gse243134_ribo_runs.txt`, the
+  same run list `liver3x3_01_pool.sbatch` uses, NOT a directory glob: that submission ships more
+  libraries than the 21 WT RPF ones, and a merge over a different set would not be comparable to the
+  per-dataset references it exists to be compared against. The script asserts exactly 28 and writes
+  `bam_list.txt`.
+- **Calling:** RiboCode `metaplots` derives a P-site offset per LIBRARY (28 config rows, one per BAM,
+  each with its own selected read lengths), then `RiboCode -a <annot> -c <config> -l no -g` tests
+  periodicity on the POOLED signal.
+- **This is a joint call, not a union of three call sets.** An ORF with weak but consistent signal in
+  all three datasets can clear significance here while failing in each dataset alone. Unioning three
+  separately-called sets cannot do that, and would inherit each set's threshold.
+- **Result:** 26,388 raw ORF calls, vs 14,877 (GSE243134, +77.4%), 14,322 (Janich, +84.2%),
+  13,060 (Wang, +102.1%).
+- Resumable: the psites hd5 are written before anything reads them.
+
+### Scoring the over-call (`scripts/score_merged_liver_overcall.py`)
+
+Filtering and keying are `compare_dropin_calls.build_loader` -- the merged reference is restricted to
+the SAME 22,974-transcript space as every other drop-in number here and matched on
+`(gene_id, ORF_gstop)`. The model arm is `pred_preddepth` (standalone) with GSE243134 RNA, matching
+`figures/P9_upset_mouse3x3`.
+
+Four strata, and the design point is that the middle two are useless without each other:
+
+| stratum | definition | what it establishes |
+|---|---|---|
+| **anchor** | model calls that ARE supported by some experiment | that the merged reference is not the limitation (99.3%) |
+| **control** | observed calls made by exactly ONE experiment, missed by the other two | how often "unsupported by the other arms" just means "too deep for them" (74.5%) |
+| **question** | model calls supported by NO experiment | the number of interest (7.7% / 8.6%) |
+| **shared** | called by BOTH architectures, no experiment | whether cross-architecture agreement is evidence (8.7% -- it is not) |
+
+**Why the control is mandatory.** The merged reference is deeper than any single dataset, so it
+recovers more of everything; a bare recovery rate for the model's extras would be confounded with
+depth. The control is the closest available matched comparison: equally unsupported by the other 3x3
+arms, but known-real because an experiment saw them.
+
+**Why the gene-coverage split is mandatory.** A model-unique call the merged reference misses is only
+FP evidence if the merged reference had signal at that locus. Splitting on whether merged called ANY
+ORF on the same gene separates "the specific ORF was rejected on its merits" (881 calls, 16.9%
+corroborated) from "the gene shows no translation at all" (1,061 calls). The 0% recovery in the
+second stratum is definitional -- recovery requires a merged call on the gene -- so its `n` is the
+measurement and its rate must never be quoted.
+
+Per-class rates are emitted separately because lncRNA and uORF fail in opposite directions, and
+because `internal` is the one class where the control itself is weak (33-54%), making a low model
+number there genuinely ambiguous.
+
+**Outputs:** `results/merged_liver_ribocode/overcall/{overcall_recovery.tsv,
+overcall_recovery_by_class.tsv, overcall_meta.json}`. `figures/P9_upset_mouse3x3` reads these at draw
+time so the plotted FP rate cannot drift from the scorer, and falls back to the old "candidate FPs"
+label if the scorer has not run rather than plotting a stale number.
+
+**Scope.** This is a fourth, deeper validation arm. It does NOT replace the three independent
+observed arms the 3x3 factorial needs, and the same construction has not yet been done for any human
+dataset.
+
+---
+
+## 2026-08-16 -- RNA census columns, attn exemplars, portable architecture spec
+
+### RNA facts in the dataset census (`scripts/build_dataset_census.py`)
+
+`rna_facts(pack_rel)` resolves `(n_rna_libraries, rna_coverage_total, source)` in three tiers,
+because no single field is trustworthy across pack generations:
+
+1. `provenance.json` -> `rna_coverage_inputs` (the actual file list). Authoritative.
+2. `coverage_norm.json` -> `n_rna_samples`, **only when > 0**. It is 0 in every `_canon` pack,
+   which reused its union twin's coverage without carrying the count.
+3. The union twin, accepted only when `coverage_total` matches exactly, which proves the same
+   pooled data.
+
+Unresolved rows are written **empty, never 0** -- an empty count is a missing measurement, a zero
+is a claim. `RNA_PACK_OVERRIDE` points B721.221 at `data/packed_heldout_human_b721` because its
+registry row has `pack=None` (depth comes from an external reference) while RNA is its whole
+input. `RNA_FROM_SRR_MAP` fills Brain from `data/loto_rnaseq_srr_tissue.tsv`.
+
+`rna_coverage_total` was validated as a raw total by comparing against `coverage.npy.sum()` on the
+int32 arrays, and `global_mean_coverage` confirmed to be exactly `total / sum_L`.
+
+### ATTN profile exemplars (`select_profile_exemplars.py` / `plot_profile_exemplars.py`)
+
+Re-ran the selector with `--model attn --top 0`. **`--top 0` is required** whenever the output
+feeds a class-resolved figure: the default `--top 200` keeps the highest-scoring 200 rows per
+dataset across all classes, and annotated CDS crowd out every scarce class. Under the default,
+human Hepatocytes showed no `novel` / lncRNA row at all; with `--top 0` there are 413 lncRNA
+transcripts clearing the same gates (>= 200 P-sites, ORF >= 90 nt). The gates never excluded them.
+
+Per-nt exemplars regenerated at `--per-class 3` over all 7 classes, at both `--zoom-mode start`
+and `--zoom-mode center`. The new file is a strict superset of the previous 4-class one: same
+class winners, and 19,799 shared per-nt rows verified value-identical.
+
+### Portable architecture spec (`scripts/export_arch_spec.py`, new)
+
+Emits `figures/arch_attn/arch_spec_attn.json` and `figures/arch_attn/orf_track_spec.json` so a
+build that cannot read the cluster filesystem can trace every printed structural number to a file
+rather than to a prose table. Everything is **read from artifacts, never transcribed**: parameter
+count summed from `best.pt`'s state_dict (5,071,106), channel and kernel shapes from the tensor
+shapes, hyperparameters from the run's `args.json`, `START_W` imported from `build_orf_track.py`,
+and the display-window ORF track computed by calling `orf_track()` rather than copied.
+
+Two things the spec records that the prose table did not:
+
+- **The 4,093 nt receptive field is the CONVOLUTIONAL one only.** `1 + 2*(k-1)*sum(dilations)` =
+  `1 + 4*1023`. The mixer is full self-attention masked for padding alone
+  (`src_key_padding_mask=~mask`, no causal and no local window), so the attn model's effective
+  context is the **entire transcript**. "Receptive field ~4 kb" understates it.
+- **The RNA coverage channel is `log1p(coverage / global_mean_coverage)`**, not raw depth
+  (`cov_norm=global_mean`). It is always the last of the 10 input channels; the layout is
+  one-hot(4) | orf_track(5) | coverage(1).
+
+`START_W` has **10** graded start codons, not the 6 the figure doc recorded: ATG 1.0, CTG 0.5,
+GTG 0.35, ACG 0.35, TTG 0.3, ATA 0.25, ATT 0.2, ATC 0.2, AAG 0.15, AGG 0.15. The deployed model
+uses `--kozak none`, so the start channel is the raw codon weight with no context multiplier.
+
+## Dataset citations: accession to source publication (2026-08-18)
+
+Until now every dataset in this project was tracked by accession only, with **no source publication
+recorded anywhere**. That gap was found while filling two `[author] et al. [year]` placeholders on
+the poster and is closed here. Full detail, including drop-in reference text, is in
+`docs/POSTER_MSG_REFS_4_AND_5.md`.
+
+| dataset | accession | citation |
+|---|---|---|
+| Human Ribo-seq compendium (training, 9 tissues) | GSE182371 / GSE182372 (RNA) | Chothani et al. 2022 |
+| Human iPSC-cardiomyocyte | ruizorera2024 | Ruiz-Orera et al. 2024 |
+| Mouse liver (Wang) | GSE94982 | Wang H, ... Xie Z. 2021. *Nucleic Acids Res* 49(11):6165-6180. doi:10.1093/nar/gkab482. PMID 34107020 |
+| Mouse liver (Janich) | -- | Janich P, ... Gatfield D. 2015. *Genome Res* 25(12):1848-1859. doi:10.1101/gr.195404.115. PMID 26486724 |
+| Mouse liver (third) | GSE243134 | Nadimpalli HP, ... Gatfield D. 2024. *Genome Biol* 25(1):128. doi:10.1186/s13059-024-03270-2. PMID 38773499 |
+| Human THP-1 | GSE208041 | Ansari SA, ... Uhlenhaut NH. 2022. *Comput Struct Biotechnol J* 20:5622-5638. doi:10.1016/j.csbj.2022.09.042. PMID 36284713 |
+| Human CAR-T | GSE304796 | Shi Y, ... Sadelain M. 2026. *Cell* 189(2):401-417.e21. doi:10.1016/j.cell.2025.11.005 |
+| Mouse CD4+ T cell | GSE155087 | Matheson LS, ... Turner M. 2022. *Sci Rep* 12(1):19657. doi:10.1038/s41598-022-24132-6. PMID 36385275 |
+| Mouse BMDM | GSE120762 | Jackson R, ... Flavell RA. 2018. *Nature* 564(7736):434-438. doi:10.1038/s41586-018-0794-7. PMID 30542152 |
+| Mouse tissue macrophage proteome (MS) | iProX IPX0001245001 = PRIDE PXD021583 | Qie J, ... Ding C. 2022. *Nat Commun* 13:7389. doi:10.1038/s41467-022-35095-7 |
+
+GSE39561 (THP-1) is dropped and needs no citation.
+
+**Two of these are inferred, not declared.** GEO lists a Citation PMID for GSE208041, GSE155087,
+GSE120762 and GSE94982, so those four links are asserted by the submitters. **GSE243134 and
+GSE304796 have no GEO citation**; both were matched on a verbatim-identical series title plus author
+overlap (Nadimpalli/Gatfield; Shi/Sadelain). Strong matches, but flag them as inferred if either is
+used to support a claim.
+
+**Two caveats worth carrying:**
+
+- **The CAR-T paper is 2026, not 2025.** GEO submission was Aug 2025; *Cell* publication was Jan 2026.
+- **Two of the three mouse livers share a senior author.** Janich 2015 and GSE243134 2024 are both
+  Gatfield lab, nine years apart; only Wang is independent of the other two. "Cross-study" is
+  accurate, "three independent experiments" is not. This matters where the mouse-liver comparison is
+  framed as independent replication: the arm the model wins on recall (Wang) is both the shallowest
+  and the only lab-independent one.
+
+## Per-tissue Chothani TPM recovery (2026-08-20)
+
+`scripts/salmon_chothani_alnmode.sbatch` + `scripts/aggregate_chothani_tpm.py`.
+
+**Inputs.** 55 STAR transcriptome BAMs in `data/rnaseq_bam_mm1/` (within-gene isoform multimappers
+retained -- required, salmon's EM has nothing to apportion without them), against
+`data/human_ribocode_annot_primary/transcripts_sequence.fa`, which matches the BAMs' `@SQ` space
+exactly at 509,650 sequences. SRR-to-tissue map at
+`data/tpm/chothani_alnmode/srr_tissue_have.tsv`.
+
+**Command.** `salmon quant -t <txfa> -l A -a <bam> -o <out> -p 8 --noErrorModel`, one array task per
+run, 8 concurrent. Per-run `quant.sf` pooled to an unweighted per-tissue mean.
+
+**Method difference from the original, which must be carried with any use of these numbers.**
+CORRECTED 2026-08-21: an earlier version of this section blamed the decoys alone. That understated
+it. There are THREE differences, and the read-population one is larger:
+
+1. **STAR ran with `--outFilterMultimapNmax 1`, so genomically multi-mapping reads were DISCARDED
+   before salmon existed. Measured loss: 18.6% of reads** (143.6M of 176.4M over six sampled runs,
+   range 77-86% kept). Salmon-from-FASTQ would have seen and apportioned those.
+2. Reads STAR failed to map are absent; from FASTQ, salmon gets its own attempt at them.
+3. No decoys.
+
+NOTE the NH tags in these BAMs run to 17, which looks like multimappers were kept. They were not:
+in a TRANSCRIPTOME BAM, `--quantMode TranscriptomeSAM` expands ONE genomic alignment across all
+compatible isoforms, so NH counts transcripts of one gene, not genomic loci. Isoform multimapping
+survives (which is what the within-gene EM needs); genomic multimapping does not.
+
+These are therefore **STAR-unique-read TPMs**, not a reproduction of the original. The lost
+`salmon_quant_chothani_decoy` was **decoy-aware selective alignment from FASTQ**. This is
+**alignment-based mode against the transcriptome only, no decoys.** Decoys exist to stop intronic
+and repeat-derived reads being assigned to transcripts; without them those reads land on real
+transcripts instead. Validated on Fibroblast (the only tissue whose decoy-aware table survived),
+same 32 libraries both ways: **Spearman 0.755 on expressed transcripts, median ratio 0.84x, no
+length dependence (-0.093)**. Use for **isoform ranking within a gene**; do NOT quote as absolute
+TPM and do NOT compare against numbers produced by the original pipeline. **Treat paralog-rich loci
+with extra suspicion** -- GTF2I sits in the chr7 Williams-syndrome segmental duplication alongside
+GTF2IRD1/GTF2IRD2, exactly where `Nmax 1` drops the most reads.
+
+SUPERSEDED 2026-08-21 -- confirmed to mis-assign isoforms at paralog-rich loci; see results.md
+"chothani_alnmode is SUPERSEDED". Gene-level totals usable, isoform-level NOT.
+interim recovery, retained for comparison.
+
+**Coverage.** 7 of 8 tissues. Brain has no surviving RNA BAM.
+
+**Why not just re-download.** Measured 2026-08-20: ENA 0.30 MB/s, AWS S3 0.6-4.3 MB/s, and four
+concurrent streams gave 2.4 MB/s **aggregate** -- worse than one, so the limit is our shared egress
+and no download strategy avoids it. 67 GB would have taken 30-50 hours. **Check
+`data/rnaseq_bam_mm1/` for a surviving transcriptome BAM before ever planning an RNA re-download.**

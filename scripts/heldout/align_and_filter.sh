@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# SUPERSEDED by scripts/riboseq_align.sbatch (docs/PIPELINE_POLICY.md rule 1).
+# Kept for provenance only -- do NOT use for new work. Historically important: this script was
+# ON-RECIPE (EndToEnd + mm1 + filter on query-grouped input), which is why the mouse leukocyte
+# packs it built regenerate to 0.13-3.16%. It differs from canonical only in two tightened STAR
+# filters (--outFilterMismatchNoverLmax 0.05, --outFilterMatchNminOverLread 0.7).
 # Align one held-out Ribo-seq footprint FASTQ (cutadapt + STAR TranscriptomeSAM),
 # then clean the transcriptome BAM in place (posture A). Usage: align_and_filter.sh <DATASET> <SRR>
 set -euo pipefail

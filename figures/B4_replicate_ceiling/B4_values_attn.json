@@ -1,4 +1,6 @@
 {
+  "model": "attn",
+  "source": "results/loto; results/replicate_concordance.json",
   "run": "orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes",
   "ceiling_source": "results/replicate_concordance.json",
   "model_source": "results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/extra_metrics.json",
@@ -35,5 +37,6 @@
       "model": 0.25473158158393855,
       "pct_of_ceiling": 33.999506387456655
     }
-  ]
+  ],
+  "provenance_note": "_attn suffix = FIG_MODEL=attn supplemental variant"
 }

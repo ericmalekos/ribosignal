@@ -5,6 +5,10 @@
 #SBATCH --mem=110G
 #SBATCH --time=12:00:00
 #SBATCH --output=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/logs/thp1_proc_%A_%a.out
+# SUPERSEDED by scripts/riboseq_align.sbatch (docs/PIPELINE_POLICY.md rule 1).
+# PARTIALLY superseded: the Ribo ALIGNMENT half is replaced (see data/human_ribo_canon_samplesheet.tsv).
+# The RNA arm and salmon steps have no canonical equivalent yet. The Ribo half here never called
+# filter_tx_heldout, so the packs it produced are off-recipe.
 set -euo pipefail
 # Both THP-1 datasets. Same skeleton as the CAR-T pipeline (bowtie2 contaminant depletion -> STAR
 # EndToEnd mm1 -> canonical chroms minus snoRNA), but the READ-PREP step differs per dataset because

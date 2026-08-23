@@ -25,7 +25,7 @@ BASE=/private/groups/carpenterlab/emalekos/RNAZoo_meta
 NEW=$BASE/RNAZoo/experiments/riboseq_signal_model
 PY=/private/groups/carpenterlab/emalekos/conda_envs/cas12a/bin/python3
 SIFDIR=/private/groups/carpenterlab/emalekos/singularity_cache
-OUT=$NEW/results/aggregate_saliency
+OUT=$NEW/results/aggregate_saliency_canon
 mkdir -p "$OUT"
 
 MODELS=(attn attn mamba4 mamba4)
@@ -41,10 +41,10 @@ case "$M" in
 esac
 
 case "$S" in
-  mouse)  PACK=$NEW/data/packed_heldout_l3x3_ribo-gse243134_rna-gse243134
+  mouse)  PACK=$NEW/data/packed_heldout_l3x3canon_ribo-gse243134_rna-gse243134
           TRACK=$NEW/data/liver3x3/orf_track_union3_nokozak.npy
           FA=$NEW/data/heldout_refs/mouse_liver_union3_universe.fa
-          COLL=$NEW/results/mouse_liver_3x3/mamba4_ribo-gse243134_rna-gse243134/real_collapsed.txt ;;
+          COLL=$NEW/results/mouse_liver_3x3_canon/mamba4_ribo-gse243134_rna-gse243134/real_collapsed.txt ;;
   human)  PACK=$NEW/data/packed_union_Hepatocytes
           TRACK=$NEW/data/packed_union/orf_track_v2_nokozak.npy
           FA=$NEW/data/union_universe.fa

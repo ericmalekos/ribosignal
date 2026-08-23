@@ -18,7 +18,7 @@ set -euo pipefail
 NEW=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
 ECH=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/biotype_probe/expression_context_human
 RPY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python
-ANNOT=$ECH/data/ribocode_annot
+ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary
 P=$NEW/proteogenomics/data/B721_pilot
 
 MODELS=(mamba4 mamba4 attn attn)

@@ -44,8 +44,11 @@ def parse_args():
     ap.add_argument("--ribo-psites", nargs="*", default=[],
                     help="RiboCode per-nt *_psites.hd5 file(s) or dir(s); pooled if several. "
                          "Omit with --coverage-only.")
-    ap.add_argument("--rna-coverage", nargs="+", required=True,
-                    help="rnaseq_coverage.py *_coverage.hd5 file(s) or dir(s); pooled if several.")
+    # NOT required: --reuse-coverage supplies coverage from an existing pack instead. Validated
+    # below so the error names the actual missing thing rather than argparse's generic message.
+    ap.add_argument("--rna-coverage", nargs="+", default=[],
+                    help="rnaseq_coverage.py *_coverage.hd5 file(s) or dir(s); pooled if several. "
+                         "Omit only with --reuse-coverage.")
     # universe (+ optionally target) source: exactly one
     uni = ap.add_mutually_exclusive_group(required=True)
     uni.add_argument("--universe-tx", help="fresh tx-id list (one versioned id per line)")
@@ -53,6 +56,14 @@ def parse_args():
     uni.add_argument("--reuse-target",
                      help="reuse an existing pack's universe AND target_counts verbatim; only "
                           "pool + write new coverage (the 'swap RNA-seq' path, e.g. mm20->mm1)")
+    uni.add_argument("--reuse-coverage",
+                     help="MIRROR of --reuse-target: reuse an existing pack's universe AND "
+                          "coverage verbatim, pool + write only a NEW Ribo target. This is the "
+                          "'Ribo re-aligned, RNA untouched' path the final recipe requires -- "
+                          "PIPELINE_POLICY and rebuild_heldout_canon are explicit that RNA-seq "
+                          "stays Local and the universe is never redefined, since the universe came "
+                          "from salmon TPM on that RNA. Use when the Ribo BAMs were rebuilt but the "
+                          "RNA coverage hd5 no longer exist.")
     ap.add_argument("--group", required=True, help="pack/group name (provenance + coverage_norm)")
     ap.add_argument("--species", default="human", help="written into coverage_norm.json")
     ap.add_argument("--out", required=True, help="output pack directory")
@@ -88,26 +99,38 @@ def main():
         return 2
 
     psites_files = packlib.resolve_hd5(args.ribo_psites, args.psites_glob)
-    cov_files = packlib.resolve_hd5(args.rna_coverage, args.coverage_glob)
-    if not cov_files:
-        print("ERROR: no coverage hd5 resolved from --rna-coverage", file=sys.stderr)
+    cov_files = [] if args.reuse_coverage else packlib.resolve_hd5(args.rna_coverage,
+                                                                   args.coverage_glob)
+    if not cov_files and not args.reuse_coverage:
+        print("ERROR: --rna-coverage resolved no coverage hd5, and --reuse-coverage was not given",
+              file=sys.stderr)
         return 2
     if need_psites and not psites_files:
         print("ERROR: no psites hd5 resolved from --ribo-psites", file=sys.stderr)
         return 2
 
     # universe: --reuse-target and --ref-pack both take it (and lengths) from an existing pack
-    universe_pack = args.reuse_target or args.ref_pack
+    universe_pack = args.reuse_target or args.reuse_coverage or args.ref_pack
     order, ref_len_of = packlib.load_universe(
         universe_tx=args.universe_tx, ref_pack=universe_pack)
     want = set(order)
-    src = (f"reuse-target {Path(args.reuse_target).name}" if args.reuse_target
+    src = (f"reuse-coverage {Path(args.reuse_coverage).name}" if args.reuse_coverage
+           else f"reuse-target {Path(args.reuse_target).name}" if args.reuse_target
            else f"ref_pack {Path(args.ref_pack).name}" if args.ref_pack else "fresh universe_tx")
     print(f"group={args.group}  universe={len(order):,} tx ({src})  "
           f"ribo={len(psites_files)} rna={len(cov_files)}", file=sys.stderr)
 
     print("pooling RNA-seq coverage...", file=sys.stderr)
-    cov = packlib.pool_per_nt(cov_files, "coverage", want)
+    if args.reuse_coverage:
+        cp = Path(args.reuse_coverage)
+        cc = np.load(cp / "coverage.npy", mmap_mode="r")
+        coff = np.load(cp / "offsets.npy")
+        cov = {t_: np.asarray(cc[coff[i]:coff[i + 1]], dtype=np.int64)
+               for i, t_ in enumerate(order)}
+        print(f"reused coverage from {cp.name} ({len(order):,} tx) -- RNA is unchanged by the "
+              f"final recipe", file=sys.stderr)
+    else:
+        cov = packlib.pool_per_nt(cov_files, "coverage", want)
     if args.reuse_target:
         tp = Path(args.reuse_target)
         tc = np.load(tp / "target_counts.npy", mmap_mode="r")
