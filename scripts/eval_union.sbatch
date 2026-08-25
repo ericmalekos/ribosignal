@@ -25,11 +25,16 @@ case "$MIXER" in
   mamba)       NAME=orf_v2_mamba; ARCHLBL="mamba"; [ "$N_ATTN" = 2 ] || { NAME=orf_v2_mamba${N_ATTN}; ARCHLBL="mamba${N_ATTN}"; }; [ "$D_STATE" = 16 ] || { NAME=${NAME}_ds${D_STATE}; ARCHLBL="${ARCHLBL} ds${D_STATE}"; }; ARCHLBL="${ARCHLBL} "; SIF=$SIFDIR/ghcr.io-ericmalekos-rnazoo-orthrus-latest.img ;;
   *) echo "bad MIXER=$MIXER (want transformer|mamba)" >&2; exit 1 ;;
 esac
-RUN=results/loto/${NAME}_${BACKEND}_union_noBrain_nokozak_mm1_holdout_Hepatocytes
+# PSUF / RUN / TAG / LABEL are overridable so a variant pack family (e.g. the mm10-coverage arms)
+# reuses this whole eval -- the n_skip guard, the 3 drop-in variants and the two-arm Poisson sweep --
+# instead of a fork. Defaults reproduce the original union mm1 behaviour exactly.
+PSUF=${PSUF:-union}
+RUN=${RUN:-results/loto/${NAME}_${BACKEND}_union_noBrain_nokozak_mm1_holdout_Hepatocytes}
+TAG=${TAG:-${NAME}_${BACKEND}_union}
 RIBOPY=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin/python3
 ANNOT=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/human_ribocode_annot_primary
 mkdir -p "$NEW/logs/dropin"
-echo "eval BACKEND=$BACKEND run=$RUN host=$(hostname) start=$(date -Iseconds)"
+echo "eval BACKEND=$BACKEND run=$RUN packs=$PSUF host=$(hostname) start=$(date -Iseconds)"
 
 # DUMP_DEVICE=cpu runs the (only) GPU step on idle CPUs -- the 5M-param model is CPU-deployable, so this
 # bypasses a jammed GPU queue (submit with --partition=gpu --gres=none). --nv is dropped for CPU.
@@ -37,7 +42,7 @@ DUMP_DEVICE=${DUMP_DEVICE:-cuda}
 [ "$DUMP_DEVICE" = cpu ] && NVFLAG="" || NVFLAG="--nv"
 # shellcheck disable=SC2086
 singularity exec $NVFLAG --no-home --cleanenv --env PYTHONNOUSERSITE=1 \
-  --env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True --env RIBO_PACK_SUFFIX=union --env RIBO_ORF_TRACK="$ORFTRACK" --env RIBO_ONEHOT_FASTA="$NEW/data/union_universe.fa" \
+  --env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True --env RIBO_PACK_SUFFIX="$PSUF" --env RIBO_ORF_TRACK="$ORFTRACK" --env RIBO_ONEHOT_FASTA="$NEW/data/union_universe.fa" \
   -B "$BASE" "$SIF" \
   python3 "$NEW/scripts/dump_pred_profiles.py" --run "$NEW/$RUN" \
     --fasta "$NEW/data/union_universe.fa" --device "$DUMP_DEVICE"
@@ -69,8 +74,8 @@ for TH in 0.02 0.05 0.1 0.2; do
 done
 CASPY=/private/groups/carpenterlab/emalekos/conda_envs/cas12a/bin/python3
 mkdir -p "$NEW/results/orf_call_metrics"
-"$CASPY" "$NEW/scripts/heldout/orf_call_metrics.py" --run "$NEW/$RUN" --label "${ARCHLBL}${BACKEND} union" \
+"$CASPY" "$NEW/scripts/heldout/orf_call_metrics.py" --run "$NEW/$RUN" --label "${LABEL:-${ARCHLBL}${BACKEND} union}" \
   --universe union --poisson-sweep "$SW" --cds-recall 0.90 \
-  --out-json "$NEW/results/orf_call_metrics/${NAME}_${BACKEND}_union.json" \
+  --out-json "$NEW/results/orf_call_metrics/${TAG}.json" \
   --append-md "$NEW/docs/manuscript_orf_call_eval.md"
 echo "eval BACKEND=$BACKEND done=$(date -Iseconds)"

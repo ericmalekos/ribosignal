@@ -589,3 +589,47 @@ _Length sweep_ (standalone theta=1; predicted+observed calls both restricted to 
 | 20 | 19,538/17,284 | 0.915 | 0.512/0.769/0.615 | 0.381/0.754/0.506 | 0.112/0.386/0.174 | 0.445/0.668/0.534 |
 | 30 | 17,771/16,240 | 0.915 | 0.531/0.753/0.623 | 0.407/0.781/0.535 | 0.126/0.386/0.190 | 0.459/0.658/0.541 |
 | 40 | 16,493/15,418 | 0.915 | 0.545/0.742/0.628 | 0.415/0.776/0.541 | 0.123/0.383/0.187 | 0.464/0.644/0.539 |
+
+### mamba4 onehot mm10cov armB excl  (union universe)
+- run: `/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/loto/orf_v2_mamba4_onehot_union_noBrain_nokozak_mm10cov_exclmm50_holdout_Hepatocytes`  |  val_pearson 0.6084 (e13)
+- **primary floor = ORFs >= 20 aa** (headline tables); sweep below spans full range.
+- reference = observed Hepatocytes calls (>= 20 aa): 17,284 (CDS 13,223, uORF 1,977, novel 827, dORF 179)
+
+| arm | CDS P/R/F1 | uORF P/R | novel P/R | dORF P/R | non-canon F1 |
+|---|---|---|---|---|---|
+| pred_obsdepth (shape @ real depth) | 0.949/0.967/0.958 | 0.492/0.835 | 0.352/0.843 | 0.081/0.609 | 0.510 |
+| pred_preddepth (standalone theta=1) | 0.915/0.933/0.924 | 0.524/0.791 | 0.345/0.797 | 0.110/0.503 | 0.527 |
+- standalone theta=1 over-call: total 20,105 calls vs 17,284 real (all 1.163x; novel 2.307x, dORF 4.592x)
+| Poisson CDS-anchored (th=0.1, CDSrec 0.92) | 0.915/0.918/0.917 | 0.713/0.429 | 0.511/0.453 | 0.179/0.207 | 0.470 |
+
+_Length sweep_ (standalone theta=1; predicted+observed calls both restricted to ORFs >= min_aa; P/R/F1). CDS length-invariant (ref); tiny-ORF tail is uORF-heavy:
+| min_aa | n_pred/n_real | CDS F1 | uORF P/R/F1 | novel P/R/F1 | dORF P/R/F1 | non-canon P/R/F1 |
+|---|---|---|---|---|---|---|
+| 5 | 24,171/18,934 | 0.924 | 0.458/0.821/0.588 | 0.298/0.790/0.433 | 0.096/0.528/0.163 | 0.386/0.723/0.504 |
+| 10 | 22,701/18,469 | 0.924 | 0.494/0.816/0.616 | 0.312/0.791/0.447 | 0.105/0.534/0.175 | 0.407/0.716/0.519 |
+| 15 | 21,344/17,891 | 0.924 | 0.512/0.801/0.625 | 0.329/0.795/0.466 | 0.108/0.523/0.180 | 0.418/0.704/0.524 |
+| 20 | 20,105/17,284 | 0.924 | 0.524/0.791/0.630 | 0.345/0.797/0.482 | 0.110/0.503/0.180 | 0.425/0.693/0.527 |
+| 30 | 18,192/16,240 | 0.924 | 0.550/0.782/0.646 | 0.365/0.812/0.504 | 0.120/0.497/0.193 | 0.437/0.683/0.533 |
+| 40 | 16,886/15,418 | 0.925 | 0.552/0.767/0.642 | 0.365/0.808/0.503 | 0.116/0.486/0.188 | 0.429/0.666/0.522 |
+
+### mamba4 onehot mm10cov armA  (union universe)
+- run: `/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/loto/orf_v2_mamba4_onehot_union_noBrain_nokozak_mm10cov_holdout_Hepatocytes`  |  val_pearson 0.6155 (e26)
+- **primary floor = ORFs >= 20 aa** (headline tables); sweep below spans full range.
+- reference = observed Hepatocytes calls (>= 20 aa): 17,284 (CDS 13,223, uORF 1,977, novel 827, dORF 179)
+
+| arm | CDS P/R/F1 | uORF P/R | novel P/R | dORF P/R | non-canon F1 |
+|---|---|---|---|---|---|
+| pred_obsdepth (shape @ real depth) | 0.945/0.962/0.954 | 0.523/0.821 | 0.388/0.822 | 0.103/0.559 | 0.544 |
+| pred_preddepth (standalone theta=1) | 0.911/0.927/0.919 | 0.598/0.743 | 0.396/0.753 | 0.155/0.419 | 0.569 |
+- standalone theta=1 over-call: total 18,812 calls vs 17,284 real (all 1.088x; novel 1.902x, dORF 2.709x)
+| Poisson CDS-anchored (th=0.1, CDSrec 0.89) | 0.912/0.894/0.903 | 0.784/0.357 | 0.562/0.375 | 0.327/0.179 | 0.445 |
+
+_Length sweep_ (standalone theta=1; predicted+observed calls both restricted to ORFs >= min_aa; P/R/F1). CDS length-invariant (ref); tiny-ORF tail is uORF-heavy:
+| min_aa | n_pred/n_real | CDS F1 | uORF P/R/F1 | novel P/R/F1 | dORF P/R/F1 | non-canon P/R/F1 |
+|---|---|---|---|---|---|---|
+| 5 | 21,893/18,934 | 0.919 | 0.539/0.777/0.636 | 0.349/0.748/0.476 | 0.136/0.440/0.208 | 0.466/0.689/0.556 |
+| 10 | 20,815/18,469 | 0.919 | 0.573/0.771/0.657 | 0.363/0.746/0.488 | 0.151/0.452/0.227 | 0.486/0.682/0.568 |
+| 15 | 19,756/17,891 | 0.919 | 0.590/0.754/0.662 | 0.380/0.751/0.504 | 0.154/0.436/0.228 | 0.496/0.669/0.570 |
+| 20 | 18,812/17,284 | 0.919 | 0.598/0.743/0.662 | 0.396/0.753/0.519 | 0.155/0.419/0.226 | 0.500/0.660/0.569 |
+| 30 | 17,303/16,240 | 0.919 | 0.619/0.727/0.668 | 0.422/0.784/0.549 | 0.161/0.400/0.230 | 0.513/0.654/0.575 |
+| 40 | 16,213/15,418 | 0.919 | 0.632/0.720/0.673 | 0.428/0.788/0.555 | 0.148/0.374/0.212 | 0.513/0.646/0.572 |

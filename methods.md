@@ -1954,3 +1954,570 @@ interim recovery, retained for comparison.
 concurrent streams gave 2.4 MB/s **aggregate** -- worse than one, so the limit is our shared egress
 and no download strategy avoids it. 67 GB would have taken 30-50 hours. **Check
 `data/rnaseq_bam_mm1/` for a surviving transcriptome BAM before ever planning an RNA re-download.**
+
+## mm10 RNA coverage: two retrain arms, A and B (2026-08-23)
+
+Follows the multimap audit in results.md (2026-08-23). That audit established two separate facts,
+and this experiment separates the two fixes they imply rather than bundling them.
+
+**Fact 1, the model INPUT is corrupted at multimapped loci.** The RNA-seq coverage channel was
+built from mm1 alignments. Where a transcript overlaps a repeat or a paralog, mm1 discards the
+reads and the channel reads near-zero even though the RNA is abundant. For GTF2I
+`ENST00000901263.1` a 1,617 nt window (transcript positions 1682:3299) reads 8.9% of that
+transcript's CDS mean at mm1 and 138.3% at mm10. The earlier "the model memorised a blank CDS"
+reading of this was wrong: the model read a corrupted input correctly.
+
+**Fact 2, the training LABEL is corrupted at the same loci.** The Ribo target is also mm1, and
+must stay mm1 -- RiboCode does not drop multimappers and they destroy the 3-nt periodicity P-site
+calling depends on. So the hole is in both channels at the same coordinates by construction. The
+same GTF2I window holds 1 observed P-site out of 13,258 on that transcript.
+
+### The two arms
+
+Both use the union universe (84,472 tx), one-hot backend, `--kozak none`, noBrain, holdout
+Hepatocytes, mamba4 (`--mixer mamba --n_attn_layers 4`), seed 0 -- identical to the standing
+baseline `results/loto/orf_v2_mamba4_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes`
+(best val Pearson 0.6190 @ epoch 23) in every respect except what each arm names.
+
+| arm | RNA coverage | Ribo target | training set | isolates |
+|---|---|---|---|---|
+| baseline | mm1 | mm1 | full | -- |
+| **A** | **mm10** | mm1 | full | the input fix |
+| **B** | **mm10** | mm1 | **7,640 tx dropped** | the label fix, on top of A |
+
+A vs baseline changes one thing (the coverage channel). B vs A changes one other thing (the
+training set). The test split is identical in all three, so all three are directly comparable.
+
+### Arm A: mm10 coverage
+
+57 Chothani RNA libraries re-aligned with `--outFilterMultimapNmax 10` (`--outSAMtype None
+--quantMode TranscriptomeSAM`), then `rnaseq_coverage.py` per library
+(`scripts/rebuild_coverage_mm10.sbatch`, job 36859009, 57/57 COMPLETED, 213.6 GB of hd5). Packs
+built by `scripts/rebuild_packs_mm10cov.sbatch` via `prepare_pack.py --reuse-target`, which reuses
+the source pack's universe and `target_counts.npy` verbatim and writes only new coverage. Each job
+asserts with `cmp` that `target_counts.npy` is byte-identical to its `packed_union` source and
+fails hard otherwise, so a moved label cannot be mistaken for an input effect.
+
+mm10 rather than mm25: at GTF2I, mm10, mm25, and best-alignment-only give identical numbers
+(565.91/nt in the gap, 138.3% of CDS), so mm10 already recovers everything mm25 would and keeps
+the count inflation lower. Mean RNA multimap rate across the 57 libraries is 3.8%, so this is a
+small global change concentrated at specific loci -- aggregate metrics are expected to move little
+and locus-level behaviour is where the effect should appear.
+
+### Arm B: drop multimap-corrupted transcripts from training
+
+Exclusion set: `frac_discarded > 0.5` in `data/mm25_diagnostic/training_multimap_cost.tsv.gz`
+(`bamlib.multimap_cost`, mm1 vs mm25 total records per transcript over the 74 Chothani Ribo
+libraries), restricted to the union universe. 7,640 tx of 81,611 (9.36%), listed in
+`data/mm25_diagnostic/train_exclude_mmcost_gt0.5.txt`. These are transcripts whose mm1 Ribo label
+is missing more than half its reads.
+
+Implemented as `dataset.train_excluded_tx()`, env `RIBO_TRAIN_EXCLUDE_TX`, applied in `loto_split`
+and `load_split`. It is deliberately **not** the existing `representative_tx()` hook, which is an
+include-list applied to every split:
+
+- **Dropped from train and val.** Val too, because checkpoint selection is on val Pearson; leaving
+  them in val would make arm B select checkpoints against a different criterion and introduce a
+  second difference between the arms. Val metrics are therefore NOT comparable across arms.
+- **Kept in test.** They are exactly what the resulting model must be scored on, and keeping them
+  holds the test split identical across all three arms. Measured effect: train 420,348 -> 387,959
+  (tissue, tx) pairs (-7.71%), val 45,102 -> 41,295 (-8.44%), test 70,883 -> 70,883 (unchanged).
+- `heldout_test_tx()` is untouched -- it is test-only by design.
+
+### Prediction registered before the runs
+
+Arm A supplies true coverage across windows where the label still says approximately zero, so at
+multimap sites it trains the association "abundant RNA, no ribosome". Over the other ~90% of the
+universe the corrected input is strictly better information. The net is genuinely uncertain and A
+may regress. Arm B removes the transcripts that teach that association and is expected to improve.
+A regression in A alongside a gain in B is a clean result, not a failure.
+
+### Success criteria, registered before the runs
+
+1. The standing ORF-call evaluation: RiboCode drop-in on both arms (deterministic theta=1 and
+   `--pred_poisson` at CDS-anchored theta), per-condition composition and F1, expression-restricted
+   and stating `n_ref`.
+2. The locus check: GTF2I `ENST00000901263.1`, predicted density in positions 1682:3299 relative to
+   its CDS mean. A model that still paints that window empty has not been reached by the input fix,
+   whatever the aggregate numbers say.
+
+### Provenance note on the reused target
+
+`packed_union*/provenance.json` for several tissues is a reconstructed record with
+`inputs_known: false` -- those packs predate provenance recording and their source hd5 are partly
+deleted. `--reuse-target` copies those bytes forward, so all three arms share one fixed inherited
+Ribo target. The `cmp` assert proves the target did not change between arms; it does not prove the
+target is reproducible from source. That is a known and accepted limitation of this comparison.
+
+## Cross-species expansion: datasets, references, annotation (2026-08-24/25)
+
+Context: the per-nt model has only been trained and held out on human and mouse. The expansion adds
+gorilla, chimp, macaque, zebrafish, C. elegans, D. melanogaster and S. cerevisiae. Plan:
+`~/.claude/plans/abstract-hatching-peach.md`. Scope, endpoint and matrix were fixed with the user:
+all seven species, endpoint = built packs, full 5-way alignment matrix, and the 12 undifferentiated
+iPSC RNA runs of PRJEB65856 dropped because they have no Ribo partner.
+
+Sections below, in the order the work runs:
+**A** scope, **B** dataset selection, **C** download and integrity, **D** adapter determination,
+**E** annotation normalization (the bulk), **F** reference construction.
+Operational companion, including what is running and how to resume:
+`docs/HANDOFF_XSPECIES_2026_08_24.md`.
+
+### A. Scope
+
+144 runs, 305.3 GiB, seven species, all matched Ribo + RNA. Endpoint is built packs and the full
+5-way alignment matrix (RNA mm1 + mm10 + salmon, Ribo mm1 + mm25).
+
+| species | Ribo | RNA | GiB | project |
+|---|---|---|---|---|
+| human (Ribo backfill only) | 5 | 0 | 14.5 | PRJEB65856 |
+| gorilla | 3 | 3 | 35.4 | PRJEB65856 |
+| chimp | 8 | 8 | 66.8 | PRJEB65856 |
+| macaque | 7 | 7 | 61.0 | PRJEB65856 |
+| zebrafish | 8 | 24 | 69.0 | PRJNA200706 + PRJNA288987 |
+| C. elegans | 11 | 10 | 26.4 | PRJNA230441 + PRJNA230374 |
+| yeast | 16 | 16 | 19.2 | PRJNA726548 |
+| fly | 9 | 9 | 12.9 | PRJNA390134 |
+
+The **human arm is a backfill**: its five Ribo runs existed only as BAMs and P-sites, with no FASTQ
+locally and none in the warm archive, which would have left human as the one iPSC-CM species with no
+mm25 diagnostic and no ability to re-trim.
+
+### B. Dataset selection
+
+Authoritative list: `data/external/xspecies/download_manifest.tsv`, written by
+`scripts/xspecies/select_runs.py` from the full ENA run tables in `data/external/xspecies/PRJ*_runs.tsv`
+(fetched by `build_run_tables.sh`, 18 columns including `fastq_md5`, which the old 4-column
+`PRJEB65856_runs.tsv` lacked entirely, so nothing could be verified from it).
+
+Every exclusion is expressed as a **rule in the selection script**, not a typed accession list, so the
+reasoning survives and an ENA metadata correction is picked up by re-running. `--check` asserts the
+expected per-species counts and exits nonzero on drift.
+
+The script deliberately does not trust `library_strategy` to separate Ribo from RNA: that vocabulary
+term postdates most of these submissions, and zero worm / fly / yeast / zebrafish runs carry it.
+Assay is decided per project by whatever is actually reliable there, and the basis is recorded in an
+`assay_basis` column of the manifest.
+
+#### The PRJEB65856 design, recovered
+
+`sample_title` is empty for every run in this study, which is why the earlier handoffs had no design
+table. `sample_alias` and `sample_description` are populated and give it in full, as
+`<species>_<tissue>_<individual>_{mR,Ri}`:
+
+| species | tissue | Ribo | RNA | matched pairs | Ribo len | RNA len |
+|---|---|---|---|---|---|---|
+| gorilla | iPSC-CM | 3 | 3 | 3 | 51 nt | 75 nt |
+| chimp | left ventricle | 5 | 5 | 5 | 51 nt | 75 nt |
+| chimp | iPSC-CM | 3 | 3 | 3 | 51 nt | 75 nt |
+| macaque | left ventricle | 4 | 4 | 4 | 51 nt | 75 nt |
+| macaque | iPSC-CM | 3 | 3 | 3 | 35 nt | 100 nt |
+| human | iPSC-CM | 5 | 5 | 5 | 35 nt | 100 nt |
+| gorilla / chimp / macaque / human | iPSC | 0 | 3 each | 0 | - | - |
+
+23 matched Ribo/RNA pairs. The 12 undifferentiated-iPSC RNA runs are RNA-only with no Ribo partner
+and were dropped (user decision), saving ~43 GiB.
+
+Two consequences that shape everything downstream. **`library_selection = Oligo-dT` on every RNA run**,
+so the poly(A) requirement is verified rather than assumed, with no GEO protocol reading needed. And
+the study contains **two trimming regimes split by read length inside one project**, which is why the
+adapter policy is per run (section D). The clean four-species comparison is iPSC-CM (human 5,
+gorilla 3, chimp 3, macaque 3); left ventricle is a bonus two-species set (chimp 5, macaque 4) with
+no gorilla and no human arm.
+
+#### The four organisms `SPECIES_EXPANSION_PLAN.md` section D left unresolved
+
+- **zebrafish** -- GSE70549's own GEO summary states verbatim that it is "sample matched to a
+  previous ribosome profiling dataset GSE46512". Eight developmental stages, matched 1:1 by stage
+  label, 24 RNA (PE 2x76, 3 reps x 8 stages) against 8 RPF. The Ribo arm is labelled `RNA-Seq`; it is
+  identifiable by **`library_selection = "size fractionation"`**, which is a better within-study
+  discriminator than `library_strategy` and is worth adding to the metadata-trap notes.
+- **fly** -- PRJNA390134 / GSE99920, three genotypes x three replicates, both arms in one project.
+  The three TRAP runs are excluded: affinity-tagged ribosome pulldown is a different assay and cannot
+  serve as a per-nt Ribo target.
+- **yeast** -- PRJNA726548 / GSE173654, eight strains x two replicates, `RNA_<strain>-<rep>` /
+  `Ribo_<strain>-<rep>` pairing exactly.
+- **C. elegans** -- the plan's PRJNA1183817 was **rejected**. Its RNA arm is Total RNA-seq, the exact
+  failure mode that crushed the GSE243134 liver universe to 3,321 tx, and its RNA libraries are 0.11
+  to 0.30 GB against 0.5 to 4.6 GB for its Ribo arm, so the RNA is shallow as well as wrong.
+  Replaced by **GSE52861 + GSE52905** (Hendriks and Gaidatzis), whose RNA series title is literally
+  "RNA-seq for polyA enriched mRNAs" and whose protocol names the TruSeq stranded mRNA kit; Ribo is
+  gel-excised 28-30 nt monosome RPFs. Eight shared hourly timepoints, 22 to 36 hr.
+  **Caveat to carry: the arms are replicate timecourses A (RNA) and B (Ribo), matched by stage rather
+  than by lysate**, so no downstream analysis may assume paired samples.
+
+Rejected while searching, recorded so they are not re-tried: **GSE269587/589** (worm hibernation,
+attractive same-lysate design but the RNA kit is ScriptSeq v2 on rRNA-depleted total RNA),
+**GSE80157/80133** (let-7/LIN41, same problem), **GSE300687** (disome-seq, not monosome footprinting).
+
+### C. Download and integrity
+
+`scripts/xspecies/fetch_from_manifest.sh`, serial on the head node, one connection, `wget -nv -c`,
+md5-verified against the manifest, idempotent (a file already matching its md5 is skipped, so an
+interruption resumes). Derived from `fetch_heldout_rna.sh` with three changes, each fixing a real
+failure mode in that script: no per-accession ENA round trip (it calls the API inside
+`set -euo pipefail`, so one transient curl failure aborts the chain and loses every remaining
+accession, and it parses only the first response line so a study accession silently fetches one run);
+the redundant merged `<ACC>.fastq.gz` is skipped when `_1`/`_2` are present; and an empty `fastq_ftp`
+is a loud error rather than a silent skip.
+
+**A CRLF bug caught by the dry run, worth recording.** Python's `csv` writer defaults to
+`lineterminator="\r\n"`, which makes the last column of every manifest row end in a carriage return.
+The last column is `fastq_md5`, so **every checksum comparison would have failed on every file**.
+Fixed at the writer, and the fetcher now refuses a manifest with CRLF endings rather than fail
+100% of its verifications.
+
+**ENA's FTP endpoint truncates.** Two files exhausted all three FTP retries, and the failure mode was
+truncation rather than corruption -- each attempt returned a different, shorter length:
+
+| run | got | expected | |
+|---|---|---|---|
+| ERR12549929 | 1,816,666,112 | 3,227,905,296 | 56% |
+| SRR5667268 | 2,016,301,056 | 2,148,789,443 | 94% |
+
+The same files' HTTPS endpoint returns a correct `Content-Length`, so FTP is the flaky leg.
+`scripts/xspecies/verify_and_repair.sh` md5-checks everything on disk and refetches failures over
+**HTTPS**, deleting first (never resuming onto truncated bytes, which `wget -c` would do and could
+never recover from). Both files were repaired on the first HTTPS attempt. It skips whichever label
+the fetch chain is currently inside, detected from the driver log, to keep one writer per path.
+
+Run it once at the end regardless of whether failures were seen: an unverified FASTQ becomes a
+library with silently missing reads, not an error.
+
+### D. Adapter determination is per run, and measured
+
+`scripts/xspecies/probe_adapters.sh` -> `data/external/xspecies/adapter_probe.tsv`, one row per run
+with the measured adapter percentages, read-length profile, N-padding fraction, verdict and the exact
+cutadapt argument. It probes the **complete** file via `zcat | head` (a streamed byte-range slice once
+reported 0% adapter where the real file was 93%, because a mid-file gzip offset does not decompress to
+record boundaries).
+
+**It tests a panel, not just TruSeq, and that is not a formality.** The standing cluster rule names
+`AGATCGGAAGAGC`, and every Ribo-seq dataset this project had processed used it. The worm arm does not:
+
+| worm GSE52905 | hit rate |
+|---|---|
+| `TGGAATTCTCGGGTGCCAAGG` (Illumina small-RNA) | **57 to 84%** |
+| `AGATCGGAAGAGC` (TruSeq) | **0.0%** |
+
+Trimming those with the standing default would have removed nothing, left ~20 nt of adapter on every
+51 nt read, and then `-m 20 -M 40` would have **discarded** them for being too long -- a near-empty
+BAM with no error anywhere, the same shape as the Janich library that once mapped 0.03%.
+
+Two details the probe encodes, both learned by getting them wrong first:
+
+- It selects the **longest** panel member above threshold, not the highest-scoring. A 13 nt prefix
+  always out-scores the full 21 nt adapter because it also matches reads where the adapter runs off
+  the read end (measured: 95.9% vs 83.2%, same adapter). cutadapt matches partial 3' adapters itself,
+  so the full sequence is strictly the better argument.
+- It decides `--trim-n` on **N-padding alone**. The pre-clipped human arm is 99.7% N-padded but its
+  read lengths run 35-51, so an initial fixed-length test missed it.
+
+Measured verdicts, all seven species:
+
+| label | verdict | evidence |
+|---|---|---|
+| human iPSC-CM Ribo | `--trim-n` | 98.6-99.7% N-padded, 0% adapter |
+| gorilla Ribo | TruSeq | 72.7-79.5% |
+| macaque Ribo | **MIXED** | 4 runs TruSeq 75.4-76.3% (51 nt LV), 3 runs `--trim-n` 99.3-99.5% N-pad (35 nt CM) |
+| chimp Ribo | TruSeq | pending download completion |
+| worm Ribo | small-RNA | 57.3-83.5% |
+| fly Ribo | already trimmed | 0% adapter, modal 30 nt (footprint-sized), variable length |
+| yeast Ribo | already trimmed | 0% adapter, modal 24-25 nt |
+| all RNA arms | none needed | 0% adapter at these insert lengths |
+
+`primate_rm_ribo` is **the only label with mixed verdicts**, confirming empirically what the read
+lengths had only implied: a per-dataset adapter setting would have been wrong for 3 or 4 of its 7
+runs. The human result independently agrees with `heldout_config.sh`'s separately-recorded
+`ADAPTER_MODE=trimn` for `human_ruizorera`.
+
+### E. Annotation normalization
+
+#### The problem: `gene_type` is a GENCODE-only spelling
+
+Every non-GENCODE reference in scope uses `gene_biotype` / `transcript_biotype`. Measured:
+
+| GTF | `gene_type` hits | `gene_biotype` hits |
+|---|---|---|
+| `genomes/xspecies_refs/yeast/genomic.gtf` (RefSeq) | **0** | 6,477 |
+| `genomes/xspecies_refs/gorilla/genomic.gtf` (RefSeq) | **0** | 31,925 |
+| `Saccharomyces_cerevisiae.R64-1-1.116.gtf.gz` (Ensembl) | **0** | 41,879 |
+| `Danio_rerio.GRCz11.116.gtf.gz` (Ensembl) | **0** | 1,161,865 |
+
+`scripts/build_contaminant_index.sbatch` matches `$9 ~ ("gene_type \"(rRNA|Mt_rRNA|...)\"")`, so on
+every new reference it selects **zero** lines. Its `DEPLETE` BED has a `[[ -s ]]` guard; its
+`POSTFILT` BED has no non-empty check at all and would be written as a 0-byte file. The standing
+rule that rRNA/tRNA/miRNA/Mt loci never reach an ORF caller would silently not execute, on all seven
+species, with no error anywhere.
+
+#### Ensembl was evaluated as an alternative and rejected
+
+Checked against Ensembl release 116 (current). Ensembl shares RefSeq's attribute key, so it does not
+solve the problem; its vocabulary is an older GENCODE variant (`lincRNA`, `antisense`,
+`processed_transcript`) that still needs mapping; and for the three primates its assemblies are far
+behind the RefSeq T2T builds already on disk:
+
+| species | Ensembl 116 | RefSeq on disk |
+|---|---|---|
+| gorilla | gorGor4, 2014-12 | T2T NHGRI_mGorGor1-v2.1, 2025 |
+| chimp | Pan_tro_3.0, 2016-05 | T2T NHGRI_mPanTro3-v2.1, 2026 |
+| macaque | Mmul_10, 2019-02 | T2T-MMU8v2.0, 2025 |
+| zebrafish | GRCz11 | GRCz11 (same assembly) |
+| C. elegans | WBcel235 | WBcel235 / WS298 (same assembly) |
+| yeast | R64-1-1, GTF frozen at release 63 | R64 / SGD R64-5-1, 2026 |
+
+Decision: keep RefSeq for the six fetched species and FlyBase r6.67 for the fly, and normalize.
+
+#### `scripts/normalize_annotation.py`
+
+One general script, four conventions, GENCODE as the target vocabulary.
+
+| convention | key | notes |
+|---|---|---|
+| gencode | `gene_type` / `transcript_type` | the target |
+| refseq | `gene_biotype` / `transcript_biotype` | no `Mt_*` classes at all; `mRNA` not `protein_coding` at transcript level; generic `transcript` defers to the gene; spelling is not self-consistent (`lnc_RNA` in gorilla and zebrafish, `lncRNA` in chimp, macaque, worm) |
+| ensembl | `gene_biotype` / `transcript_biotype` | older GENCODE vocabulary; does carry `Mt_*` |
+| flybase | none | biotype is the feature-type column, and `mRNA` appears where a GTF normally writes `transcript` |
+
+Source detection is automatic (probe for the attribute key, then RefSeq vs Ensembl by transcript-ID
+prefix). **Any source term with no explicit mapping is a hard error, never a silent pass-through**,
+which is what makes the script safe to point at an eighth species. Terms with no GENCODE equivalent
+(`piRNA`, `V_gene_segment`, `transposable_element`) are marked PASSTHROUGH as a recorded decision,
+not a fallback, and are in no drop set.
+
+Outputs per species into `data/annot/<species>/`: `ncrna_tx.txt`, `tx_to_gene.tsv`,
+`tx2biotype.tsv`, `ncrna_deplete.bed`, `ncrna_postfilter.bed`, `normalization_report.json`, and
+optionally `<species>.normalized.gtf` (`--write-gtf`, needed by STAR, RiboCode and gffread; for
+FlyBase it also re-emits each transcript feature as `transcript` so those tools find it).
+
+#### Two drop sets, and why they differ deliberately
+
+`core` = `{rRNA, Mt_rRNA, rRNA_pseudogene, Mt_tRNA, miRNA}`. This is the set that **exactly**
+reproduces the hand-built ground truth already on disk, which had no generator script:
+
+| derived from | reproduces | rows | result |
+|---|---|---|---|
+| `gencode.v49.annotation.gtf` | `data/ncrna_tx_human_v49.txt` | 2,447 | exact match, 0 missing, 0 extra |
+| `gencode.vM38.annotation.gtf` | `data/ncrna_tx_mouse_vM38.txt` | 2,579 | exact match, 0 missing, 0 extra |
+| `gencode.v49.annotation.gtf` | `data/tx_to_gene_human_v49.tsv` | 507,365 | exact match |
+| `gencode.vM38.annotation.gtf` | `data/tx_to_gene_mouse_vM38.tsv` | 278,326 | exact match |
+
+Run it with `--selftest`. This gate comes before any new species: a normalizer that cannot
+regenerate the two lists already on disk has no business being pointed at one where no ground truth
+exists.
+
+`extended` = core plus `{tRNA, tRNA_pseudogene, SRP_RNA, RNase_P_RNA, RNase_MRP_RNA}`, and is the
+default for every non-GENCODE source. The difference is intentional, not a discrepancy: GENCODE's
+main GTF contains **no cytoplasmic tRNA** (they ship separately in `gencode.*.tRNAs.gtf.gz` and are
+handled by the bowtie2 contaminant index) and types 7SL, RNase-P and RNase-MRP as plain `misc_RNA`.
+RefSeq and FlyBase annotate all of them inline, so if they are not dropped here they are not dropped
+anywhere. The magnitude is not marginal: **zebrafish alone has 8,839 tRNA transcripts**, 68% of its
+entire drop list. 7SL is specifically the RNA that collapsed the GSE243134 liver universe to 3,321
+transcripts when it survived a biotype filter as lncRNA.
+
+#### Result on all seven references, zero unmapped terms
+
+| species | source | mito contig | tx | ncRNA dropped | composition |
+|---|---|---|---|---|---|
+| yeast | refseq | NC_001224.1 | 6,477 | 316 | tRNA 275, Mt_tRNA 24, rRNA 12, Mt_rRNA 2, RNase_P 1, SRP 1, RNase_MRP 1 |
+| C. elegans | refseq | NC_001328.1 | 56,731 | 1,586 | miRNA 720, tRNA 612, tRNA_pseudogene 209, Mt_tRNA 22, rRNA 20, Mt_rRNA 2, rRNA_pseudogene 1 |
+| fly | flybase | mitochondrion_genome | 35,736 | 1,174 | miRNA 747, tRNA 290, rRNA 113, Mt_tRNA 22, Mt_rRNA 2 |
+| zebrafish | refseq | NC_002333.2 | 82,520 | 12,980 | tRNA 8,839, rRNA 3,049, miRNA 1,066, Mt_tRNA 22, RNase_P 2, Mt_rRNA 2 |
+| gorilla | refseq | NC_011120.1 | 99,500 | 1,475 | miRNA 740, tRNA 472, rRNA 239, Mt_tRNA 22, Mt_rRNA 2 |
+| chimp | refseq | NC_001643.1 | 135,577 | 2,065 | miRNA 1,309, tRNA 500, rRNA 232, Mt_tRNA 22, Mt_rRNA 2 |
+| macaque | refseq | **none** | 140,820 | 2,387 | miRNA 1,494, rRNA 464, tRNA 429 |
+
+Every species shows the expected 22 Mt_tRNA + 2 Mt_rRNA (the standard metazoan mitochondrial gene
+complement) except macaque.
+
+#### The macaque assembly has no mitochondrion, and the guard is what caught it
+
+`GCF_049350105.2` T2T-MMU8v2.0 ships **22 contigs: chr1-20, X, Y, and no MT sequence**. There is no
+mitochondrial contig to detect, nothing to re-type, and correspondingly zero Mt_tRNA / Mt_rRNA in
+its annotation. Its 464 rRNA and 429 tRNA entries are all nuclear, so the drop set is still correct.
+
+The consequence is for alignment rather than annotation, and it is not cosmetic. With no chrM in the
+index, mitochondrial footprints (a real and often large fraction of a Ribo-seq library) have nowhere
+correct to map, and the likely destination is a NUMT, which a T2T assembly resolves in unusual
+completeness. That is silent signal corruption on one of the four species in the iPSC-CM comparison,
+and it also makes macaque the only species whose mito reads are handled differently from the rest.
+
+Recorded as an open decision rather than patched, because adding `NC_005943.1` to the FASTA and GTF
+modifies a reference shared across projects. Options: (a) accept and document, quantifying the
+unmapped fraction after alignment; (b) supplement the reference with the RefSeq macaque
+mitochondrion, which restores consistency with the other six species.
+
+#### Four annotation defects the normalizer had to absorb (2026-08-24)
+
+Each was found by a gate rather than by reading the GTF, and each would have produced a
+plausible-looking but wrong result. They are recorded because the next species will have its own.
+
+**1. `transcript_id ""` on every RefSeq gene line breaks gffread.** RefSeq writes a literal empty
+`transcript_id` on `gene` features (6,477 of them in yeast alone); GENCODE omits the attribute.
+gffread reads the empty string as the record's ID and aborts with
+`Error: no valid ID found for GFF record`. This happens on the **raw** RefSeq GTF, before
+normalization touches it, so without stripping the attribute there is no transcriptome FASTA for any
+RefSeq species, and therefore no salmon index. The normalizer now removes it.
+
+**2. FlyBase transcripts were extracted twice.** FlyBase writes `mRNA` where a GTF normally writes
+`transcript`, and RiboCode and gffread both look for `transcript`. The first implementation emitted
+the feature a second time under the new name, which made gffread extract every fly transcript twice:
+**71,107 sequences for 35,736 transcripts, 35,371 duplicate IDs**. The salmon index built from it
+reported `num_refs=58133`, a number that looks entirely reasonable in isolation. Fixed by RENAMING
+the feature instead of duplicating it; the biotype the feature name carried is preserved in the
+`transcript_type` attribute the normalizer adds. Caught by the registry's transcript-count column,
+not by any error.
+
+**3. Nine FlyBase transcripts have strand `.`, and RiboCode dies on the first one.** All nine are
+`mod(mdg4)`, the trans-spliced Drosophila gene whose mature transcripts are assembled from both
+strands, so FlyBase legitimately declines to give them a strand. `prepare_transcripts` raises
+`ValueError: strand is neither "+" nor "-"` and the annotation build fails outright. They are now
+dropped with an explicit count and ID list in the report, since a single-strand transcriptome model
+cannot represent them anyway.
+
+**4. RefSeq C. elegans reuses transcript IDs across loci.** `unassigned_transcript_572` and
+`unassigned_transcript_574` each appear at two distinct loci. `tx_to_gene` is keyed by transcript id,
+so the second occurrence silently OVERWROTE the first and the map came out with 56,731 rows, while
+gffread emitted both and the FASTA had 56,733. The build's join check compared **sets**, so it
+subtracted to zero and passed. Both copies of a reused id are now dropped (which locus is genuine is
+not knowable from the GTF, and a silently-wrong pick is worse than losing two placeholder
+transcripts), and the check is being tightened to compare counts, not just membership.
+Only C. elegans is affected: gorilla, chimp, macaque, zebrafish and yeast have zero duplicated ids.
+
+Consequence for the work: the worm and fly STAR and salmon indexes built before fixes 2 and 4 were
+discarded and rebuilt. Nothing had been aligned against them yet.
+
+#### The macaque reference was supplemented with its mitochondrion (2026-08-25)
+
+`GCF_049350105.2` T2T-MMU8v2.0 ships 22 contigs (chr1-20, X, Y) and **no mitochondrial sequence**.
+Every other species in the expansion carries the standard metazoan 22 Mt_tRNA + 2 Mt_rRNA; macaque
+had zero, which is how the normalizer's mito guard surfaced it. The drop set was still correct (its
+464 rRNA and 429 tRNA are all nuclear), but the alignment consequence is real: with no chrM in the
+index, mitochondrial footprints have nowhere correct to map and the likely destination is a NUMT,
+which a T2T assembly resolves in unusual completeness. That is silent signal corruption on one of
+the four species in the iPSC-CM comparison, and it would have made macaque the only species whose
+mito reads were handled differently from the rest.
+
+Resolved on user decision by appending **NC_005943.1**, the RefSeq reference mitochondrial genome
+for *Macaca mulatta* (16,564 bp, 37 genes = 13 protein-coding + 22 tRNA + 2 rRNA, TaxId 9544,
+updated 2023-04-03). That is the same gene complement the chimp mitochondrion `NC_001643.1` already
+contributes, so macaque is now structurally at parity with the other primates.
+
+Done by `scripts/xspecies/add_mito_contig.py --species macaque --accession NC_005943.1`, which is
+general rather than macaque-specific, is idempotent (it refuses to append a contig already present),
+and records the change in `PROVENANCE.json` with before/after md5s of both files and the exact
+command to reproduce it.
+
+**Two caveats recorded in the provenance**, because macaque's reference is no longer a single
+unmodified NCBI download: NC_005943.1 is a separate RefSeq record rather than part of the T2T
+assembly, and it derives from a different individual than the assembly (isolate MMU2019108-1), so a
+few footprints will carry mismatches against it. At Ribo-seq read lengths and STAR's default
+mismatch tolerance that is immaterial next to having no mitochondrion at all.
+
+##### The incomplete stop codon, again, and how the GTF handles it
+
+**6 of the 13 macaque mito CDS have no stop codon in the genome.** NCBI annotates this explicitly
+with `transl_except=(pos:N,aa:TERM)` and the note "TAA stop codon is completed by the addition of
+3' A residues to the mRNA"; their CDS lengths are 1 mod 3. This is the same phenomenon that killed
+the fly build on mt:ND2 / mt:CoII / mt:ND4 / mt:ND5.
+
+The converter therefore emits a `stop_codon` only for the 7 CDS that actually have one (taking the
+final 3 bases and excluding them from the CDS feature, which is the RefSeq GTF convention), and for
+the other 6 emits the CDS whole with no stop_codon. Writing a stop codon for those would place it
+outside the transcript's exon, which is precisely the condition that makes RiboCode's
+`prepare_transcripts` die with "Can't transform the genomic interval".
+
+The script asserts every emitted codon feature lies inside its transcript's exons before it writes
+anything, and the output was validated against RiboCode in isolation first: `prepare_transcripts`
+on the mito-only FASTA and GTF accepts all 37 transcripts, including the 6 without a stop codon.
+Emitted: 37 gene, 37 transcript, 37 exon, 13 CDS, 13 start_codon, 7 stop_codon.
+
+The macaque STAR index, salmon index and RiboCode annotation were rebuilt, since the originals
+predate the mitochondrion.
+
+### F. Reference construction
+
+`scripts/xspecies/build_species_refs.sbatch`, one SLURM array task per species, five steps each with
+an idempotent skip guard so a re-run resumes: normalize -> transcriptome FASTA -> STAR index ->
+decoy-aware salmon index -> RiboCode annotation.
+
+Array index: `0 yeast, 1 celegans, 2 fly, 3 zebrafish, 4 macaque, 5 chimp, 6 gorilla`.
+Parameters come from `scripts/xspecies/species.tsv`, the single table also read by
+`riboseq_align.sbatch`, so an annotation version cannot drift between the index that was built and
+the index that gets used. `riboseq_align.sbatch` now resolves any species with a row in that table
+automatically; human and mouse keep their historical hardcoded paths, because those packs were built
+against those exact files and re-pointing them is a re-validation, not a refactor.
+
+The reference tree was renamed `genomes/primates_t2t` -> **`genomes/xspecies_refs`**, since it holds
+worm, fish, fly and yeast as well as the primates, and fly was added as symlinks to the canonical
+FlyBase copy. **Never point `archive_to_warm.sh` at `xspecies_refs/fly`**: it resolves with
+`readlink -f` and would archive and then delete the FlyBase originals.
+
+#### Two index parameters that must be per species
+
+`--sjdbOverhang` is max RNA read length minus 1, taken from the download manifest.
+`--genomeSAindexNbases` is `min(14, log2(genome_bp)/2 - 1)`; **14 is the mammalian default and is
+wrong for the small genomes**. STAR does not error on a bad value, it silently builds a worse index,
+so the registry reads both back out of `genomeParameters.txt` rather than trusting that they were
+passed.
+
+| species | genome bp | sjdbOverhang | genomeSAindexNbases |
+|---|---|---|---|
+| yeast | 12,157,105 | 132 | **10** |
+| C. elegans | 100,286,401 | 49 | **12** |
+| fly | 143,726,002 | 72 | **12** |
+| zebrafish | 1,679,203,469 | 75 | 14 |
+| macaque | 3,115,120,525 | 99 | 14 |
+| chimp | 3,177,756,316 | 74 | 14 |
+| gorilla | 3,545,850,636 | 74 | 14 |
+
+Two further STAR settings are non-default and required at this scale: `--limitGenomeGenerateRAM
+90000000000` (the 31 GB default is too low for a 3.5 Gb genome) and `--limitSjdbInsertNsj 4000000`
+(the 1e6 default is exceeded by RefSeq mammalian annotation).
+
+#### The transcriptome FASTA comes from gffread, not NCBI's `_rna.fna`
+
+NCBI's `rna_from_genomic` headers are `lcl|NC_001133.9_mrna_NM_001180043.1_1`, not bare accessions,
+so they do not join to the GTF or to tx2gene without rewriting -- a silent failure for salmon, whose
+quantification would simply not aggregate. Deriving with `gffread -w` from the **normalized** GTF
+guarantees the transcript IDs are byte-identical to the ones STAR, RiboCode and tx2gene use, and the
+build asserts that every transcriptome ID joins to `tx_to_gene.tsv` before continuing.
+`gffread` is not in the `riboseq` env; it lives in `conda_envs/{crisprware,sqanti3}`.
+
+The salmon gentrome and `decoys.txt` are **kept beside the index** this time. They were not kept for
+the human and mouse indexes, and there is no `cmd_info.json` either, so those builds cannot be
+reproduced from what is on disk.
+
+#### Verification
+
+`scripts/xspecies/build_reference_registry.py` writes `docs/SPECIES_REFERENCE_REGISTRY.md` and
+`data/species_reference_registry.tsv`, and with `--check` exits nonzero if any species fails a gate,
+so it can block the alignment phase. It checks: every artifact present and non-empty; the STAR index
+recorded the intended per-species parameters; the ncRNA drop list is above a floor (an empty one is
+the silent failure the normalizer exists to prevent); the salmon index has decoys; RiboCode kept most
+of the transcripts; and every transcriptome ID joins to tx2gene.
+
+Compute note: `--partition=gpu` with no `--gres` was used throughout. The `medium` partition was
+repeatedly backed up on fair-share priority while the gpu nodes had ~900 to 1100 idle CPUs and over a
+terabyte of free memory.
+
+#### Script inventory for this expansion
+
+| script | does | gate it enforces |
+|---|---|---|
+| `scripts/xspecies/build_run_tables.sh` | pull full ENA run tables, 18 fields incl. `fastq_md5` | warns on any run with no md5 |
+| `scripts/xspecies/select_runs.py` | apply the selection rules, write the download manifest | `--check` asserts expected per-species counts |
+| `scripts/xspecies/preflight_survey.sh` | full-depth local + archive survey before any fetch | nonzero if anything in scope already exists |
+| `scripts/xspecies/fetch_from_manifest.sh` | serial md5-verified ENA fetch | refuses a CRLF manifest; loud on empty `fastq_ftp` |
+| `scripts/xspecies/verify_and_repair.sh` | md5-check everything, refetch failures over HTTPS | nonzero if anything is still bad |
+| `scripts/xspecies/probe_adapters.sh` | per-run adapter panel + length profile | flags labels with mixed verdicts |
+| `scripts/normalize_annotation.py` | four GTF conventions -> GENCODE vocabulary + drop lists | `--selftest` exact-match vs human/mouse ground truth; hard error on any unmapped biotype term |
+| `scripts/xspecies/add_mito_contig.py` | append a mitochondrion from a separate RefSeq record | asserts every codon feature is inside its exons before writing |
+| `scripts/xspecies/build_species_refs.sbatch` | the five-step per-species reference build | per-step asserts; RiboCode transcript-ratio floor |
+| `scripts/xspecies/build_reference_registry.py` | write and verify the reference registry | `--check` blocks alignment on any failure |
+| `scripts/xspecies/species.tsv` | the single per-species parameter table | read by both the build and the aligner, so versions cannot drift |
+
+The recurring pattern is worth stating once: **every one of these fails loudly rather than producing
+a plausible empty or truncated result.** The four annotation defects, the CRLF md5 bug, the FTP
+truncations and the worm adapter were each caught by a gate, not by reading output, and every one of
+them would otherwise have produced a number that looked entirely reasonable.

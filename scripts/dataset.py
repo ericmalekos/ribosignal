@@ -209,6 +209,45 @@ class PackedStore:
         return int(self.lengths[self.row[tx]])
 
 
+_TRAIN_EXCLUDE_CACHE = None
+
+
+def train_excluded_tx():
+    """Optional TRAIN+VAL-only exclusion set. Env `RIBO_TRAIN_EXCLUDE_TX` = path to a file with one
+    versioned tx_id per line (comments '#' ok). Returns an empty set when unset.
+
+    Unlike `excluded_tx()` (chrM, dropped everywhere) and `representative_tx()` (an include-list
+    applied to every split), these tx are dropped from TRAIN and VAL but KEPT IN TEST. That is the
+    point: a transcript whose mm1 Ribo label is missing most of its reads teaches the model an
+    artifact (the GTF2I case -- a 1,617 nt CDS window reading 9% of CDS mean at mm1 and 138% at
+    mm10), so it must not be a training example, but it is exactly what the resulting model has to
+    be SCORED on. Keeping test intact also keeps the test split identical across arms, so an
+    exclusion arm and a no-exclusion arm stay directly comparable.
+
+    Val is excluded too, deliberately: checkpoint selection is on val Pearson, so leaving these tx
+    in val would make the exclusion arm select checkpoints against a different criterion and add a
+    second difference between the arms. Val metrics are therefore NOT comparable across arms; test
+    metrics are.
+    """
+    global _TRAIN_EXCLUDE_CACHE
+    if _TRAIN_EXCLUDE_CACHE is not None:
+        return _TRAIN_EXCLUDE_CACHE
+    path = os.environ.get("RIBO_TRAIN_EXCLUDE_TX", "")
+    ex = set()
+    if path:
+        pth = Path(path)
+        if not pth.exists():
+            raise FileNotFoundError(f"RIBO_TRAIN_EXCLUDE_TX={path} does not exist")
+        for line in pth.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                ex.add(line)
+        if not ex:
+            raise ValueError(f"RIBO_TRAIN_EXCLUDE_TX={path} contained no tx_ids")
+    _TRAIN_EXCLUDE_CACHE = ex
+    return ex
+
+
 def load_split(store: PackedStore, test_fold=0, val_fold=None):
     """Gene-disjoint chromosome-fold split. test = fold[test_fold], val = fold[val_fold]
     (default the next fold, cyclically), train = the remaining folds."""
@@ -219,11 +258,13 @@ def load_split(store: PackedStore, test_fold=0, val_fold=None):
         val_fold = (test_fold + 1) % k
     ex = excluded_tx()  # mitochondrial (chrM) tx -- dropped from every split
     keep = representative_tx()  # posture-B: None (all) or highest-expressed-isoform include-set
+    trex = train_excluded_tx()  # train+val only; test deliberately keeps these
     ok = lambda t: t not in ex and (keep is None or t in keep)  # noqa: E731
+    ok_tr = lambda t: ok(t) and t not in trex  # noqa: E731
     test = [t for t in store.usable(folds[test_fold]) if ok(t)]
-    val = [t for t in store.usable(folds[val_fold]) if ok(t)]
+    val = [t for t in store.usable(folds[val_fold]) if ok_tr(t)]
     train_folds = [j for j in range(k) if j not in (test_fold, val_fold)]
-    train = [t for t in store.usable([t for j in train_folds for t in folds[j]]) if ok(t)]
+    train = [t for t in store.usable([t for j in train_folds for t in folds[j]]) if ok_tr(t)]
     return train, val, test
 
 
@@ -298,17 +339,19 @@ def loto_split(holdout, train_tissues=None, min_signal=50, val_fold=0):
         train_tissues = [t for t in ALL_TISSUES if t != holdout]
     ex = excluded_tx()
     keep = representative_tx()  # posture-B include-set (None = all)
+    trex = train_excluded_tx()  # train+val only; test_tx deliberately keeps these
     d = json.loads(SPLIT.read_text())
     folds = {f["fold"]: set(f["test"]) for f in d["folds"]}
     val_chroms = folds[val_fold]
 
-    def scorable(tissue):
+    def scorable(tissue, drop_train_excluded=False):
         return {tx for tx, n in tissue_signal(tissue).items()
-                if n >= min_signal and tx not in ex and (keep is None or tx in keep)}
+                if n >= min_signal and tx not in ex and (keep is None or tx in keep)
+                and not (drop_train_excluded and tx in trex)}
 
     train, val = [], []
     for t in train_tissues:
-        sc = scorable(t)
+        sc = scorable(t, drop_train_excluded=True)
         tr = sorted(tx for tx in sc if tx not in val_chroms)
         va = sorted(tx for tx in sc if tx in val_chroms)
         train.append((t, tr))

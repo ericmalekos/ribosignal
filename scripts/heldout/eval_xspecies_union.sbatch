@@ -33,6 +33,11 @@ DEV=${DEV:-$DEVDEF}; NV=""; [ "$DEV" = cuda ] && NV="--nv"
 
 DATASETS=(mouse_gse155087_tcell mouse_wang_liver mouse_janich_liver mouse_gse120762_nt mouse_gse120762_lps)
 DS=${DATASETS[$SLURM_ARRAY_TASK_ID]:?no dataset at index $SLURM_ARRAY_TASK_ID}
+# PACKSUF appends a suffix to the PACK / heldout name so a variant eval pack can be scored with the
+# identical chain (e.g. PACKSUF=_mm10 -> packed_heldout_<DS>_mm10). The FASTA, annotation, label and
+# universe stay tied to the base DS, so the two runs are directly comparable. Empty = original.
+PACKSUF=${PACKSUF:-}
+DSPACK=${DS}${PACKSUF}
 case "$DS" in
   mouse_gse155087_tcell) FA=$REF/mouse_gse155087_tcell_universe.fa; LBL="T-cell GSE155087" ;;
   mouse_wang_liver)      FA=$REF/mouse_wang_universe.fa;            LBL="Wang liver" ;;
@@ -40,11 +45,11 @@ case "$DS" in
   mouse_gse120762_nt)    FA=$GSE/gse120762_nt_universe.fa;          LBL="GSE120762 NT" ;;
   mouse_gse120762_lps)   FA=$GSE/gse120762_lps_universe.fa;         LBL="GSE120762 LPS" ;;
 esac
-PACK=$NEW/data/packed_heldout_$DS
+PACK=$NEW/data/packed_heldout_$DSPACK
 TRACK=$PACK/orf_track_v2_nokozak.npy
-OUT=$NEW/results/heldout_xspecies/$MODEL/$DS
+OUT=$NEW/results/heldout_xspecies/$MODEL/$DSPACK
 mkdir -p "$OUT/dropin" "$NEW/logs/heldout"
-echo "xspecies MODEL=$MODEL DS=$DS dev=$DEV host=$(hostname) start=$(date -Iseconds)"
+echo "xspecies MODEL=$MODEL DS=$DS pack=$DSPACK dev=$DEV host=$(hostname) start=$(date -Iseconds)"
 [ -s "$NEW/$RUN/best.pt" ] || { echo "ABORT: missing checkpoint $RUN/best.pt"; exit 1; }
 [ -s "$TRACK" ] || { echo "ABORT: missing nokozak track $TRACK"; exit 1; }
 
@@ -53,7 +58,7 @@ echo "xspecies MODEL=$MODEL DS=$DS dev=$DEV host=$(hostname) start=$(date -Iseco
 singularity exec $NV --no-home --cleanenv --env PYTHONNOUSERSITE=1 --env OMP_NUM_THREADS=16 \
   --env RIBO_ORF_TRACK="$TRACK" --env RIBO_ONEHOT_FASTA="$FA" \
   -B "$BASE" "$SIF" \
-  python3 "$NEW/scripts/dump_pred_profiles.py" --run "$NEW/$RUN" --heldout "$DS" \
+  python3 "$NEW/scripts/dump_pred_profiles.py" --run "$NEW/$RUN" --heldout "$DSPACK" \
     --out "$OUT/dropin" --fasta "$FA" --min_signal 50 --device "$DEV"
 
 # guard: heavy skip = FASTA/pack mismatch
@@ -83,8 +88,8 @@ done
 # 4. standing-rule ORF-call metrics (20-aa primary + two-arm) -> xspecies doc
 mkdir -p "$NEW/results/orf_call_metrics"
 "$CASPY" "$NEW/scripts/heldout/orf_call_metrics.py" --run "$OUT" \
-  --label "$LBL ($MODEL xspecies)" --universe "xsp-$MODEL" \
+  --label "$LBL ($MODEL xspecies${PACKSUF:+ $PACKSUF})" --universe "xsp-$MODEL${PACKSUF}" \
   --poisson-sweep "$SW" --cds-recall 0.90 \
-  --out-json "$NEW/results/orf_call_metrics/xsp_${MODEL}_${DS}.json" \
+  --out-json "$NEW/results/orf_call_metrics/xsp_${MODEL}_${DSPACK}.json" \
   --append-md "$NEW/docs/manuscript_xspecies_union.md"
 echo "xspecies done MODEL=$MODEL DS=$DS $(date -Iseconds)"

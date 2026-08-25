@@ -266,3 +266,25 @@ _Length sweep_ (standalone theta=1; predicted+observed calls both restricted to 
 | 20 | 7,079/7,737 | 0.967 | 0.754/0.492/0.595 | 0.631/0.592/0.611 | 0.209/0.102/0.137 | 0.619/0.400/0.486 |
 | 30 | 6,780/7,252 | 0.967 | 0.743/0.500/0.598 | 0.680/0.630/0.654 | 0.256/0.112/0.156 | 0.618/0.408/0.491 |
 | 40 | 6,563/6,877 | 0.967 | 0.707/0.537/0.610 | 0.678/0.672/0.675 | 0.250/0.107/0.150 | 0.609/0.428/0.503 |
+
+### Janich liver (mamba4_union xspecies _mm10)  (xsp-mamba4_union_mm10 universe)
+- run: `/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/heldout_xspecies/mamba4_union/mouse_janich_liver_mm10`
+- **primary floor = ORFs >= 20 aa** (headline tables); sweep below spans full range.
+- reference = observed Hepatocytes calls (>= 20 aa): 7,737 (CDS 6,154, uORF 616, novel 338, dORF 226)
+
+| arm | CDS P/R/F1 | uORF P/R | novel P/R | dORF P/R | non-canon F1 |
+|---|---|---|---|---|---|
+| pred_obsdepth (shape @ real depth) | 0.984/0.990/0.987 | 0.709/0.722 | 0.629/0.651 | 0.285/0.270 | 0.573 |
+| pred_preddepth (standalone theta=1) | 0.973/0.964/0.969 | 0.767/0.390 | 0.603/0.571 | 0.357/0.088 | 0.447 |
+- standalone theta=1 over-call: total 6,954 calls vs 7,737 real (all 0.899x; novel 0.947x, dORF 0.248x)
+| Poisson CDS-anchored (th=0.1, CDSrec 0.90) | 0.973/0.898/0.934 | 0.750/0.044 | 0.664/0.299 | 0.900/0.040 | 0.171 |
+
+_Length sweep_ (standalone theta=1; predicted+observed calls both restricted to ORFs >= min_aa; P/R/F1). CDS length-invariant (ref); tiny-ORF tail is uORF-heavy:
+| min_aa | n_pred/n_real | CDS F1 | uORF P/R/F1 | novel P/R/F1 | dORF P/R/F1 | non-canon P/R/F1 |
+|---|---|---|---|---|---|---|
+| 5 | 7,438/8,675 | 0.969 | 0.726/0.348/0.470 | 0.545/0.519/0.532 | 0.311/0.087/0.137 | 0.614/0.327/0.426 |
+| 10 | 7,285/8,410 | 0.969 | 0.762/0.362/0.491 | 0.569/0.520/0.543 | 0.319/0.089/0.140 | 0.634/0.334/0.437 |
+| 15 | 7,132/8,082 | 0.969 | 0.771/0.383/0.511 | 0.584/0.540/0.561 | 0.328/0.090/0.141 | 0.640/0.343/0.447 |
+| 20 | 6,954/7,737 | 0.969 | 0.767/0.390/0.517 | 0.603/0.571/0.587 | 0.357/0.088/0.142 | 0.636/0.344/0.447 |
+| 30 | 6,714/7,252 | 0.969 | 0.750/0.402/0.523 | 0.645/0.605/0.624 | 0.439/0.096/0.157 | 0.636/0.358/0.458 |
+| 40 | 6,536/6,877 | 0.969 | 0.726/0.423/0.534 | 0.644/0.647/0.645 | 0.481/0.099/0.165 | 0.627/0.383/0.476 |

@@ -90,3 +90,31 @@ The sound per-tissue values now live at `data/tpm/chothani_alnmode/<tissue>_mean
 GTF2I summary at `data/tpm/chothani_alnmode/GTF2I_per_tissue.json`. **The figures themselves remain
 valid** -- their point is that Ribo-seq cannot discriminate isoforms, which the new data confirms
 rather than contradicts. Only the RNA axis should be re-read against the new tables.
+
+## `X_gtf2i_inputswap.png` / `.pdf` (2026-08-24)
+
+`make_gtf2i_inputswap.py`. Seven stacked rows over `ENST00000901263.1`, all sharing the x-axis.
+**Input-swap, NOT a retrain**: within each model the weights are identical between its two rows;
+only `RIBO_PACK_SUFFIX` differs, which changes which pack supplies the coverage channel.
+
+| row | quantity | data file |
+|---|---|---|
+| 1 | RNA coverage input, mm1 | `data/packed_union_Hepatocytes/coverage.npy` |
+| 2 | RNA coverage input, mm10 | `data/packed_mm10cov_Hepatocytes/coverage.npy` |
+| 3 | attn prediction given mm1 cov | `data/mm25_diagnostic/gtf2i_inference/attn_dump_union/pred_profiles.npz` |
+| 4 | attn prediction given mm10 cov | `.../attn_dump_mm10cov/pred_profiles.npz` |
+| 5 | mamba4 prediction given mm1 cov | `.../mamba4_dump_union/pred_profiles.npz` |
+| 6 | mamba4 prediction given mm10 cov | `.../mamba4_dump_mm10cov/pred_profiles.npz` |
+| 7 | observed Ribo-seq target | `data/packed_union_Hepatocytes/target_counts.npy` |
+
+Rows 1, 2 and 7 come from the packs directly, i.e. the arrays the model actually consumes, not from
+the raw BAM-level `hep_rna_mm/gtf2i/*.cov.tsv` used by `X_gtf2i_rna_postures`. They agree exactly
+(8.9% and 138.3% of CDS mean), which is an independent check that the coverage rebuild survived
+BAM -> per-library hd5 -> pooling -> pack.
+
+Models: `orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes` and the mamba4
+equivalent. Both are mm1-TRAINED; neither has seen mm10 coverage in training.
+Values + provenance: `X_gtf2i_inputswap_values.json` (`model`: ["attn","mamba4"]).
+Dumps produced by `scripts/gtf2i_inference_swap.sbatch` (mamba4, GPU: mamba_ssm is CUDA-only) and
+`data/mm25_diagnostic/gtf2i_inference/run_attn_dumps.sh` (attn, CPU), both over
+`gtf2i_tx.txt` (35 GTF2I tx), n_skip = 0 in all four dumps.

@@ -171,12 +171,27 @@ def main():
         return 2
     name = sys.argv[1]
     cfg = DATASETS[name]
+    # RIBO_COVERAGE_DIR / RIBO_PACK_OUT_SUFFIX let a variant coverage posture (e.g. mm10) be packed
+    # WITHOUT editing DATASETS and without clobbering the existing pack. Both default to unset, so
+    # every existing caller is byte-for-byte unchanged.
+    import os as _os
+    _cov = _os.environ.get("RIBO_COVERAGE_DIR", "")
+    if _cov:
+        cfg = dict(cfg)
+        cfg["coverage_dir"] = Path(_cov)
+        print(f"RIBO_COVERAGE_DIR override -> {_cov}", file=sys.stderr)
+        if not Path(_cov).is_dir():
+            sys.exit(f"RIBO_COVERAGE_DIR={_cov} is not a directory")
     psites_files = sorted(cfg["psites_dir"].glob("*_psites.hd5")) if cfg.get("psites_dir") else []
     cov_files = sorted(cfg["coverage_dir"].glob("*_coverage.hd5"))
     if not cfg.get("coverage_only"):
         assert psites_files, f"no *_psites.hd5 in {cfg['psites_dir']}"
     assert cov_files, f"no *_coverage.hd5 in {cfg['coverage_dir']}"
-    out_dir = NEW / "data" / f"packed_heldout_{name}"
+    _suf = _os.environ.get("RIBO_PACK_OUT_SUFFIX", "")
+    out_dir = NEW / "data" / f"packed_heldout_{name}{_suf}"
+    if _suf:
+        print(f"RIBO_PACK_OUT_SUFFIX -> {out_dir.name} (existing pack kept)",
+              file=sys.stderr)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # ---- universe ----------------------------------------------------------------------

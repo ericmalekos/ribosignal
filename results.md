@@ -4552,3 +4552,398 @@ per read from the transcriptome BAM downstream.
 Rebuild the coverage channel at mm10 for the whole training set (74 Ribo + ~57 RNA libraries), then
 revisit exclusion. Isoform-redundancy collapse recorded in `docs/PENDING_FOLLOWUPS.md`
 (72% of training nucleotides are near-duplicate isoform copies; 602 genes consume 16% of gradient).
+
+## mm10 RNA coverage packs: built and verified; retrain arms A and B launched (2026-08-23)
+
+Design, prediction and success criteria are in methods.md ("mm10 RNA coverage: two retrain arms").
+Written before the runs so the interpretation is not retrofitted. This entry records what LANDED.
+
+### The RNA re-alignment
+
+57 Chothani RNA libraries re-aligned at `--outFilterMultimapNmax 10`
+(`scripts/rebuild_coverage_mm10.sbatch`, job 36859009). **57/57 COMPLETED**, no failures. 213.6 GB
+of per-library coverage hd5, all 57 with a valid HDF5 signature, none under 1 MB.
+
+**Mean RNA multimap rate across the 57 libraries: 3.8%.** This is the number that sets expectations
+for arm A. Compare the Ribo side, where mm1 discards 31.6% of records (`bamlib.multimap_cost`,
+cross-checked against STAR's own 36.2%). So the RNA input change is small in aggregate and
+concentrated at specific loci. An arm-A result that barely moves val Pearson is the expected
+outcome, not evidence the fix failed -- which is exactly why the GTF2I locus check is registered as
+a separate criterion rather than folded into the headline metric.
+
+### The packs
+
+`scripts/rebuild_packs_mm10cov.sbatch` via `prepare_pack.py --reuse-target`, 8 packs, **8/8
+COMPLETED**. Every pack passes all three contract checks (`scripts/verify_mm10cov_packs.py`,
+values at `data/packed_mm10cov/verify_mm10cov_packs.json`):
+
+| tissue | target vs packed_union | coverage | GTF2I gap as % of CDS mean |
+|---|---|---|---|
+| Fibroblast | byte-identical | differs | 130.8% |
+| ES | byte-identical | differs | 125.1% |
+| Fat | byte-identical | differs | 131.7% |
+| HA_EC | byte-identical | differs | 125.1% |
+| HCAEC | byte-identical | differs | 130.0% |
+| Hepatocytes | byte-identical | differs | **138.3%** |
+| HUVEC | byte-identical | differs | 123.0% |
+| VSMC | byte-identical | differs | 127.7% |
+
+At mm1 that window read **8.9%** of CDS mean.
+
+**The Hepatocytes row is the cross-check, not just another row.** 138.3% reproduces the
+BAM-level posture analysis exactly (`figures/X_gtf2i_isoforms/X_gtf2i_rna_postures_values.json`,
+computed independently from `data/mm25_diagnostic/hep_rna_mm/gtf2i/*.cov.tsv`), and Hepatocytes is
+the tissue that analysis was run on. Agreement to the decimal means the change survived
+BAM -> per-library coverage -> pooling -> pack rather than merely altering some bytes. The other
+seven tissues sit at 123-132%, i.e. different libraries, same qualitative recovery.
+
+Byte-identity of `target_counts.npy` is asserted twice independently: by `cmp` inside each pack job
+(which exits 3 and fails the job otherwise) and again by md5 in the verify script.
+
+### Two arms launched
+
+Both mamba4, one-hot, union universe, `--kozak none`, noBrain, holdout Hepatocytes, seed 0.
+Identical to the standing baseline
+`results/loto/orf_v2_mamba4_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes`
+(best val Pearson **0.6190** @ epoch 23) except for what each arm names.
+
+- **arm A** job 36859441 -- mm10 coverage, full training set. Isolates the input fix.
+- **arm B** job 36859442 -- mm10 coverage, 7,640 multimap-corrupted tx dropped from train+val,
+  kept in test. Isolates the label fix on top of A.
+
+Split sizes measured before launch: train 420,348 -> 387,959 (tissue, tx) pairs (-7.71%),
+val 45,102 -> 41,295 (-8.44%), **test 70,883 -> 70,883 (unchanged)**. The unchanged test split is
+what makes all three arms comparable; val is deliberately not comparable between A and B.
+
+### Two gotchas worth keeping
+
+**`prepare/` scripts hardcode an interpreter that cannot run them.** The first pack submission
+failed all 8 tasks instantly on `ModuleNotFoundError: h5py`. `scripts/prepare/rebuild_coverage_mm1.sbatch`
+hardcodes `conda_envs/cas12a/bin/python3`, which has torch and numpy but **no h5py**; `packlib.py`
+imports h5py at module scope. The env that works is `conda_envs/riboseq` (h5py 3.16, numpy 2.5,
+**no torch**). Neither env can run both the pack tools and `dataset.py` -- anything touching torch
+needs the orthrus SIF. Nothing partial was written, so there was nothing to clean up, but the
+hardcoded path in `rebuild_coverage_mm1.sbatch` is still live and will fail the same way.
+
+**Several `packed_union*/provenance.json` are reconstructed records with `inputs_known: false`.**
+Those packs predate provenance recording and their source hd5 are partly deleted; the file
+deliberately refuses to guess input paths. `--reuse-target` copies those bytes forward, so all
+three arms share one fixed inherited Ribo target. The asserts prove the target did not change
+BETWEEN arms; they do not prove it is reproducible from source. Known and accepted for this
+comparison, and the reason the file says so instead of fabricating provenance.
+
+### Seed-noise floor for this recipe, and what it means for reading A vs B (2026-08-23)
+
+Measured from the three existing baseline seeds
+(`orf_v2_mamba4_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes{,_seed1,_seed2}`), all on the
+identical Hepatocytes test set (n=70,883 in all three, which independently confirms the test split
+is stable across runs).
+
+| metric | seed0 | seed1 | seed2 | range | sd |
+|---|---|---|---|---|---|
+| test pearson_median | 0.6851 | 0.6753 | 0.6794 | 0.0098 | 0.0049 |
+| test frame0_pred_median | 0.8196 | 0.8206 | 0.8193 | **0.0013** | **0.0007** |
+| test period_pred_median | 0.2632 | 0.2977 | 0.2843 | 0.0345 | 0.0174 |
+| best val pearson | 0.6190 | 0.6046 | 0.6107 | 0.0144 | 0.0072 |
+
+**Decision rule for A vs B, fixed before the results land.** A difference in test
+`pearson_median` below ~0.010 is seed noise. `frame0_pred_median` is the sensitive discriminator:
+its seed spread is 0.0013, an order of magnitude tighter than pearson's, so it resolves effects
+pearson cannot. `period_pred_median` is the noisiest and should not carry a conclusion alone.
+
+**Why this matters more than usual here.** `--max_tx_per_tissue 6000` caps both arms at 42,000
+training tx, so the exclusion does not shrink the training set -- it changes its composition:
+
+| | train tx | of which multimap-corrupted |
+|---|---|---|
+| arm A | 42,000 | **3,154** (7.51%) |
+| arm B | 42,000 | **0** |
+
+Holding n identical removes a training-set-size confound, which is better than the design
+intended. But `rng.choice` draws from different-sized pools, so the two arms receive essentially
+INDEPENDENT random samples: per-tissue overlap is 4,111 of 42,000 (9.8%), which is exactly the
+~4,200 expected by chance. So B differs from A by the exclusion PLUS an independent sampling draw,
+and single-seed A-vs-B differences inside the noise floor above cannot be attributed to the
+exclusion. If the observed gap lands near that floor, seeds 1 and 2 of both arms are required
+before any conclusion.
+
+Val Pearson is NOT usable for A vs B at all, independent of noise: arm B's val set has the
+corrupted-label tx removed, so it is a strictly easier val set and B's val number is inflated by
+construction. Test is the only comparable metric.
+
+## INPUT-SWAP TEST: the mm1 model was reading a corrupted input, not memorising (2026-08-23)
+
+Answers the memorisation question directly, with no retraining, in about a minute of CPU. Take the
+EXISTING mm1-trained model, change nothing about its weights, and run it twice over the 35 GTF2I
+transcripts with only `RIBO_PACK_SUFFIX` differing (union = mm1 coverage, mm10cov = mm10 coverage).
+
+Model: `orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes`.
+Transcript: GTF2I `ENST00000901263.1`. Gap 1682:3299 (1,617 nt), CDS 451:3324.
+Values: `data/mm25_diagnostic/gtf2i_inference/gtf2i_inputswap_attn.json`. n_skip = 0 on both dumps.
+
+| region | nt | pred share, mm1 cov | pred share, mm10 cov | observed P-sites (mm1) |
+|---|---|---|---|---|
+| **gap 1682:3299** | 1,617 | **0.1%** | **59.0%** | 1 |
+| CDS outside gap | 1,256 | 92.2% | 38.4% | 12,028 |
+| whole CDS | 2,873 | 92.4% | 97.4% | 12,029 |
+| UTRs / outside CDS | 2,305 | 7.6% | 2.6% | 1,229 |
+
+As a fraction of predicted CDS density the gap goes from **0.2%** to **107.7%** of CDS mean, against
+an RNA input that goes from 8.9% to 138.3%.
+
+**The mass MOVED, it did not rescale.** The profile head is a log-softmax over positions, so each
+column sums to 100% and the columns are directly comparable. CDS-outside-gap falls 92.2% -> 38.4%
+while the gap rises 0.1% -> 59.0%. The gap is 56% of CDS length, so 59.0% is very close to what a
+uniform CDS would put there: the model goes from "CDS with a hole" to "CDS".
+
+### What this settles, and what it does not
+
+**Settles: there is no memorisation here.** The model reads its RNA coverage channel. The blank CDS
+region on the poster was the model faithfully reporting a corrupted input. This is the second and
+now decisive piece of evidence against the memorisation reading (the first was that mm1 coverage in
+that window is 9% of CDS mean while mm10/mm25/best-only all give 138%).
+
+**Settles: the fix works at INFERENCE time.** No retraining is required to get correct behaviour on
+this locus. The deployed mm1-trained model, handed mm10 coverage, already fills the CDS.
+
+**Consequence for the retrain arms.** The motivating argument for arm A was that the model had
+memorised and needed retraining on corrected input. That argument is now dead. Arm A is reduced to
+the narrower question of whether TRAINING on corrected coverage helps in aggregate -- and it carries
+a specific known risk, since it trains 3,154 transcripts whose input now says "abundant RNA" against
+an mm1 label that still says "zero ribosomes". Arm B, which removes exactly those contradictory
+examples, keeps its full motivation. **The practical fix for deployment may be a coverage swap at
+inference rather than a retrain at all.** Both arms are still running and will be reported.
+
+**Does not settle: how often this matters.** One transcript shows the mechanism, not its frequency.
+The generalisation is the same swap across all 7,640 high-multimap transcripts.
+
+**Does not settle: whether the model is right.** Under mm10 coverage the model predicts translation
+across a window where mm1 Ribo-seq sees 1 P-site of 13,258. The model is more correct than the
+measurement only if the mm10 RNA there is genuine. mm10, mm25 and best-alignment-only agreeing
+exactly (565.91/nt, 138.3% of CDS) supports that, but no orthogonal assay confirms it.
+
+### Two bugs found and fixed on the way
+
+**`--tx_list` was silently ignored on the LOTO path.** It was honoured only under `--heldout`; a
+LOTO run took the `cfg["holdout"]` branch and dumped all 70,883 test tx regardless. The only symptom
+is a dump much larger than requested, which is easy to miss. Fixed in `dump_pred_profiles.py` (now
+restricts on both paths and hard-errors if the list matches nothing); backup at
+`dump_pred_profiles.py.bak.2026-08-23`. Restricted dump: 35 tx in 35 s instead of hours.
+
+**The documented `pgrep` workaround is incomplete.** CLAUDE.md says to avoid `pkill -f` by using
+`pgrep -x <binary>` and filtering on `/proc/<pid>/cmdline`. That is still not enough: the filtering
+loop's own shell is a `bash` process whose cmdline CONTAINS the pattern, so `pgrep -x bash` plus a
+cmdline grep kills the shell issuing it (exit 144, observed twice today). The loop must also skip
+`$$` (and `$PPID`).
+
+### How far the input-swap effect generalises: 8.5x specific, but bounded to ~1.2% of tx (2026-08-23)
+
+Same mm1-trained attn model, mm1 vs mm10 coverage, over 5,653 HIGH-multimap test tx
+(frac_discarded > 0.5) and 5,653 LOW-multimap controls (< 0.10) from the same Hepatocytes test set.
+16 CPU shards (job 36859485, 16/16 COMPLETED), 0 skipped in either dump, 11,306 tx scored in both.
+`moved` = total variation distance between the two predicted profiles = fraction of predicted mass
+that relocated. Values: `data/mm25_diagnostic/gtf2i_inference/swap_generalize_values.json`.
+
+| group | n | moved median | moved p90 | >25% moved | d_obs median |
+|---|---|---|---|---|---|
+| high-multimap | 5,653 | **0.046** | 0.363 | **14.8%** | -0.0009 |
+| low-multimap control | 5,653 | **0.005** | 0.017 | **0.0%** | -0.0003 |
+
+**The effect is real and specific: 8.5x on the median, and 14.8% vs 0.0% at the >25% threshold.**
+The control group is what licenses that claim -- mm10 changes coverage everywhere, so without it
+"predictions moved" would be uninterpretable.
+
+**But it is bounded, and the median oversells nothing while the specificity ratio could.** Half of
+high-multimap transcripts barely move at all. The effect lives in a tail:
+
+| moved bucket | n | % of high | d_obs median | observed P-sites (median) |
+|---|---|---|---|---|
+| < 0.05 | 2,921 | 51.7% | -0.0003 | 4,906 |
+| 0.05 - 0.25 | 1,898 | 33.6% | -0.0019 | 2,090 |
+| 0.25 - 0.50 | 491 | 8.7% | -0.0316 | 660 |
+| **>= 0.50** | **343** | **6.1%** | **-0.2371** | **239** |
+
+Substantially changed (moved >= 0.25): **834 tx = 14.8% of high-multimap, 1.18% of the 70,883 test
+set.** GTF2I `ENST00000901263.1` (moved 0.59) sits in the top bucket, so it is a real phenomenon
+but an extreme example, not a typical one.
+
+**The last column is the internal consistency check, and it is the strongest part of this result.**
+The transcripts whose predictions move most are the ones with the FEWEST observed P-sites: 239 at
+the top bucket versus 4,906 at the bottom, monotone across all four. That is exactly the signature
+predicted by the mechanism -- mm1 discards the reads, so the same transcripts end up with both an
+artifactually flat RNA input AND an artifactually empty Ribo label. Nothing in the analysis was
+tuned to produce that ordering; it falls out of a grouping defined purely by RNA multimap cost.
+
+`d_obs` (Pearson-vs-observed under mm10 minus under mm1) tracks the same gradient, reaching -0.237
+in the top bucket. **Negative is the expected and desired direction here**: the observed target is
+mm1 Ribo-seq, holed at these very loci, so a model that stops reproducing the hole must agree less
+with the holed measurement. Read without the dose-response and the control arm, that number would
+look like mm10 coverage degrading the model, which is the opposite of what it shows.
+
+The five most-changed transcripts include `ENST00000886713/14/15.1`, consecutive accessions, i.e. a
+paralog family -- consistent with multimapping being the cause.
+
+### What this means for the retrain arms
+
+The aggregate effect of the coverage fix is small by construction: ~1.2% of test transcripts change
+substantially, and they are the LOW-count ones. So arm A should be expected to move aggregate test
+metrics very little, and a null result there is not evidence the fix failed. The value of the fix is
+concentrated in a specific, identifiable minority -- disproportionately low-depth transcripts, which
+is where non-canonical ORF calls live and where the project's interest actually is.
+
+### A performance bug worth recording
+
+`analyze_swap_generalize.py` first ran for 30 minutes with no output. Cause: `np.load` on a
+compressed `.npz` returns a LAZY handle, and the per-transcript loop indexed `z["pred_flat"][a:b]`
+directly, which re-decompresses the ENTIRE array on every access (~1,400x per shard). Hoisting
+`pf = z["pred_flat"]` out of the loop cut it to under a minute. Any loop over a `savez_compressed`
+archive must materialise the arrays once, outside the loop.
+
+### mamba4 replicates the input swap: the result is architecture-independent (2026-08-24)
+
+The swap was first run on attn (the poster's architecture). Repeating it on mamba4 (the architecture
+of retrain arms A and B, and the `FIG_MODEL` default) gives the same answer, so the conclusion does
+not rest on one mixer. GTF2I `ENST00000901263.1`, gap as % of predicted CDS mean, identical weights
+in each row, only `RIBO_PACK_SUFFIX` differing. n_skip = 0 on all four dumps.
+
+| model | mm1 coverage | mm10 coverage | RNA input for reference |
+|---|---|---|---|
+| attn | 0.2% | **107.7%** | 8.9% -> 138.3% |
+| mamba4 | 0.2% | **90.1%** | 8.9% -> 138.3% |
+
+Both start from an essentially empty gap and fill it when handed honest coverage. mamba4 fills
+somewhat less than attn (90.1% vs 107.7%) and both undershoot the RNA input's 138.3%, which is the
+expected direction: the models are not simply echoing the coverage channel, they are combining it
+with the sequence and ORF tracks.
+
+Values: `data/mm25_diagnostic/gtf2i_inference/gtf2i_inputswap_{attn,mamba4}.json`.
+mamba_ssm is CUDA-only (`causal_conv1d_fwd` asserts `x.is_cuda`), so the mamba arm needs a GPU even
+for 35 transcripts; attn runs fine on CPU.
+
+## Arm B ORF-call result: the exclusion HURTS non-canonical calling (2026-08-24)
+
+Standing-rule evaluation via `scripts/eval_mm10cov_arms.sh` -> `eval_union.sbatch`
+(job 36867212, COMPLETED). Dump guard passed cleanly: 70,883 tx, **0 skipped**. Reference call sets
+byte-for-byte identical to the baseline's (n_ref all=17,284, annotated=13,223, uORF=1,977,
+novel=827, dORF=179), which is the precondition for comparing at all.
+Metrics: `results/orf_call_metrics/orf_v2_mamba4_onehot_union_noBrain_nokozak_mm10cov_armB.json`.
+
+### Deterministic theta=1 arm (the clean comparison)
+
+| class | baseline P | armB P | dP | baseline F1 | armB F1 | dF1 |
+|---|---|---|---|---|---|---|
+| annotated | 0.9125 | 0.9155 | **+0.0030** | 0.9206 | 0.9244 | +0.0038 |
+| uORF | 0.5898 | 0.5243 | **-0.0655** | 0.6619 | 0.6305 | -0.0314 |
+| novel | 0.3973 | 0.3454 | **-0.0519** | 0.5245 | 0.4819 | -0.0426 |
+| dORF | 0.1564 | 0.1095 | -0.0469 | 0.2243 | 0.1798 | -0.0445 |
+| **non-canonical** | **0.4970** | **0.4251** | **-0.0719** | 0.5700 | 0.5270 | -0.0430 |
+
+Annotated CDS calling is unchanged (+0.003). EVERY non-canonical class got worse.
+
+### The prediction registered in methods.md was WRONG
+
+methods.md predicted "B improves on baseline, A is uncertain and could regress". Arm B regressed,
+and on the metric this project exists to optimise. Recording that explicitly so the pre-registration
+is not quietly reinterpreted after the fact.
+
+**The likely mechanism, which was foreseeable.** The 7,640 excluded tx (3,154 of them actually drawn
+into arm B's 42,000-tx training sample) are disproportionately lncRNA and low-depth -- the earlier
+bucket analysis showed the most multimap-affected tx have a median of 239 observed P-sites vs 4,906
+for the least affected, and the 90-100%-lost bucket is 35.1% lncRNA. That is precisely the
+population where non-canonical ORFs live. The exclusion did not merely remove corrupted labels, it
+removed the model's exposure to the class it most needs to call. Arm B's better frame-0 and
+periodicity (test frame0 +0.0054, period +0.0448) bought nothing in ORF calls.
+
+### Do NOT read the Poisson arm as a win
+
+The Poisson arm shows F1 UP for uORF (+0.0386), novel (+0.0245) and non-canonical (+0.0265) while
+precision is still down. That is largely an operating-point artifact: the CDS-anchored sweep targets
+0.90 CDS recall, baseline achieved **0.9007** and armB achieved **0.9183**. armB is being scored at
+a higher CDS recall, which trades precision for recall by construction. The two models are not at
+the same operating point, so the Poisson F1 deltas are not attributable to the model. The
+deterministic theta=1 arm has no such anchoring and is the honest comparison.
+
+(This is a general trap in the two-arm protocol: the Poisson arm is only comparable between models
+when the ACHIEVED cds_recall matches, not merely when the TARGET does. Report the achieved value
+alongside any Poisson comparison.)
+
+### Where this leaves the mm10 work
+
+- The coverage fix WORKS AT INFERENCE (input-swap, proven, architecture-independent).
+- Arm B is a net negative for non-canonical calling and should not be adopted.
+- Arm A's original rationale (memorisation) was already dead; it is still training.
+- Current best reading: **deploy the existing mm1-trained model with mm10 coverage** rather than
+  retrain. That is also the cheapest option.
+
+## mm10 coverage: FINAL VERDICT -- deploy at inference, do NOT retrain (2026-08-24)
+
+All four arms of the mm10 experiment have landed. The question posed on 2026-08-23 ("does correcting
+the multimap-corrupted RNA coverage channel improve the model?") is closed.
+
+### The four results
+
+| intervention | outcome |
+|---|---|
+| mm10 coverage at **INFERENCE**, existing mm1-trained weights | **WORKS** -- GTF2I gap 0.2% -> 107.7% (attn) / 90.1% (mamba4) of CDS mean |
+| **arm A**: retrain on mm10 coverage | **no effect**, aggregate or ORF-level |
+| **arm B**: retrain + drop 7,640 multimap-corrupted tx | **HARMFUL** -- non-canonical precision -0.0719 |
+| mm10 on the **EVAL** set (Janich held-out, +70.6% coverage) | calls barely move |
+
+### Arm A, test metrics (n=70,883, identical across arms)
+
+| metric | baseline mean | armA | A-base | seed floor | verdict |
+|---|---|---|---|---|---|
+| pearson_median | 0.6799 | 0.6835 | +0.0036 | 0.0098 | within noise |
+| frame0_pred_median | 0.8199 | 0.8212 | +0.0014 | 0.0013 | marginal (1.1x floor) |
+| period_pred_median | 0.2817 | 0.2560 | -0.0257 | 0.0345 | within noise |
+
+Arm A trained 30 epochs (17 h 25 m), best val 0.6155 @ e20.
+
+### Arm A, ORF calls -- deterministic theta=1 precision (dump 0 skipped, n_ref 17,284 all three)
+
+| class | baseline | **armA** | armB | A-base | B-base |
+|---|---|---|---|---|---|
+| annotated | 0.9125 | 0.9112 | 0.9155 | **-0.0013** | +0.0030 |
+| uORF | 0.5898 | 0.5976 | 0.5243 | **+0.0078** | -0.0655 |
+| novel | 0.3973 | 0.3961 | 0.3454 | **-0.0012** | -0.0519 |
+| dORF | 0.1564 | 0.1546 | 0.1095 | **-0.0018** | -0.0469 |
+| **non-canonical** | 0.4970 | 0.5003 | 0.4251 | **+0.0033** | **-0.0719** |
+
+Arm A is indistinguishable from baseline on every class. Unlike arm B -- whose ORF result
+contradicted its test metrics -- arm A's ORF and aggregate results agree, so no third surprise.
+
+Poisson achieved cds_recall: baseline 0.9007, armA 0.8940, armB 0.9183. armA's is close enough to
+baseline that its Poisson arm is roughly comparable; armB's is not (see
+[[feedback_two_arm_orf_calling]]).
+
+### Why all four rows are consistent
+
+**The profile head is a log-softmax over positions -- scale-free by construction.** A broadly uniform
+coverage increase is a SCALE change, which normalises away. Only LOCAL SHAPE distortions propagate.
+That single mechanism explains every row:
+
+- GTF2I moved because its corruption was a local shape defect (a 1,617 nt hole), not a scale change.
+- Arm A gained nothing because training on globally-rescaled coverage teaches nothing new -- only
+  ~1.2% of test tx move substantially, and those carry few counts (top multimap bucket median 239
+  observed P-sites vs 4,906 for the least affected).
+- Janich's +70.6% coverage barely moved its calls for the same reason: mostly scale, little shape.
+- Arm B lost non-canonical precision because dropping the 7,640 tx removed the model's exposure to
+  the lncRNA/low-depth population where non-canonical ORFs live -- a training-set defect, unrelated
+  to coverage.
+
+### Recommendation
+
+**Deploy the existing mm1-trained model with mm10 RNA coverage. Do not retrain, do not adopt the
+exclusion.** The inference-time swap is the only intervention that demonstrably fixes the
+GTF2I-class failure, and it costs nothing. Both retrains are dead ends and are recorded as such.
+
+The mm10 packs (`data/packed_mm10cov*`, 8/8 verified target-byte-identical) and the mm10 coverage
+hd5 are KEPT -- they are the deployment input, not a training artifact.
+
+### Cost of being wrong about this, had it not been checked
+
+The pre-registered prediction in methods.md said "B improves, A is uncertain and could regress."
+**B regressed and A was flat -- the prediction was wrong in both directions.** Recording that
+explicitly rather than reinterpreting it after the fact. The generalisation analysis (1.18% of tx
+substantially changed) was the part that turned out predictive; the mechanistic story about
+contradictory training labels was not.

@@ -112,6 +112,17 @@ def main():
         _, _, _, test_ids = loto_split(
             tissue, train_tissues=cfg.get("resolved_train_tissues"),
             min_signal=cfg.get("min_train_signal", 50), val_fold=cfg.get("val_fold", 0))
+        if args.tx_list:
+            # --tx_list used to be honoured ONLY on the --heldout path, so passing it to a LOTO run
+            # was silently ignored and the full test set got dumped instead. Silent, because the
+            # only symptom is a much larger dump than asked for. Restrict here too.
+            wl = {t for t in Path(args.tx_list).read_text().split() if t}
+            keep = [t for t in test_ids if t in wl]
+            print(f"tx_list: {len(wl)} requested -> {len(keep)} of {len(test_ids)} test tx kept",
+                  file=sys.stderr)
+            if not keep:
+                sys.exit(f"--tx_list {args.tx_list} matched none of the {len(test_ids)} test tx")
+            test_ids = keep
     else:
         tissue = "Fibroblast"
         store = PackedStore(tx_index=BACKENDS[backend])
