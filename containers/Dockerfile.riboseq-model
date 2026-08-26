@@ -1,0 +1,63 @@
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+
+LABEL org.opencontainers.image.title="riboseq-model"
+LABEL org.opencontainers.image.description="Single environment for the ENTIRE riboseq_signal_model chain: STAR/salmon/samtools/cutadapt, RiboCode, pack build, train, predict, eval, for BOTH transformer and mamba mixers."
+
+# See containers/riboseq-model.def for the full rationale. Summary: the four environments this
+# replaces each had a disqualifying gap (no torch / no h5py / no mamba_ssm / no pysam), which caused
+# scripts to die on import. Pins are a UNIT -- python3.10 + torch 2.2.0+cu118 + the two PREBUILT
+# mamba wheels below, whose ABI tag matches that exact combination.
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git wget ca-certificates build-essential \
+        zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev libssl-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/mf.sh && \
+    bash /tmp/mf.sh -b -p /opt/conda && rm /tmp/mf.sh
+ENV PATH="/opt/conda/bin:$PATH"
+
+RUN mamba create -n rsm -c conda-forge -y python=3.10 "numpy<2" "setuptools<70" pip cython && \
+    mamba clean -afy
+
+# torch FIRST -- the mamba wheels are built against this exact version
+RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir \
+        torch==2.2.0 --index-url https://download.pytorch.org/whl/cu118
+
+# PREBUILT mamba kernels (never from source: source builds are the usual "undefined symbol" cause)
+RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir \
+        "https://github.com/Dao-AILab/causal-conv1d/releases/download/v1.2.0.post2/causal_conv1d-1.2.0.post2+cu118torch2.2cxx11abiFALSE-cp310-cp310-linux_x86_64.whl" \
+        "https://github.com/state-spaces/mamba/releases/download/v1.2.0.post1/mamba_ssm-1.2.0.post1+cu118torch2.2cxx11abiFALSE-cp310-cp310-linux_x86_64.whl"
+
+RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir \
+        "scipy==1.15.3" "pandas==2.3.3" "h5py==3.16.0" "pysam==0.22.1" \
+        "scikit-learn==1.5.2" "matplotlib==3.9.2" "einops==0.8.2" "pyfaidx==0.8.1.3"
+
+# Alignment / quant / BAM tools, pinned to what conda_envs/riboseq runs today so a container run and
+# a legacy conda run produce identical output. bioconda channel order matters: bioconda first, then
+# conda-forge, or salmon resolves against the wrong libstdc++.
+RUN mamba install -n rsm -y -c bioconda -c conda-forge \
+        star=2.7.11b \
+        salmon=2.1.2 \
+        samtools=1.23.1 \
+        cutadapt=5.2 \
+    && mamba clean -afy
+
+# RiboCode: imported directly by scripts/ribocode_dropin.py and the ORF-call chain. pip, not conda --
+# the conda build drags an older pysam that would downgrade the one pinned above.
+RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir --no-deps "ribocode==1.2.15"
+
+# fail the BUILD, not a job three hours in
+RUN /opt/conda/envs/rsm/bin/python -c "\
+import torch, numpy, scipy, pandas, h5py, pysam, sklearn, matplotlib, einops; \
+import mamba_ssm, causal_conv1d, RiboCode; \
+from mamba_ssm.ops.selective_scan_interface import selective_scan_ref, mamba_inner_ref; \
+from causal_conv1d.causal_conv1d_interface import causal_conv1d_ref; \
+print('py deps OK', torch.__version__, torch.version.cuda, numpy.__version__)" && \
+    for t in STAR salmon samtools cutadapt; do \
+        /opt/conda/envs/rsm/bin/$t --version >/dev/null 2>&1 || { echo "MISSING $t" >&2; exit 1; }; \
+    done && echo "tools OK"
+
+ENV PATH="/opt/conda/envs/rsm/bin:$PATH"
+ENV PYTHONNOUSERSITE=1

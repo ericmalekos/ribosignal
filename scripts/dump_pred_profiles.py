@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -64,7 +65,38 @@ def read_fasta(path):
     return seqs
 
 
+def _enable_mamba_cpu():
+    """Run the Mamba mixer on CPU by swapping mamba_ssm's CUDA kernels for the
+    pure-PyTorch reference implementations it already ships.
+
+    The fast path is CUDA-only (causal_conv1d_fwd asserts x.is_cuda), but the package
+    also ships selective_scan_ref / mamba_inner_ref / causal_conv1d_ref, which are plain
+    PyTorch and run anywhere. The catch: each was resolved by name at import time in
+    SEVERAL modules, so patching one namespace is not enough -- mamba_inner_ref calls the
+    causal_conv1d_fn bound inside selective_scan_interface, which is why patching only
+    causal_conv1d_interface still fails.
+
+    Cost: ~7.9 s per 3,000 nt transcript single-threaded, so shard wide (--nshards).
+    Verified finite on the real RiboSignalModel (mamba4, d_state 16) at L=1000 and 3000.
+
+    Enabled by RIBO_MAMBA_CPU=1. Off by default: on a GPU the fast path is far quicker.
+    """
+    import causal_conv1d.causal_conv1d_interface as cci
+    import mamba_ssm.modules.mamba_simple as ms
+    import mamba_ssm.ops.selective_scan_interface as ssi
+    ssi.selective_scan_fn = ssi.selective_scan_ref
+    ssi.mamba_inner_fn = ssi.mamba_inner_ref
+    ssi.causal_conv1d_fn = cci.causal_conv1d_ref
+    cci.causal_conv1d_fn = cci.causal_conv1d_ref
+    ms.selective_scan_fn = ssi.selective_scan_ref
+    ms.mamba_inner_fn = ssi.mamba_inner_ref
+    ms.causal_conv1d_fn = cci.causal_conv1d_ref
+    print("RIBO_MAMBA_CPU=1: mamba_ssm CUDA kernels -> reference path", file=sys.stderr)
+
+
 def main():
+    if os.environ.get("RIBO_MAMBA_CPU", "") == "1":
+        _enable_mamba_cpu()
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", required=True)
     ap.add_argument("--out", default=None, help="default <run>/dropin (or <run>/dropin_<heldout>)")

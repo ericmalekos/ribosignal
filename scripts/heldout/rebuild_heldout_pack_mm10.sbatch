@@ -14,7 +14,7 @@ set -euo pipefail
 # DS is set per array index. Add datasets here as their mm10 coverage lands.
 NEW=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
 PY=/private/groups/carpenterlab/emalekos/conda_envs/riboseq/bin/python
-DS_LIST=(mouse_janich_liver)
+DS_LIST=(mouse_janich_liver mouse_wang_liver)
 DS=${DS_LIST[$SLURM_ARRAY_TASK_ID]}
 SRC=$NEW/data/packed_heldout_${DS}
 COVD=$NEW/data/heldout_rnaseq_coverage_mm10/${DS}

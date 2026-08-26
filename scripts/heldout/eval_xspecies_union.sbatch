@@ -57,6 +57,7 @@ echo "xspecies MODEL=$MODEL DS=$DS pack=$DSPACK dev=$DEV host=$(hostname) start=
 # shellcheck disable=SC2086
 singularity exec $NV --no-home --cleanenv --env PYTHONNOUSERSITE=1 --env OMP_NUM_THREADS=16 \
   --env RIBO_ORF_TRACK="$TRACK" --env RIBO_ONEHOT_FASTA="$FA" \
+  --env RIBO_MAMBA_CPU="${RIBO_MAMBA_CPU:-}" \
   -B "$BASE" "$SIF" \
   python3 "$NEW/scripts/dump_pred_profiles.py" --run "$NEW/$RUN" --heldout "$DSPACK" \
     --out "$OUT/dropin" --fasta "$FA" --min_signal 50 --device "$DEV"

@@ -2521,3 +2521,129 @@ The recurring pattern is worth stating once: **every one of these fails loudly r
 a plausible empty or truncated result.** The four annotation defects, the CRLF md5 bug, the FTP
 truncations and the worm adapter were each caught by a gate, not by reading output, and every one of
 them would otherwise have produced a number that looked entirely reasonable.
+
+#### Ensembl re-examined on annotation CONTENT (2026-08-25)
+
+The original Ensembl assessment (above) rejected it on two axes only: it uses `gene_biotype` exactly
+like RefSeq, so it does not solve the attribute-key problem, and its primate assemblies are
+gorGor4 (2014) / Pan_tro_3.0 (2016) / Mmul_10 (2019) against the RefSeq T2T builds. Both points
+stand, but the write-up implied a broader evaluation than had actually been done: **annotation
+content was never compared.** That gap was worth closing, because the content differences are
+exactly where the biotype census found its oddities.
+
+Ensembl release 116 GTFs were fetched for the four species where Ensembl and RefSeq share an
+assembly, normalized through the SAME classifier, and counted the same way. (Note the file naming:
+for non-vertebrates the main Ensembl FTP tree carries the Ensembl **Genomes** release number, so the
+current fly/worm/yeast GTFs are `.63.`, not `.116.`.)
+
+| species | source | total tx | coding | lncRNA | small ncRNA | dropped ncRNA | pseudogene | other |
+|---|---|---|---|---|---|---|---|---|
+| fly | FlyBase r6.67 | 35,723 | 30,823 | **0** | 3,361 | 1,174 | 365 | 0 |
+| fly | Ensembl BDGP6.54 | 41,590 | 30,792 | **0** | 3,362 | 1,174 | 366 | 5,896 |
+| C. elegans | RefSeq WS298 | 56,729 | 31,219 | **306** | 23,618 | 1,586 | 0 | 0 |
+| C. elegans | Ensembl WBcel235 | 60,000 | 31,865 | **306** | 24,278 | 1,596 | 1,955 | 0 |
+| zebrafish | RefSeq GRCz11 | 82,520 | 59,013 | 8,815 | 1,649 | **12,980** | 32 | 31 |
+| zebrafish | Ensembl GRCz11 | 59,876 | 49,447 | 6,636 | 901 | **2,425** | 317 | 150 |
+| yeast | RefSeq R64-5-1 | 6,477 | 6,039 | 8 | 114 | 316 | 0 | 0 |
+| yeast | Ensembl R64-1-1 | 7,127 | 6,600 | 0 | 101 | 323 | 12 | 91 |
+
+**The fly and worm lncRNA gap is NOT a RefSeq artifact and Ensembl does not fix it.** Ensembl fly
+reports **0 lncRNA** and Ensembl worm reports **306**, identical to the other registry in both cases.
+Both inherit the catch-all `ncRNA` biotype from FlyBase and WormBase respectively, which is where the
+distinction is genuinely not drawn. No choice of registry recovers it, which is the stronger form of
+the claim made in the census write-up.
+
+**For zebrafish, RefSeq is substantially the richer annotation**, contrary to what might be assumed:
+82,520 transcripts against 59,876, more lncRNA (8,815 vs 6,636), and critically **8,839 inline tRNA
+genes that Ensembl does not annotate at all** (its whole drop set is 2,425 against RefSeq's 12,980).
+For this pipeline the tRNA annotation is an asset, not noise: an annotated tRNA transcript can be
+dropped from the transcriptome, whereas an unannotated tRNA locus still absorbs reads in the genome
+and has nowhere to be filtered.
+
+**Two places Ensembl is genuinely better, recorded honestly:**
+- **Pseudogene typing.** Worm 1,955 vs 0 transcripts, zebrafish 317 vs 32, yeast 12 vs 0. RefSeq
+  under-annotates pseudogenes in these species. This is not cosmetic for a Ribo-seq pipeline: an
+  annotated pseudogene absorbs its own multimapping reads instead of donating them to the parent
+  gene, which is precisely the cross-gene paralog ambiguity `filter_tx_heldout.py` exists to remove.
+- **Transposable elements.** Ensembl types 5,896 TE transcripts in fly and 91 in yeast; neither
+  RefSeq nor FlyBase's GTF carries them as transcripts.
+
+**Decision unchanged: RefSeq for the six, FlyBase for the fly.** Per species: fly gains only TEs from
+Ensembl and FlyBase r6.67 is newer than BDGP6.54; worm is near-identical apart from pseudogene
+typing; zebrafish is clearly better under RefSeq; yeast's RefSeq annotation (SGD R64-5-1, 2026) is
+fifteen years newer than Ensembl's R64-1-1. The pseudogene deficit is the one real cost, and it is
+recorded here rather than discovered later.
+
+This comparison also exercised the normalizer's unmapped-term gate, which refused two Ensembl
+biotypes it had never seen (`pre_miRNA` x262, `miRNA_primary_transcript` x10, both miRNA precursors)
+rather than passing them through. They are now mapped to `miRNA`, matching how GENCODE types
+pre-miRNA and how RefSeq's equivalent `primary_transcript` is already handled. The selftest still
+reproduces the human and mouse ground truth exactly.
+
+#### Ensembl for the primates: content, not just assembly age
+
+The primates were the case where switching registries would have cost the T2T assemblies, so it was
+worth checking whether Ensembl's annotation was rich enough to justify that. It is not: Ensembl is
+worse on essentially every axis, so there is no trade-off to weigh.
+
+| species | source | tx | genes | tx/gene | coding | lncRNA | small nc | dropped nc | pseudogene |
+|---|---|---|---|---|---|---|---|---|---|
+| human | GENCODE v49 | 507,365 | 78,691 | 6.4 | 294,386 | 190,272 | 5,116 | 2,447 | 14,704 |
+| gorilla | RefSeq T2T 2025 | 99,500 | 34,172 | 2.9 | 84,606 | **10,298** | 2,862 | 1,475 | 62 |
+| gorilla | Ensembl gorGor4 2014 | 53,705 | 30,084 | 1.8 | 44,987 | **703** | 4,717 | 2,569 | 522 |
+| chimp | RefSeq T2T 2026 | 135,577 | 34,784 | 3.9 | 119,088 | **11,353** | 2,876 | 2,065 | 111 |
+| chimp | Ensembl Pan_tro_3.0 2016 | 61,457 | 33,729 | 1.8 | 49,717 | **3,091** | 5,120 | 2,812 | 485 |
+| macaque | RefSeq T2T 2025 | 140,857 | 38,839 | 3.6 | 120,554 | **13,744** | 2,681 | 2,411 | 1,383 |
+| macaque | Ensembl Mmul_10 2019 | 64,228 | 35,432 | 1.8 | 48,600 | **6,556** | 7,340 | 795 | 767 |
+
+Ensembl carries **roughly half the transcripts** (45 to 54%) and far less long non-coding annotation,
+most starkly for gorilla: **703 lncRNA transcripts against RefSeq's 10,298**, a factor of 15. Its
+only advantage is pseudogene typing in gorilla and chimp (522 and 485 against 62 and 111), and even
+that reverses for macaque (767 against 1,383). So for the primates the older assembly comes with the
+poorer annotation, and RefSeq T2T wins outright.
+
+**The isoform-depth confound is real and no registry fixes it.** Transcripts per gene: human 6.4,
+but 2.9 to 3.9 under RefSeq and a flat **1.8 under Ensembl** for all three primates. Great ape
+genomes are near-identical to human, so this is annotation effort, not biology, and it is worse
+under Ensembl than under RefSeq. Since `--quantMode TranscriptomeSAM` expands one genomic alignment
+across every compatible isoform, the same library yields systematically different per-transcript
+record counts in human than in gorilla for annotation reasons alone.
+
+That has a direct consequence for the cross-species evaluation: **per-transcript coverage is not
+comparable between human and the non-human primates as-is.** It has to be handled analytically, by
+aggregating to the gene level, or by restricting to 1:1 orthologs with comparable isoform counts,
+rather than by choosing a different reference. Recorded here so the comparison is not made naively
+later.
+
+The unmapped-term gate fired once more on this data, refusing Ensembl macaque's `Y_RNA` (x666, the
+Ro60 ribonucleoprotein component) rather than passing it through; it is now mapped to `misc_RNA`,
+matching GENCODE, which places it in the postfilter BED rather than the drop set.
+
+## Running the Mamba mixer on CPU (2026-08-25)
+
+mamba_ssm's fast path is CUDA-only -- `causal_conv1d_fwd` asserts `x.is_cuda` -- which had been
+recorded as "no CPU fallback". That is wrong. The package ships pure-PyTorch reference twins for
+every CUDA kernel it uses, and swapping them in makes the whole model CPU-runnable:
+
+    selective_scan_fn -> selective_scan_ref
+    mamba_inner_fn    -> mamba_inner_ref
+    causal_conv1d_fn  -> causal_conv1d_ref
+
+**The non-obvious part.** Each name was resolved at import time in SEVERAL modules, so patching one
+namespace is not enough. Patching only `causal_conv1d_interface` still dies, because
+`mamba_inner_ref` calls the `causal_conv1d_fn` bound inside `selective_scan_interface`. All three
+namespaces (`selective_scan_interface`, `causal_conv1d_interface`, `modules.mamba_simple`) must be
+patched before the model is constructed.
+
+Implemented as `_enable_mamba_cpu()` in `scripts/dump_pred_profiles.py`, gated on `RIBO_MAMBA_CPU=1`
+(off by default -- on a GPU the fast path is much quicker). Verified to produce finite output on the
+real `RiboSignalModel` (mamba4, 10 conv blocks, d_state 16) at L=1000 and L=3000.
+
+**Cost:** ~7.9 s per 3,000 nt transcript single-threaded. Shard wide (`--nshards`); at 16 cores a
+41,096-tx dump is in the same few-hour range as the attn CPU dump.
+
+**Why it matters operationally:** the GPU partition on this cluster sits at 48/48 allocated for long
+stretches (8 A100 + 40 A5500). When that happens, a CPU run started immediately finishes before a
+GPU job that is still queued. Used on 2026-08-25 to run both Wang mm10 cross-species arms (attn and
+mamba4) concurrently on CPU rather than waiting. Training still wants a GPU -- the reference path is
+far too slow for a backward pass.

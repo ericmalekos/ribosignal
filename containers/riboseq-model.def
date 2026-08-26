@@ -1,0 +1,108 @@
+Bootstrap: docker
+From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+
+# Project image for riboseq_signal_model: ONE environment for the WHOLE chain -- alignment
+# (STAR/salmon/samtools/cutadapt), RiboCode ORF calling, pack building, training, prediction and
+# evaluation -- and for BOTH mixers (transformer and mamba).
+# Replaces the borrowed rnazoo model images.
+#
+# WHY. The work was split across four environments with mutually exclusive gaps:
+#     conda_envs/riboseq    h5py, pysam, STAR, salmon, samtools   NO torch
+#     conda_envs/cas12a     torch                                 NO h5py
+#     rnazoo-orthrus SIF    torch + mamba_ssm                     NO h5py, NO pysam
+#     rnazoo-rinalmo SIF    torch only                            NO mamba_ssm/h5py/pysam
+# That split caused real failures: scripts/prepare/* and build_heldout_pack.sbatch hardcode cas12a
+# and die instantly on `import h5py`. One image removes the whole class of bug.
+#
+# PINS ARE A UNIT, DO NOT BUMP ONE ALONE.
+#   python 3.10 + torch 2.2.0+cu118 + causal_conv1d 1.2.0.post2 + mamba_ssm 1.2.0.post1
+# The mamba wheels below are PREBUILT for exactly that combination (cp310, cu118, torch2.2,
+# cxx11abiFALSE). Installing them from source instead is the usual cause of the
+# "undefined symbol" ImportError, so the wheel URLs are used verbatim -- same approach as the
+# working RNAZoo/Dockerfiles/Dockerfile.Orthrus.
+#   numpy <2: torch 2.2.0 and these wheels predate the numpy 2 ABI break.
+#
+# BUILD. No fakeroot on this cluster (no /etc/subuid entry for the user), so an unprivileged local
+# build is impossible: `singularity build --fakeroot` fails with "no mapping entry found".
+# Build via the project's normal route (GitHub Actions -> ghcr.io/ericmalekos) and pull, or build
+# this .def anywhere with root and copy the SIF into singularity_cache/.
+#
+# CPU MAMBA WORKS. mamba_ssm's fast path asserts x.is_cuda, but the package ships pure-PyTorch
+# reference twins; RIBO_MAMBA_CPU=1 swaps them in (_enable_mamba_cpu in dump_pred_profiles.py), so
+# this image predicts on CPU for BOTH mixers. Training still wants a GPU.
+
+%post
+    set -eux
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update && apt-get install -y --no-install-recommends \
+        git wget ca-certificates build-essential \
+        zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev libssl-dev \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Miniforge python 3.10 -- the prebuilt mamba wheels target cp310 specifically.
+    wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/mf.sh
+    bash /tmp/mf.sh -b -p /opt/conda && rm /tmp/mf.sh
+    export PATH="/opt/conda/bin:$PATH"
+    mamba create -n rsm -c conda-forge -y python=3.10 "numpy<2" "setuptools<70" pip cython
+    mamba clean -afy
+    PIP=/opt/conda/envs/rsm/bin/pip
+
+    # torch FIRST: the mamba wheel ABI is built against this exact version.
+    $PIP install --no-cache-dir torch==2.2.0 --index-url https://download.pytorch.org/whl/cu118
+
+    # Mamba kernels: PREBUILT wheels, not source. The ABI tag must match torch/python/cuda above.
+    $PIP install --no-cache-dir \
+        "https://github.com/Dao-AILab/causal-conv1d/releases/download/v1.2.0.post2/causal_conv1d-1.2.0.post2+cu118torch2.2cxx11abiFALSE-cp310-cp310-linux_x86_64.whl" \
+        "https://github.com/state-spaces/mamba/releases/download/v1.2.0.post1/mamba_ssm-1.2.0.post1+cu118torch2.2cxx11abiFALSE-cp310-cp310-linux_x86_64.whl"
+
+    # The rest of the project's imports (audited from every .py under scripts/ and
+    # proteogenomics/scripts/): numpy, matplotlib, torch, h5py, sklearn, pysam, scipy.
+    $PIP install --no-cache-dir \
+        "scipy==1.15.3" "pandas==2.3.3" "h5py==3.16.0" "pysam==0.22.1" \
+        "scikit-learn==1.5.2" "matplotlib==3.9.2" "einops==0.8.2" "pyfaidx==0.8.1.3"
+
+    # Alignment / quant / BAM tools, pinned to what conda_envs/riboseq runs today so a container
+    # run and a legacy conda run give identical output. bioconda BEFORE conda-forge, or salmon
+    # resolves against the wrong libstdc++.
+    mamba install -n rsm -y -c bioconda -c conda-forge \
+        star=2.7.11b salmon=2.1.2 samtools=1.23.1 cutadapt=5.2
+    mamba clean -afy
+
+    # RiboCode is imported directly by ribocode_dropin.py and the ORF-call chain. pip --no-deps:
+    # the conda build drags an older pysam that would downgrade the pin above.
+    $PIP install --no-cache-dir --no-deps "ribocode==1.2.15"
+
+    # Fail the BUILD, not a job three hours in, if anything is missing or ABI-broken.
+    /opt/conda/envs/rsm/bin/python -c "\
+import torch, numpy, scipy, pandas, h5py, pysam, sklearn, matplotlib, einops; \
+import mamba_ssm, causal_conv1d, RiboCode; \
+from mamba_ssm.ops.selective_scan_interface import selective_scan_ref, mamba_inner_ref; \
+from causal_conv1d.causal_conv1d_interface import causal_conv1d_ref; \
+print('py deps OK torch', torch.__version__, 'cuda', torch.version.cuda)"
+    for t in STAR salmon samtools cutadapt; do
+        /opt/conda/envs/rsm/bin/$t --version >/dev/null 2>&1 || { echo "MISSING $t" >&2; exit 1; }
+    done
+    echo "tools OK"
+
+%environment
+    export PATH=/opt/conda/envs/rsm/bin:$PATH
+    export PYTHONNOUSERSITE=1
+
+%labels
+    Project riboseq_signal_model
+    Purpose one image, whole chain, both mixers
+    Pins python3.10 torch2.2.0+cu118 mamba_ssm1.2.0.post1 causal_conv1d1.2.0.post2
+
+%help
+    singularity exec --nv --no-home --cleanenv -B /private/groups <img> python3 scripts/train_loto.py ...
+    CPU mamba prediction: add --env RIBO_MAMBA_CPU=1 and drop --nv.
+    ALWAYS pass --no-home --cleanenv: without them the host ~/.local site-packages shadow the
+    image's own and produce version skew that looks like a corrupted install.
+
+    Replaces ALL FOUR prior environments for this project:
+      conda_envs/riboseq  (STAR/salmon/samtools/cutadapt/h5py/pysam, no torch)
+      conda_envs/ribocode (RiboCode)
+      conda_envs/cas12a   (torch, no h5py)
+      rnazoo-orthrus / rnazoo-rinalmo SIFs (torch +/- mamba_ssm, neither with h5py/pysam)
+    Tool versions match conda_envs/riboseq exactly (STAR 2.7.11b, salmon 2.1.2, samtools 1.23.1,
+    cutadapt 5.2, RiboCode 1.2.15) so a container run reproduces a legacy conda run.

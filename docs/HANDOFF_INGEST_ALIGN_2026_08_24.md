@@ -5,13 +5,13 @@ Supersedes `HANDOFF_DOWNLOADS_2026_08_24.md` (download-only). Scope is now:
 
 ---
 
-## 0. Orientation — paths, environments, scripts
+## 0. Orientation -- paths, environments, scripts
 
 **Project root (all relative paths below are from here):**
 ```
 /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
 ```
-Shared references (NOT under the project root — one canonical copy, reused across projects):
+Shared references (NOT under the project root -- one canonical copy, reused across projects):
 ```
 /private/groups/carpenterlab/emalekos/genomes/          genome FASTA + GTF
 /private/groups/carpenterlab/emalekos/STAR_indexes/     star_index_grch38_v49, star_index_grcm39_vM38
@@ -21,25 +21,25 @@ Shared references (NOT under the project root — one canonical copy, reused acr
 /private/warm-archive/carpenterlab/RNAZoo_meta/         warm archive, mirrors the project tree
 ```
 
-**Environments — verified contents. There is NO single env that does everything.**
+**Environments -- verified contents. There is NO single env that does everything.**
 
 | env / image | has | LACKS | use for |
 |---|---|---|---|
 | `conda_envs/riboseq` | STAR, salmon, samtools, cutadapt, h5py, pysam, numpy | **torch** | alignment, quant, coverage hd5, BAM work |
 | `conda_envs/ribocode` | RiboCode, h5py, pysam, numpy | torch, STAR | `ribocode_dropin.py`, ORF calling |
 | `conda_envs/cas12a` | torch, numpy | **h5py** | torch-only utilities |
-| SIF `...-orthrus-latest.img` | torch + **mamba_ssm** | — | any `--mixer mamba` train/predict (**CUDA-only**) |
+| SIF `...-orthrus-latest.img` | torch + **mamba_ssm** | -- | any `--mixer mamba` train/predict (**CUDA-only**) |
 | SIF `...-rinalmo-latest.img` | torch | mamba_ssm | transformer-mixer train/predict; runs on CPU |
 
 Gotchas that have already cost time:
-- `scripts/prepare/*` hardcode `cas12a`, which has no h5py — they die instantly on `import packlib`.
+- `scripts/prepare/*` hardcode `cas12a`, which has no h5py -- they die instantly on `import packlib`.
   Use `riboseq`.
 - Always `singularity exec --nv --no-home --cleanenv --env PYTHONNOUSERSITE=1`. Without
   `--no-home --cleanenv` the host `~/.local` site-packages shadow the SIF's own.
 - mamba_ssm has **no CPU fallback** (`causal_conv1d_fwd` asserts `x.is_cuda`), so even a 35-tx smoke
   test needs a GPU.
 
-**Reusable scripts — prefer these over hand-rolling; each encodes a rule learned the hard way.**
+**Reusable scripts -- prefer these over hand-rolling; each encodes a rule learned the hard way.**
 
 | script | does |
 |---|---|
@@ -134,7 +134,7 @@ Fetch with `scripts/fetch_heldout_rna.sh <label> <ACC>...` (serial, head node, m
 Per-dataset trimming is the part that breaks silently. Derive each new script from the closest
 existing one, changing only the multimap flag and output paths:
 
-**PAIRED-END templates already exist — do not write new ones.** The primate RNA is all PE (two
+**PAIRED-END templates already exist -- do not write new ones.** The primate RNA is all PE (two
 `fastq_bytes` per accession); the Ribo is SE.
 
 | need | template | note |
@@ -142,7 +142,7 @@ existing one, changing only the multimap flag and output paths:
 | **RNA PE STAR, mm10** | `scripts/rebuild_coverage_mm10.sbatch` | already the mm10 posture; start here |
 | **RNA PE STAR, mm1** | same file, flip `--outFilterMultimapNmax 10` -> `1` | |
 | **RNA PE + salmon in one script** | `scripts/process_rnaseq_prjeb34766.sbatch` | STAR PE at `:73`, salmon PE at `:55` |
-| **salmon PE/SE auto-branch** | `scripts/salmon_human_rna_polya_gate.sbatch` | PE at `:52`, SE at `:56` — cleanest branch pattern |
+| **salmon PE/SE auto-branch** | `scripts/salmon_human_rna_polya_gate.sbatch` | PE at `:52`, SE at `:56` -- cleanest branch pattern |
 | salmon PE only | `scripts/salmon_chothani_decoy.sbatch:42` | decoy-aware, `-l A` |
 | salmon SE only | `scripts/process_cart_gse304796.sbatch:159`, `scripts/janich_decontam_quant.sbatch:76` | likely unneeded: primate RNA is PE |
 | RNA PE across multimap settings | `scripts/hep_rna_multimap_sweep.sbatch` | |
