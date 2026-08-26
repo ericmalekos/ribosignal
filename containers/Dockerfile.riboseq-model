@@ -30,7 +30,13 @@ RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir \
         "https://github.com/Dao-AILab/causal-conv1d/releases/download/v1.2.0.post2/causal_conv1d-1.2.0.post2+cu118torch2.2cxx11abiFALSE-cp310-cp310-linux_x86_64.whl" \
         "https://github.com/state-spaces/mamba/releases/download/v1.2.0.post1/mamba_ssm-1.2.0.post1+cu118torch2.2cxx11abiFALSE-cp310-cp310-linux_x86_64.whl"
 
+# transformers<4.45 and huggingface_hub<0.25 are NOT optional. `import mamba_ssm` executes
+# mamba_ssm/__init__.py -> MambaLMHeadModel -> utils.generation, which does
+#   from transformers.generation import GreedySearchDecoderOnlyOutput
+# a symbol removed in transformers 4.45. Without the pin the image builds and then dies on the
+# very first `import mamba_ssm`. Same pins as the working Dockerfile.Orthrus.
 RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir \
+        "transformers<4.45" "huggingface_hub<0.25" "triton" "packaging" \
         "scipy==1.15.3" "pandas==2.3.3" "h5py==3.16.0" "pysam==0.22.1" \
         "scikit-learn==1.5.2" "matplotlib==3.9.2" "einops==0.8.2" "pyfaidx==0.8.1.3"
 
