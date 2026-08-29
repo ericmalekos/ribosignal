@@ -30,7 +30,7 @@ truth `scripts/normalize_annotation.py --selftest` reproduces exactly.
 | species | genes | transcripts | ncRNA dropped | RiboCode tx (ratio) | STAR | salmon |
 |---|---|---|---|---|---|---|
 | yeast | 6,477 | 6,477 | 316 | 6,477 (1.000) | 118M | 299M |
-| celegans | 46,926 | 56,729 | 1,586 | 56,729 (1.000) | 1.1G | 2.5G |
+| celegans | 46,926 | 0 | 1,586 | 56,729 (-) | 1.1G | 2.5G |
 | fly | 17,867 | 35,723 | 1,174 | 35,723 (1.000) | 1.9G | 365M |
 | zebrafish | 53,709 | 82,520 | 12,980 | 82,520 (1.000) | 17G | 4.9G |
 | macaque | 38,839 | 140,857 | 2,411 | 140,857 (1.000) | 29G | 9.4G |
@@ -75,8 +75,9 @@ SRP_RNA, RNase_P_RNA, RNase_MRP_RNA`. See methods.md for why the two drop sets d
 | human_refseq | miRNA 5357, tRNA 669, rRNA 78, Mt_tRNA 22, RNase_P_RNA 2, Mt_rRNA 2, RNase_MRP_RNA 1 |
 | mouse_refseq | miRNA 3337, tRNA 400, rRNA 62, Mt_tRNA 22, RNase_P_RNA 4, Mt_rRNA 2, RNase_MRP_RNA 1 |
 
-All species pass every gate.
+## Outstanding problems
 
+- **celegans**: transcriptome_fa missing or empty
 
 ## Paths
 

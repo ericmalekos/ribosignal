@@ -3009,3 +3009,56 @@ The file was deleted and the run redone.
 any of the 9 runs passes the periodicity test, so no P-site offsets can be assigned. This is
 the documented RNase T1 problem from section G, not a pipeline fault, and no attempt was
 made to lower `frame0_percent` to force calls out of a library with no periodicity.
+
+### K. The RNA mm1 posture completes the 5-way matrix (2026-08-29)
+
+The last unbuilt cell of the alignment matrix from the expansion plan: RNA at
+`--outFilterMultimapNmax 1`, for comparability with the project's historical posture.
+72 runs across 7 arms (fly excluded with the rest of that dropped arm), via
+`scripts/xspecies/align_rna_xspecies.sbatch MM=1`, which was already parameterized and
+writes to `data/xspecies_rna_bam_mm${MM}` with no code change needed.
+
+All 72 written, all 72 pass `samtools quickcheck`, per-arm counts match the samplesheets
+exactly (worm 10, yeast 16, zebrafish 23, chimp 8, macaque 7, human 5, gorilla 3).
+
+**The matrix is now complete:**
+
+| assay | posture | purpose | state |
+|---|---|---|---|
+| RNA | STAR mm1 | historical-posture comparability | archived |
+| RNA | STAR mm10 | corrected input posture; the packs are built from this | archived |
+| RNA | salmon decoy | TPM, universe construction | local (`data/xspecies_tpm/`) |
+| Ribo | STAR mm1 | the only posture used as a model target | local |
+| Ribo | STAR mm25 | multimap diagnostic (section J) | archived |
+
+**Walltime, again.** The first worm RNA mm1 run finished in 6 minutes 14 seconds against a
+6-hour request, and the arms sat `(Priority)` behind 425 cluster-pending jobs until the
+limits were cut to 1 h (yeast, worm), 2 h (zebrafish) and 3 h (primates), at which point
+every arm moved to `Reason=None`. This is the same error recorded in section J and it was
+repeated here: **size walltime from a measured prior run.** The measurement existed both
+times.
+
+### L. Archive state after the expansion (2026-08-29)
+
+Archived to `/private/warm-archive/carpenterlab/RNAZoo_meta/...` via
+`scripts/archive_to_warm.sh` (copy, checksum-verify, index, stub, then delete the source
+only after `rsync --checksum --dry-run` reports zero differing paths):
+
+| path | size |
+|---|---|
+| `data/external/xspecies/fastq` | 308 GB |
+| `data/xspecies_rna_bam_mm1` | 257 GB |
+| `data/xspecies_rna_bam_mm10/*` (8 arms) | 252 GB |
+| `data/xspecies_ribo_bam_mm25` | 60 GB |
+| `data/xspecies_ribo_bam_mm1_genome` | 17 GB |
+
+Kept local, because they are what everything downstream reads: the mm1 Ribo BAMs, all
+P-site and coverage hd5, the 7 packs, `data/xspecies_tpm/`, the genome bigwigs (1.1 GB),
+and every call set and results table.
+
+**An ordering constraint worth stating.** The FASTQ archive had to run AFTER the RNA mm1
+alignment, because that alignment reads the FASTQs. The first archive chain was launched
+with the FASTQ as its first item and was stopped mid-copy by its recorded PID; because
+`archive_to_warm.sh` deletes only after a verified copy, all 186 files were still intact
+and no stub had been written. Check `squeue` and the pending work list before archiving an
+input, not just before archiving an output.

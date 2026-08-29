@@ -5,23 +5,23 @@ measured adapter and per-run STAR metrics, is in `data/xspecies_dataset_registry
 
 ## Arms
 
-| species | assay | label | runs | GiB | source | adapter | kept% | uniq% | BAM | cov | psites | status |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| celegans | ribo | `worm_gse52905_ribo` | 11 | 13.1 | ENA | TGGAATTCTCGGGTGCCAAGG | 94.0 | 79.4 | 11/11 | 0/11 | 11/11 | active |
-| celegans | rna | `worm_gse52861_rna` | 10 | 13.3 | ENA | --trim-n | 100.0 | 93.4 | 10/10 | 10/10 | 0/10 | active |
-| chimp | ribo | `primate_pt_ribo` | 8 | 27.2 | ENA | AGATCGGAAGAGC | 95.6 | 10.6 | 8/8 | 0/8 | 8/8 | active |
-| chimp | rna | `primate_pt_rna` | 8 | 39.6 | ENA | --trim-n | 100.0 | 89.1 | 8/8 | 8/8 | 0/8 | active |
-| fly | ribo | `fly_gse99920_ribo` | 9 | 8.1 | ENA | --trim-n | 93.2 | 19.3 | 9/9 | 0/9 | 0/9 | DROPPED |
-| fly | rna | `fly_gse99920_rna` | 9 | 4.8 | ENA | --trim-n | - | - | 9/9 | 9/9 | 0/9 | DROPPED |
-| gorilla | ribo | `primate_gg_ribo` | 3 | 16.9 | ENA | AGATCGGAAGAGC | 94.8 | 18.5 | 3/3 | 0/3 | 3/3 | active |
-| gorilla | rna | `primate_gg_rna` | 3 | 18.5 | ENA | --trim-n | - | - | 3/3 | 3/3 | 0/3 | active |
-| human | ribo | `ruizorera_hsCM_ribo` | 5 | 14.5 | ENA | --trim-n | 98.1 | 22.2 | 5/5 | 0/5 | 5/5 | active |
-| macaque | ribo | `primate_rm_ribo` | 7 | 25.8 | ENA | --trim-n, AGATCGGAAGAGC | 96.8 | 14.1 | 7/7 | 0/7 | 7/7 | active |
-| macaque | rna | `primate_rm_rna` | 7 | 35.2 | ENA | --trim-n | 99.9 | 91.7 | 7/7 | 7/7 | 0/7 | active |
-| yeast | ribo | `yeast_gse173654_ribo` | 16 | 9.0 | ENA | --trim-n | 79.4 | 3.3 | 16/16 | 0/16 | 16/16 | active |
-| yeast | rna | `yeast_gse173654_rna` | 16 | 10.2 | ENA | --trim-n | 100.0 | 79.1 | 16/16 | 16/16 | 0/16 | active |
-| zebrafish | ribo | `zf_gse46512_ribo` | 8 | 30.5 | ENA+NCBI_SRA | OVERRIDE | 97.0 | 8.0 | 8/8 | 0/8 | 0/8 | active |
-| zebrafish | rna | `zf_gse70549_rna` | 24 | 38.5 | ENA+NCBI_SRA | --trim-n | 100.0 | 71.5 | 23/24 | 23/24 | 0/24 | active |
+| species | assay | label | runs | GiB | source | adapter | kept% | uniq% | BAM | cov | psites | mm25 | genome bw | status |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| celegans | ribo | `worm_gse52905_ribo` | 11 | 13.1 | ENA | TGGAATTCTCGGGTGCCAAGG | 94.0 | 79.4 | 11/11 | 0/11 | 11/11 | 11/11 | 11/11 | active |
+| celegans | rna | `worm_gse52861_rna` | 10 | 13.3 | ENA | --trim-n | 100.0 | 93.4 | 10/10 | 10/10 | 0/10 | 0/10 | 0/10 | active |
+| chimp | ribo | `primate_pt_ribo` | 8 | 27.2 | ENA | AGATCGGAAGAGC | 95.6 | 10.6 | 8/8 | 0/8 | 8/8 | 8/8 | 8/8 | active |
+| chimp | rna | `primate_pt_rna` | 8 | 39.6 | ENA | --trim-n | 100.0 | 89.1 | 8/8 | 8/8 | 0/8 | 0/8 | 0/8 | active |
+| fly | ribo | `fly_gse99920_ribo` | 9 | 8.1 | ENA | --trim-n | 93.2 | 19.3 | 9/9 | 0/9 | 0/9 | 9/9 | 9/9 | DROPPED |
+| fly | rna | `fly_gse99920_rna` | 9 | 4.8 | ENA | --trim-n | - | - | 9/9 | 9/9 | 0/9 | 0/9 | 0/9 | DROPPED |
+| gorilla | ribo | `primate_gg_ribo` | 3 | 16.9 | ENA | AGATCGGAAGAGC | 94.8 | 18.5 | 3/3 | 0/3 | 3/3 | 3/3 | 3/3 | active |
+| gorilla | rna | `primate_gg_rna` | 3 | 18.5 | ENA | --trim-n | - | - | 3/3 | 3/3 | 0/3 | 0/3 | 0/3 | active |
+| human | ribo | `ruizorera_hsCM_ribo` | 5 | 14.5 | ENA | --trim-n | 98.1 | 22.2 | 5/5 | 0/5 | 5/5 | 5/5 | 5/5 | active |
+| macaque | ribo | `primate_rm_ribo` | 7 | 25.8 | ENA | --trim-n, AGATCGGAAGAGC | 96.8 | 14.1 | 7/7 | 0/7 | 7/7 | 7/7 | 7/7 | active |
+| macaque | rna | `primate_rm_rna` | 7 | 35.2 | ENA | --trim-n | 99.9 | 91.7 | 7/7 | 7/7 | 0/7 | 0/7 | 0/7 | active |
+| yeast | ribo | `yeast_gse173654_ribo` | 16 | 9.0 | ENA | --trim-n | 79.4 | 3.3 | 16/16 | 0/16 | 16/16 | 16/16 | 16/16 | active |
+| yeast | rna | `yeast_gse173654_rna` | 16 | 10.2 | ENA | --trim-n | 100.0 | 79.1 | 16/16 | 16/16 | 0/16 | 0/16 | 0/16 | active |
+| zebrafish | ribo | `zf_gse46512_ribo` | 8 | 30.5 | ENA+NCBI_SRA | OVERRIDE | 97.0 | 8.0 | 8/8 | 0/8 | 4/8 | 8/8 | 8/8 | active |
+| zebrafish | rna | `zf_gse70549_rna` | 24 | 38.5 | ENA+NCBI_SRA | --trim-n | 100.0 | 71.5 | 24/24 | 23/24 | 0/24 | 0/24 | 0/24 | active |
 
 ## Runs whose provenance differs from the norm
 
@@ -34,6 +34,23 @@ mate was already ENA-verified, on read-ID identity. See `sra_provenance.tsv`.
 **Adapter overrides:**
 
 - `zf_gse46512_ribo`: Ingolia linker variant that diverges after ~11 nt, so the full 17-mer CTGTAGGCACCATCAAT scores 0.0% by exact match. Measured with cutadapt on SRR836192 (200k reads): -a CTGTAGGCACC gives 149,031 reads with adapter and 147,676 passing at modal 34 nt, versus 75 of 200,000 passing with --trim-n alone. Reads are fixed 44 nt, so without an adapter the -M 40 window discards the entire arm.
+
+## Postures
+
+Each Ribo run exists in up to four forms. `yes` = on disk, `ARCHIVED` = in the warm
+archive with a stub in place (see `data/ARCHIVE_INDEX.tsv`), `-` = never built.
+
+- **mm1 transcriptome** (`data/xspecies_ribo_bam_mm1/`): the ONLY posture used as a
+  model target, per the project-wide Ribo-seq rule.
+- **mm25 transcriptome** (`data/xspecies_ribo_bam_mm25/`): the multimap DIAGNOSTIC.
+  Call sets in `data/xspecies_psites_mm25/`, comparison in
+  `results/xspecies_mm1_vs_mm25_calls.tsv`. Six of seven comparable arms sit at
+  1.000-1.013x the mm1 call count. NOT a model target; must not feed a pack.
+- **mm1 genome** (`data/xspecies_ribo_bam_mm1_genome/`) and its bigwigs
+  (`data/xspecies_ribo_bigwig_genome/`, `--binSize 1`, unnormalized): browser tracks.
+  Same posture as mm1 transcriptome; the ncRNA drop is by genomic interval rather than
+  by transcript id. Contigs are RefSeq-style, so load
+  `genomes/xspecies_refs/<species>/genome.fna` as the IGV reference.
 
 ## Dropped
 
