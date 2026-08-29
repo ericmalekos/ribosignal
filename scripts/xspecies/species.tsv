@@ -1,0 +1,39 @@
+# Canonical per-species reference table for the cross-species expansion.
+# ONE definition, read by build_species_refs.sbatch, riboseq_align.sbatch and the
+# reference registry, so an annotation version cannot drift between them.
+#
+# sjdb_overhang        = max RNA read length - 1, from data/external/xspecies/download_manifest.tsv
+# sa_index_nbases      = min(14, log2(genome_bp)/2 - 1). 14 is the MAMMALIAN default and is wrong
+#                        for the small genomes; STAR does not error, it just builds a bad index.
+# biotype_convention   = which spelling the source GTF uses; drives normalize_annotation.py
+#
+# Derived artifacts live at a fixed convention and are therefore not columns here:
+#   genome    genomes/xspecies_refs/<species>/genome.fna
+#   raw GTF   genomes/xspecies_refs/<species>/genomic.gtf
+#   annot     riboseq_signal_model/data/annot/<species>/{<species>.normalized.gtf,ncrna_tx.txt,
+#             tx_to_gene.tsv,tx2biotype.tsv,transcripts.fa,ncrna_*.bed,normalization_report.json}
+#   STAR      STAR_indexes/star_index_<species>_<annver>
+#   salmon    Salmon_indexes/salmon_index_decoy_<species>_<annver>
+#   RiboCode  riboseq_signal_model/data/ribocode_annot_<species>
+#
+# The GENCODE human and mouse are NOT listed: they predate this layout and their paths are
+# hardcoded in riboseq_align.sbatch. Do not migrate them without re-verifying the packs.
+#
+# `human_refseq` and `mouse_refseq` are ADDITIONS, not replacements. They are the SAME
+# assemblies as the GENCODE indexes (GRCh38, GRCm39), annotated by RefSeq instead, so the
+# nine-species comparison can be made without the GENCODE-vs-RefSeq confound. Measured:
+# GENCODE human carries 6.4 transcripts per gene against 2.9 to 3.9 for the RefSeq
+# primates, and since --quantMode TranscriptomeSAM expands one genomic alignment across
+# every compatible isoform, that difference alone changes per-transcript record counts.
+# Existing packs and training keep using the GENCODE indexes; these are for the
+# cross-species arm only.
+species	annver	assembly_accession	assembly_name	annotation_source	genome_bp	sjdb_overhang	sa_index_nbases	biotype_convention
+yeast	R64	GCF_000146045.2	R64	SGD R64-5-1	12157105	132	10	gene_biotype
+celegans	WBcel235	GCF_000002985.6	WBcel235	WormBase WS298	100286401	49	12	gene_biotype
+fly	r6.67	na	dmel r6.67	FlyBase r6.67	143726002	72	12	feature_column
+zebrafish	GRCz11	GCF_000002035.6	GRCz11	RefSeq	1679203469	75	14	gene_biotype
+macaque	T2TMMU8v2	GCF_049350105.2	T2T-MMU8v2.0	RefSeq	3115120525	99	14	gene_biotype
+chimp	mPanTro3v2.1	GCF_028858775.2	NHGRI_mPanTro3-v2.1	RefSeq	3177756316	74	14	gene_biotype
+gorilla	mGorGor1v2.1	GCF_029281585.2	NHGRI_mGorGor1-v2.1	RefSeq	3545850636	74	14	gene_biotype
+human_refseq	RS2025_08	GCF_000001405.40	GRCh38.p14	NCBI RefSeq GCF_000001405.40-RS_2025_08	3298430636	99	14	gene_biotype
+mouse_refseq	RS2024_02	GCF_000001635.27	GRCm39	NCBI RefSeq GCF_000001635.27-RS_2024_02	2728222451	99	14	gene_biotype

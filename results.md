@@ -4947,3 +4947,510 @@ The pre-registered prediction in methods.md said "B improves, A is uncertain and
 explicitly rather than reinterpreting it after the fact. The generalisation analysis (1.18% of tx
 substantially changed) was the part that turned out predictive; the mechanistic story about
 contradictory training labels was not.
+
+## Cross-species annotation census: coding, lncRNA, ncRNA and pseudogene counts (2026-08-25)
+
+`scripts/xspecies/biotype_census.py` -> `results/xspecies_biotype_census.tsv`. All nine species are
+counted in the SAME (GENCODE) vocabulary, from the normalized `tx2biotype.tsv` that
+`normalize_annotation.py` writes. Counting the raw GTFs would compare `mRNA` against
+`protein_coding` against a bare feature-type column and be meaningless.
+
+`dropped_ncRNA` is exactly the ncRNA drop set (rRNA, Mt_rRNA, rRNA_pseudogene, miRNA, tRNA, Mt_tRNA,
+tRNA_pseudogene, SRP_RNA, RNase_P_RNA, RNase_MRP_RNA). Its transcript total equals `ncrna_tx.txt`
+for every species, which is asserted rather than assumed.
+
+### Transcripts
+
+| species | total | protein_coding | lncRNA | small_ncRNA | dropped_ncRNA | pseudogene | other |
+|---|---|---|---|---|---|---|---|
+| human | 507,365 | 294,386 | 190,272 | 5,116 | 2,447 | 14,704 | 440 |
+| mouse | 278,326 | 102,381 | 155,432 | 3,530 | 2,579 | 13,823 | 581 |
+| gorilla | 99,500 | 84,606 | 10,298 | 2,862 | 1,475 | 62 | 197 |
+| chimp | 135,577 | 119,088 | 11,353 | 2,876 | 2,065 | 111 | 84 |
+| macaque | 140,857 | 120,554 | 13,744 | 2,681 | 2,411 | 1,383 | 84 |
+| zebrafish | 82,520 | 59,013 | 8,815 | 1,649 | **12,980** | 32 | 31 |
+| C. elegans | 56,729 | 31,219 | 306 | 23,618 | 1,586 | 0 | 0 |
+| fly | 35,723 | 30,823 | **0** | 3,361 | 1,174 | 365 | 0 |
+| yeast | 6,477 | 6,039 | 8 | 114 | 316 | 0 | 0 |
+
+### Genes
+
+| species | total | protein_coding | lncRNA | small_ncRNA | dropped_ncRNA | pseudogene | other |
+|---|---|---|---|---|---|---|---|
+| human | 78,691 | 20,097 | 35,899 | 5,116 | 2,447 | 14,701 | 431 |
+| mouse | 78,275 | 21,760 | 36,108 | 3,526 | 2,579 | 13,809 | 493 |
+| gorilla | 34,172 | 22,655 | 7,331 | 2,841 | 1,096 | 52 | 197 |
+| chimp | 34,784 | 22,558 | 7,853 | 2,811 | 1,406 | 72 | 84 |
+| macaque | 38,839 | 21,526 | 11,759 | 2,666 | 1,491 | 1,313 | 84 |
+| zebrafish | 53,709 | 33,564 | 6,118 | 1,618 | 12,332 | 31 | 46 |
+| C. elegans | 46,926 | 19,983 | 294 | 23,601 | 1,126 | 1,921 | 1 |
+| fly | 17,867 | 13,982 | 0 | 2,857 | 689 | 339 | 0 |
+| yeast | 6,477 | 6,021 | 8 | 114 | 316 | 18 | 0 |
+
+### What the table says, and what is annotation depth rather than biology
+
+**Isoform depth differs by 6x and it is a GENCODE-vs-RefSeq artifact, not biology.** Transcripts per
+gene: human 6.4, mouse 3.6, chimp 3.9, macaque 3.6, gorilla 2.9, fly 2.0, zebrafish 1.5, worm 1.2,
+yeast 1.0. GENCODE annotates alternative isoforms far more aggressively than RefSeq does for the
+non-human primates, whose genomes are otherwise nearly identical to human. This matters directly for
+the model: the transcriptome BAM expands one genomic alignment across every compatible isoform, so
+the same library yields very different record counts per transcript depending only on how many
+isoforms the annotation carries. Any cross-species comparison of per-transcript coverage has to
+account for it.
+
+**Pseudogenes are essentially unannotated outside human and mouse.** 14,701 and 13,809 pseudogene
+genes respectively, against 52 in gorilla and 72 in chimp. Macaque's 1,313 comes from its
+`transcribed_pseudogene` class. Great apes plainly have human-like pseudogene content; RefSeq simply
+does not annotate it. Do not read this as a biological difference.
+
+**Zebrafish's drop set is 26x heavier than human's, proportionally.** 12,980 of 82,520 transcripts
+(15.7%) versus 2,447 of 507,365 (0.5%). It is driven by 8,839 tRNA and 3,049 rRNA genes annotated
+inline. This is the single strongest justification for the extended drop set: GENCODE ships
+cytoplasmic tRNA in a separate file and handles it via the bowtie2 contaminant index, so a
+GENCODE-shaped pipeline pointed at RefSeq zebrafish without the extended set would leave 8,839 tRNA
+loci in the transcriptome for the ORF caller to trip over.
+
+**Two lncRNA numbers are mapping artifacts and must not be quoted as biology:**
+- **fly shows 0 lncRNA.** FlyBase has no lncRNA biotype at all; it types every non-coding transcript
+  as the catch-all `ncRNA`, which normalizes to `misc_RNA` and lands in small_ncRNA. Fly's 3,361
+  small_ncRNA transcripts therefore contain its lncRNAs, unsplittable from its small RNAs.
+- **C. elegans shows 306 lncRNA against 23,618 small_ncRNA.** The same catch-all applies (7,779
+  `ncRNA` genes), plus 15,363 piRNA genes, which is a real and genuinely worm-specific feature.
+
+In both cases the source annotation does not carry the distinction, so no normalizer can recover it.
+The honest statement is that lncRNA counts are comparable among human, mouse, the three primates and
+zebrafish, and are not comparable to fly or worm.
+
+### A bug this census caught
+
+The first version of the script filed `miRNA` under small_ncRNA rather than the drop set, and the
+"does dropped_ncRNA equal ncrna_tx.txt" assertion failed for 8 of 9 species (human came out 568
+against a 2,447-line drop list, the difference being exactly its 1,879 miRNA transcripts). Only
+yeast passed, because yeast has no miRNA.
+
+Separately, the census exposed a real defect in the normalizer: the `gene_type` column was leaking
+the internal `__passthrough__` sentinel instead of the source term for biotypes with no GENCODE
+equivalent -- **15,365 rows in C. elegans** (its piRNA genes) and ~200 in each primate
+(`V_gene_segment` / `C_gene_segment`), in `tx2biotype.tsv` and in the normalized GTF. Fixed by
+routing the gene biotype through the same resolver as the transcript one, and all seven references
+were re-normalized. The STAR, salmon and RiboCode artifacts were **not** rebuilt: none of those
+tools reads `gene_type` (STAR uses exon/transcript_id/gene_id, salmon is built from the
+transcriptome FASTA, RiboCode uses transcript/exon/CDS), so the defect never reached them.
+
+## Storage: what was archived on 2026-08-24/26 and why (running record)
+
+The group ceph quota is a shared 15 TB and overflow causes EDQUOT that SILENTLY kills SLURM jobs
+(exit 120, no traceback, low MaxRSS). This project alone held 2.5 TB in `proteogenomics/data`.
+Everything below went to the warm archive via `scripts/archive_to_warm.sh`
+(copy -> checksum-verify -> index -> stub -> delete source), never a hand-rolled `mv`.
+
+| path | size | why it was safe |
+|---|--:|---|
+| `macrophage_tissue/proteomics_raw` | 186.1 GB | Qie 2022 RAW, source of record; mzML derived from it archived alongside |
+| `macrophage_tissue/mzml` | 279.2 GB | deterministically regenerable from the raw |
+| `macrophage_tissue/bam` | 186.5 GB | derived coverage hd5 KEPT local |
+| `macrophage_tissue/rnaseq` | 177.0 GB | matched RNA FASTQ/BAM |
+| `macrophage_tissue/search_{attn,mamba4}_union{,_cal}` | 363 GB | the four search arms' pepXML/pin bulk; **the comparison RESULTS stay local** as `macro_model_vs_null_<arm>.md` and `table_mamba4_union_cal.md` |
+| `data/rnaseq_bam_mm10` (earlier) | 794.5 GB | coverage hd5 + packs verified first |
+
+Net effect: quota 90.1% -> 80.3% on the first batch; the search-arm batch was run at 93.1% while
+three jobs were live, specifically to stay clear of the EDQUOT band.
+
+**Kept local, deliberately:** `coverage/` hd5, `pgx_*` result tables, `db*`, `calib`, `logs`, and
+every `.md`/`.json`/`.tsv` summary. Those are small, read often, and expensive to re-derive.
+
+**Three held-out packs record inputs inside `proteogenomics/`** -- `human_b721`, `human_thp1`,
+`macro_BMDM_gt`. Archiving does not break them (the pack itself is intact), but any future
+re-derivation of those inputs needs a restore first. The `.ARCHIVED.md` stub in each vacated
+directory names the exact `rsync` to bring it back, and `data/ARCHIVE_INDEX.tsv` is the searchable
+index. CHECK BOTH BEFORE RE-DOWNLOADING ANYTHING.
+
+## Drosophila dropped: no usable 3-nt periodicity in any available dataset (2026-08-26)
+
+Fly aligned well and then failed at P-site calling. Three fly datasets were assessed; none is usable
+as a per-nt Ribo target. Full method and protocol quotes in methods.md section G.
+
+| dataset | nuclease | dominant len | n reads | f0 / f1 / f2 | verdict |
+|---|---|---|---|---|---|
+| yeast GSE173654 (positive control) | RNase I | 28 nt | 581,729 | **93.9** / 2.6 / 3.6 | periodic |
+| fly GSE99920 (processed, 9 runs) | **RNase T1** | 32 nt | 244,481 | 15.2 / 56.2 / 28.7 | flat, rejected |
+| fly GSE147619 (2M-read test) | RNase I, polysome | 32 nt | 131,623 | 21.5 / 19.5 / 59.0 | weak + incoherent, rejected |
+| fly GSE49197 | **MNase** | not tested | -- | -- | disqualified by protocol |
+
+The positive control is what makes this readable: yeast puts 582k reads into a single length class at
+93.9% in frame. Both fly datasets sit at 56-59% and are phase-incoherent across read lengths.
+
+Fly alignment QC was otherwise fine, which is the point worth remembering: **mapping rate does not
+detect this failure.** The fly arm produced 472.7M input reads and 98.6M uniquely mapped at 20.9%,
+comparable to gorilla (18.4%) and human (22.4%), and zero QC flags. The library really does contain
+ribosome-protected fragments; they are just not P-site resolvable.
+
+Retained on disk and in the registries: fly reference, indexes, 9 Ribo + 9 RNA alignments, coverage
+hd5, salmon quant, and the QC table. Only the modelling arm drops it.
+
+**Expansion now covers eight species.** The four-species iPSC-CM comparison (human, gorilla, chimp,
+macaque), which is the primary generalisation test, is unaffected.
+
+## Immunopeptidome at FULL DEPTH, all runs, mm1 vs mm10: no change (2026-08-26)
+
+Rebuilt the 4 HLA-I lines end to end and asked whether correcting the multimap-corrupted RNA input
+changes the model-vs-null proteogenomics result. It does not.
+
+### What was rebuilt, and why this supersedes rather than extends Fig 2a
+
+Two things about the published panel turned out to be understated, and BOTH were corrected here:
+
+1. **Only one RNA run per line was ever used.** PRJNA647736 carries FOUR RNA-seq runs for each of
+   HBL-1, DoHH2 and SU-DHL-4; the panel used one. The other nine (78 GB) were fetched.
+2. **That one run was then SUBSAMPLED to the first 30M read pairs.** `align_line.sbatch` defaulted
+   to `head -n`, which is not a random sample, and the "coverage and TPM saturate below full depth"
+   justification was asserted in a comment and never measured. THP1 escaped it (it ran full depth
+   via its own script), so the panel already mixed depths across datasets.
+
+Subsampling is now OFF by default and must stay off (user directive). Full-depth, all-run input:
+
+| line | RNA runs | reads | multi-loci at mm10 |
+|---|--:|--:|--:|
+| HBL1 | 4 | 243,773,757 | 6.10% |
+| DoHH2 | 4 | 381,019,591 | 6.14% |
+| SUDHL4 | 4 | 528,510,325 | 6.48% |
+| THP1 | 3 | 82,023,455 | 3.40% |
+
+SU-DHL-4 went from ~30M pairs to 528M reads, roughly 17x. **The depth change, not the multimap
+posture, is the large difference versus the published panel**, so these numbers replace it.
+
+Chain per line per posture: STAR (mm1 and mm10, all runs comma-joined, full depth) -> per-nt
+coverage -> salmon on all runs as one sample -> expressed universe -> coverage-only pack with its
+OWN no-Kozak ORF track -> predict (attn + mamba4) -> pgx (calibrate, RiboCode call both arms,
+extensions, 4 DBs, MSFragger nonspecific, class-specific FDR).
+
+`tx_order` is byte-identical between mm1 and mm10 within each line -- salmon is unaffected by the
+STAR multimap posture, so the universe is shared and ONLY the coverage channel differs.
+
+### Result: novel peptides (uniq, 1% class-specific FDR), mm1 -> mm10
+
+| line | model | arm | mm1 | mm10 | d | DB seqs mm1 -> mm10 |
+|---|---|---|--:|--:|--:|---|
+| HBL1 | attn | model_poisson | 8 | 9 | +1 | 2,442 -> 2,449 |
+| HBL1 | mamba4 | model_poisson | 18 | 20 | +2 | 2,400 -> 2,461 |
+| DoHH2 | mamba4 | model_poisson | 13 | 9 | -4 | 1,131 -> 1,139 |
+| SUDHL4 | mamba4 | model_poisson | 10 | 9 | -1 | 1,986 -> 2,059 |
+| THP1 | mamba4 | model_poisson | 3 | 4 | +1 | 1,626 -> 1,687 |
+| (model_standard, all lines) | | | | | +0 to +3 | <1% DB change |
+| **null_atg, every line** | | | | | **+0** | **identical** |
+
+Deltas are +-4 on counts of 3 to 32, i.e. within the noise of which spectra clear FDR. Database
+sizes move under 3%.
+
+**Two internal checks pass.** `null_atg` is IDENTICAL across postures in every line -- correct, since
+that null enumerates every AUG from sequence and cannot depend on the model or the coverage channel;
+a difference there would have meant a bug. And DB sizes barely moving confirms the ORF calls
+themselves are stable under the coverage swap.
+
+### This is the sixth independent line of evidence for the same conclusion
+
+retrain arm A (flat), retrain arm B (harmful), Janich cross-species (+70.6% coverage, calls barely
+move), Wang cross-species attn, Wang cross-species mamba4, and now the immunopeptidome across four
+lines and both models. All consistent with the scale-free profile head: a uniform coverage gain
+normalises away and only LOCAL SHAPE distortions propagate. The one place the correction matters is
+the locus-level distortion, which the input swap already fixes at inference with no retraining.
+
+### Three bugs found while building this
+
+1. **`pgx/refs.py` pointed the human `ribocode_annot` into the wiped sibling tree**
+   (`expression_context_human/data/ribocode_annot`). Every human pgx run died in under a second with
+   `MISSING human.ribocode_annot`. This was load-bearing data lost with that tree. Repointed
+   in-project to `data/human_ribocode_annot_primary`, which matches `star_index_grch38_v49` (what the
+   BAMs are aligned against) and is what all 7 existing eval references already used. The mouse entry
+   was always in-project, which is why this surfaced only now.
+2. **mzML live in `immunopeptidome/` for the lymphoma lines but `mzml/` for THP1.** A hardcoded glob
+   does NOT fail the pgx job -- it fails all four MSFragger searches a minute later with no spectra
+   (8 THP1 searches dead in under 13 s). Now resolved per line.
+3. **`dump_line.sbatch` hardcoded `--device cuda`** and the old universe filenames, and its
+   `#SBATCH --gres=gpu:A5500:1` persisted through a partition override, so submissions to `long`
+   were rejected with "Requested node configuration is not available". All three parameterised.
+
+## Cross-species ORF calls: predicted vs observed, all seven arms (2026-08-27)
+
+`scripts/xspecies/dropin_xspecies.sbatch` runs RiboCode on the MODEL'S predicted profile
+instead of the observed one, so predicted and observed calls come from the same caller
+under the same statistics. Three variants per arm: `real` (observed profile, the
+reference set), `pred_obsdepth` (predicted shape scaled to observed depth), and
+`pred_preddepth` (predicted shape plus the model's own count head, fully de novo).
+
+Scored with `scripts/xspecies/compare_xspecies_orf_calls.py`, which reuses
+`compare_dropin_calls.build_loader` rather than re-parsing the collapsed files: test-tx
+restriction, raw `pval_combined <= 0.05`, ORF >= 90 nt, and on the predicted side a
+`>= 0.5x`-uniform enrichment gate. Keyed on `(gene_id, ORF_gstop)`, not `ORF_ID`. Each
+species uses its OWN `tx2biotype.tsv`; the loader raises if no test transcript matches,
+which is what catches a wrong-assembly map.
+
+Numbers below are the `attn` arm. Full table incl. `pred_obsdepth` and mamba4:
+`results/xspecies_orf_calls.tsv`.
+
+| pack | real calls | % annotated | pred calls | precision | recall | F1 |
+|---|---|---|---|---|---|---|
+| yeast | 4,978 | 99.9 | 4,986 | 0.997 | 0.999 | **0.998** |
+| human | 30,969 | 67.2 | 31,701 | 0.912 | 0.933 | **0.922** |
+| gorilla | 20,980 | 79.0 | 21,046 | 0.920 | 0.923 | **0.921** |
+| chimp | 27,496 | 68.1 | 27,567 | 0.920 | 0.922 | **0.921** |
+| macaque | 28,044 | 64.9 | 27,687 | 0.921 | 0.909 | **0.915** |
+| zebrafish | 8,437 | 94.6 | 10,229 | 0.809 | 0.981 | **0.887** |
+| C. elegans | 15,240 | 95.8 | 15,314 | 0.976 | 0.981 | **0.979** |
+
+**The independent cross-check, and it passes.** These are cross-species, zero-shot: the
+model saw only human and mouse in training. The established IN-DISTRIBUTION number for
+the same variant and gate (human Hepatocytes held-out, standalone + enr >= 0.5) is
+precision 0.903 / recall 0.928 / F1 0.915. The cross-species human arm lands at
+0.912 / 0.933 / 0.922 and the three non-human primates within 0.006 F1 of it. A
+zero-shot gorilla arm scoring where the in-distribution human arm scores is the result.
+
+### Overall F1 is the wrong headline: it is carried by annotated CDS
+
+Annotated ORFs are 65 to 100% of every real set and are the easy case. Recall broken out
+by type (`attn`, `pred_preddepth`; n in the real set):
+
+| pack | annotated | uORF | dORF | internal | novel | FP dORF |
+|---|---|---|---|---|---|---|
+| yeast | 1.000 (4,973) | - (0) | 1.000 (1) | 0.000 (3) | - (0) | 1 |
+| zebrafish | 1.000 (7,985) | 0.836 (67) | 0.667 (6) | 0.064 (110) | 0.990 (198) | 46 |
+| gorilla | 0.995 (16,580) | 0.562 (1,707) | 0.175 (143) | 0.237 (262) | 0.907 (1,400) | 147 |
+| chimp | 0.996 (18,715) | 0.676 (3,076) | 0.133 (240) | 0.193 (233) | 0.925 (3,632) | 176 |
+| macaque | 0.995 (18,208) | 0.642 (3,602) | 0.184 (185) | 0.243 (239) | 0.923 (4,011) | 176 |
+| human | 0.995 (20,823) | 0.702 (3,057) | 0.194 (160) | 0.251 (175) | 0.921 (5,347) | 244 |
+
+Read across the row, not down the F1 column:
+
+- **Annotated CDS is recovered essentially completely** (0.995 to 1.000) in every
+  species, matching the 0.985-0.999 the in-distribution arms report.
+- **uORFs are the real cross-species test, and they degrade in the expected order.**
+  Human 0.702 (matching the 0.693 the in-distribution human arm reports at this gate),
+  chimp 0.676, macaque 0.642, gorilla 0.562. This tracks evolutionary distance from the
+  training species, which is the ordering a genuine generalisation result should show.
+- **dORF and internal recall are low by construction, not by failure.** The `>= 0.5x`
+  enrichment gate exists to kill the diffuse 3'UTR softmax leak, and it costs dORF recall;
+  results.md's own sweep records the same trade (dORF FPs 853 -> 60 at this gate). The
+  residual FP dORF counts here, 147 to 244 on 20k-30k call sets, are consistent with it.
+- **Zebrafish over-calls**: recall 0.981 against precision 0.809, its `pred_preddepth`
+  set 21% larger than the real one. This is the arm with the weakest profile correlation
+  (`profile_r` 0.137) and the count head compensates by predicting too much density.
+
+### Caveat that limits what this table can claim
+
+Predicted and observed calls are not independent: the model is trained to produce
+periodic profiles, and RiboCode calls ORFs by testing frame-0 dominance. High agreement
+on annotated CDS partly reflects that both sides are keyed to the same annotation. The
+uORF, dORF and internal columns, where the model must place density at a position the
+annotation does not mark, are the load-bearing part of this table.
+
+### By biological class: CDS, uORF, ncORF
+
+The RiboCode `ORF_type` alone does not give the class that matters. `novel` covers BOTH
+ORFs on non-coding transcripts and novel ORFs on coding transcripts, which are different
+claims, so ncORF is defined on the **biotype** instead. `scripts/xspecies/orf_classes.py`:
+
+  CDS    `ORF_type == "annotated"` on a protein_coding transcript
+  uORF   `uORF` or `Overlap_uORF` on a protein_coding transcript
+  ncORF  any call on a non-coding transcript (lncRNA, antisense_RNA, ncRNA_pseudogene)
+
+`attn`, `pred_preddepth`. Per-class calls with a `recovered_by_model` column are dumped
+to `results/xspecies_orf_classes/<species>_<class>_real.tsv` (28 files).
+
+| pack | CDS obs | CDS prec | CDS rec | uORF obs | uORF prec | uORF rec | ncORF obs | ncORF prec | ncORF rec |
+|---|---|---|---|---|---|---|---|---|---|
+| human | 20,823 | 0.967 | 0.993 | 4,392 | 0.632 | **0.712** | 574 | 0.551 | 0.768 |
+| macaque | 18,208 | 0.966 | 0.995 | 5,327 | 0.707 | 0.665 | 352 | 0.562 | 0.747 |
+| chimp | 18,715 | 0.969 | 0.995 | 4,611 | 0.665 | 0.706 | 222 | 0.569 | 0.757 |
+| gorilla | 16,580 | 0.973 | 0.995 | 2,549 | 0.574 | 0.580 | 187 | 0.498 | 0.770 |
+| zebrafish | 7,985 | 0.888 | 0.999 | 124 | 0.084 | 0.645 | 21 | 0.512 | 1.000 |
+| C. elegans | 14,598 | 0.995 | 0.993 | 195 | 0.559 | 0.533 | 5 | 0.625 | 1.000 |
+| yeast | 4,973 | 1.000 | 1.000 | 0 | - | - | 0 | - | - |
+
+Median ORF length separates the classes cleanly and explains the difficulty ordering:
+CDS 1,110-1,497 nt, uORF 135-213 nt, ncORF 165-255 nt. The short classes are where the
+periodicity test is fragile and where the model has to supply the density itself.
+
+Zebrafish uORF precision 0.084 (958 predicted against 124 observed) is the one clear
+failure in the table, and it is the same over-calling that shows up in its
+`profile_r` of 0.137: the count head predicts too much density and the caller converts
+that into spurious short ORFs.
+
+### attn vs mamba4: no meaningful difference on ORF calls
+
+Every arm agrees within 0.003 F1 (`results/xspecies_orf_calls.tsv` carries both).
+
+| | attn | mamba4 |
+|---|---|---|
+| human F1 | 0.922 | 0.924 |
+| human CDS recall | 0.993 | 0.996 |
+| human uORF recall | 0.712 | 0.724 |
+| gorilla F1 | 0.921 | 0.922 |
+
+The only systematic gap is `internal` recall, where mamba4 is consistently ahead
+(gorilla 0.328 vs 0.237, chimp 0.309 vs 0.193, macaque 0.326 vs 0.243) at a small cost in
+dORF recall. That is a difference on the two smallest classes from a single seed per
+architecture, and is not treated here as a result.
+
+### C. elegans: what the CDS repair did and did not change
+
+Re-called after the RefSeq feature-column repair (methods.md section H). The tell that the
+fix is correct and narrowly scoped:
+
+| | before | after |
+|---|---|---|
+| annotated | 0 | 16,594 |
+| novel | 17,745 | 385 |
+| uORF + Overlap_uORF | 0 | 396 |
+| internal | 0 | 256 |
+| dORF + Overlap_dORF | 0 | 114 |
+| **total calls** | **17,745** | **17,745** |
+
+The total is identical and so is the call set: 17,745 shared `(gene_id, ORF_gstop)` keys,
+zero gained, zero lost. RiboCode was always DETECTING the right ORFs; with no annotated
+CDS to compare against it could only type them `novel`. All 11 `*_psites.hd5` are
+byte-identical before and after, so the worm pack, universe, predictions and the
+`profile_r` = 0.327 profile-eval number are unaffected and were not rebuilt. Overall F1
+is likewise unchanged (0.979); only the `% annotated` column moved, 0.0 to 95.8.
+
+
+---
+
+## HLA-I immunopeptidome: do model ORF calls beat an every-AUG null? (2026-08-27/28)
+
+Full index, including which claims are and are not supported by these data:
+**`docs/HLA_IMMUNOPEPTIDOME_README.md`**. Methods: `docs/METHODS_hla_rescoring_and_grading.md`.
+
+Four HLA-I immunopeptidomes (HBL-1, DoHH2, SU-DHL-4, THP-1), searched with MSFragger against
+GENCODE plus one novel-ORF set per arm: the every-AUG null, the attn and mamba4 signal-model calls
+at two calibrations, and cross-architecture unions of each calibration.
+
+### The result that holds up
+
+At a nominal 1% FDR the **null runs at 9.1% achieved novel-class error** while every model arm runs
+at ~1%. Pooled over four lines and three seeds:
+
+| arm | novel targets | novel decoys | rate | 95% CI |
+|---|--:|--:|--:|---|
+| null (every AUG) | 1,168 | 106 | **9.08%** | [7.56%, 10.86%] |
+| model standard | 1,237 | 17 | 1.37% | [0.86%, 2.19%] |
+| model Poisson | 710 | 7 | 0.99% | [0.48%, 2.02%] |
+
+The null's interval is disjoint from every model arm's, and the separation holds independently in
+each cell line (null 7.1-10.6% vs pooled models 0.0-2.4%). Model databases are 12-150x smaller.
+
+Three further lines of evidence agree, none sharing a failure mode with the FDR argument:
+
+- **HLA anchor motifs.** Model-only novel peptides carry each line's canonical anchor signature
+  (DoHH2 E-at-P2 36% vs canonical 46%; THP-1 L-at-P2 71% vs 68%); null-only peptides do not, and
+  instead show C-terminal lysine (a tryptic signature, not an HLA anchor). Uses no decoys, no FDR
+  and no model score.
+- **Total PSM accounting.** Only the mamba4 arms beat a GENCODE-only search on total identifications
+  (+174, +83); the null is the worst arm at -217, buying 185 novel PSMs for 402 canonical.
+  Per-cell-line bar charts in `figures/hla_psm_tradeoff/`.
+- **Spectrum grading.** Novel PSMs match or beat score-matched canonical controls on the
+  Deutsch/TransCODE rubric (well-supported 0.82-1.00), so they are real spectra rather than
+  threshold noise.
+
+### What these data do NOT support
+
+- **Any ordering among the model arms by achieved FDR.** Per arm there are 0-5 novel decoys; all
+  confidence intervals overlap. Standard vs Poisson, single vs union: not separable on this column.
+- **Grade distributions distinguishing the arms.** The rubric is a floor check (all arms 0.82-1.00),
+  not a discriminator.
+- **Totals on the rescored scale.** mokapot canonical counts vary by up to 953 PSMs within a single
+  arm across three seeds, exceeding the between-arm differences. Totals use hyperscore, which is
+  deterministic.
+
+### Union databases: a clean negative
+
+Pooling attn and mamba4 into one database yields FEWER peptides than running them separately and
+merging: 79 vs 87 (standard), 40 vs 44 (Poisson). Achieved FDR stays at nominal, so the added ORFs
+are not injecting false positives -- they add database mass, which raises the threshold and drops 13
+and 6 genuine calls. **Union the results, not the databases.**
+
+This also explains the architecture comparison: attn and mamba4 agree on ~2/3 of peptides but only
+30-47% of ORFs, and the architecture-specific ORFs are overwhelmingly the ones yielding no
+detectable peptide in either search.
+
+### THP-1 is anomalous and should be explained before publication
+
+Four independent measures single it out: it is the only line where novel PSMs grade WORSE than
+matched canonical (0.847 vs 0.965); it has the lowest architecture agreement (Jaccard 0.42 vs
+0.61-0.79); it yields almost no excellent-grade calls (0-3 vs 12 on DoHH2 with a third the calls);
+and at global FDR every model arm returns exactly 2 novel PSMs against 11-18 at class-specific FDR.
+It is also the deepest dataset (15 fractions vs 2).
+
+## mm25 diagnostic arm: what keeping multimappers does to ORF calls (2026-08-28)
+
+All 67 cross-species Ribo runs re-aligned at `--outFilterMultimapNmax 25` into
+`data/xspecies_ribo_bam_mm25/`, then RiboCode run on them into
+`data/xspecies_psites_mm25/`. Compared against the mm1 call sets with
+`scripts/xspecies/compare_mm1_mm25_calls.py`, keyed `(gene_id, ORF_gstop)`,
+pval_combined <= 0.05, ORF >= 90 nt.
+
+| arm | mm1 | mm25 | ratio | Jaccard | mm25-only | runs mm1/mm25 | comparable |
+|---|---|---|---|---|---|---|---|
+| yeast | 5,348 | 5,347 | 1.000 | 0.999 | 3 | 16/16 | yes |
+| C. elegans | 17,383 | 17,416 | 1.002 | 0.998 | 33 | 11/11 | yes |
+| macaque | 30,731 | 31,009 | 1.009 | 0.977 | 494 | 7/7 | yes |
+| human | 34,316 | 34,664 | 1.010 | 0.988 | 386 | 5/5 | yes |
+| zebrafish | 11,541 | 11,684 | 1.012 | 0.982 | 178 | 4/4 | yes |
+| gorilla | 23,610 | 23,925 | 1.013 | 0.983 | 360 | 3/3 | yes |
+| chimp | 30,914 | 27,326 | 0.884 | 0.858 | 426 | **8/3** | **NO_depth_differs** |
+| fly | - | - | - | - | - | - | RiboCode failed, no periodicity in either posture |
+
+**Six of seven comparable arms sit at 1.000 to 1.013x.** Admitting multimappers barely
+moves the call set, and no ORF class is preferentially inflated: human, for example, goes
+annotated 1.00x, uORF 1.02x, novel 1.02x, dORF 1.10x (176 -> 193, a small-count ratio).
+
+### The chimp number is a depth artifact, not a result
+
+Chimp is the only arm whose ratio moves much, and it moves DOWN. The cause is not ORF
+calling: **five of its eight runs lost 3-nt periodicity entirely under mm25** and were
+dropped by RiboCode's own metaplots gate, so the two call sets rest on different amounts
+of data.
+
+```
+chimp runs contributing to the pooled call
+  mm1  (8): ERR12549917 918 919 920 921 931 932 933
+  mm25 (3):                                931 932 933
+```
+
+The five dropped runs produce a `_pre_config.txt` block with ZERO passing read lengths.
+`runs_used()` in the comparison script counts contributing runs per posture and flags any
+arm where they differ, so this cannot be read as "mm25 calls fewer ORFs" later. The
+apparent uniform per-class decline (annotated 0.90x, uORF 0.81x, dORF 0.44x) is what
+losing five libraries looks like.
+
+### This does not reproduce the mouse-liver inflation
+
+The pre-existing mouse liver pair (`data/mm25_diagnostic/psites_combined_mm{1,25}/`) shows
+23,476 -> 31,120 calls (1.33x) with `novel` going 4,355 -> 10,993 (2.5x) while annotated
+rises only 5%: the classic signature of multimapper-manufactured periodicity at
+unannotated loci. **Nothing in the seven cross-species arms reproduces it.** Whatever
+drove the mouse result is specific to that dataset or to mouse paralogy, and the
+cross-species expectation of large novel-ORF inflation under mm25 is not supported.
+
+### Why mm25 still should not be used
+
+Two distinct failure modes appear, and both argue against it:
+
+1. **Mild inflation** concentrated in the small unannotated classes (zebrafish, gorilla,
+   macaque, human, and severely in mouse liver).
+2. **Outright loss of periodicity** (chimp), where the extra reads degrade the 3-nt signal
+   below RiboCode's own quality gate and whole libraries drop out.
+
+The read-level counters explain the spread. mm25 recovers large numbers of multimappers,
+but the fraction that survives the posture-A cross-gene filter varies enormously by genome
+architecture:
+
+| | reads kept | of which multi-isoform | reads dropped cross-gene |
+|---|---|---|---|
+| yeast | 275,004 | 1,531 | 23,816,650 |
+| human | 58,102,705 | 36,975,348 | 8,395,366 |
+
+In yeast, 97.4% of recovered multimappers are cross-gene rRNA repeats that the filter
+removes anyway, which is why its call set is unmoved (3 mm25-only calls out of 5,347).
+
+**mm25 BAMs and call sets are a diagnostic. They are not a model target and must not feed
+any pack.**

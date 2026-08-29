@@ -135,6 +135,38 @@ for _u in sorted((_MACRO / "universes").glob("*_universe_tx.txt")):
         }
 
 
+# Cross-species expansion packs, auto-registered from the universes built by
+# scripts/xspecies/build_universe_xspecies.py, in the same spirit as the _MACRO block above.
+#
+# All of these use universe_tx mode with ref_pack=None, i.e. the ONE-HOT backend. That is
+# deliberate and it is what makes the expansion tractable: ref_pack mode would require RiNALMo
+# and Orthrus per-token embeddings for every transcript of every species, which do not exist
+# outside human and mouse. The mouse_wang_liver arm above is the precedent.
+#
+# The ribo and rna dataset labels differ per species (the two arms often come from different
+# BioProjects), so the pairing is explicit rather than inferred from a shared prefix.
+_XSP = NEW / "data" / "xspecies_refs"
+_XSP_ARMS = {
+    # pack name            (ribo dataset,          rna dataset,            species key)
+    "xsp_yeast":           ("yeast_gse173654_ribo", "yeast_gse173654_rna",  "yeast"),
+    "xsp_celegans":        ("worm_gse52905_ribo",   "worm_gse52861_rna",    "celegans"),
+    "xsp_zebrafish":       ("zf_gse46512_ribo",     "zf_gse70549_rna",      "zebrafish"),
+    "xsp_gorilla":         ("primate_gg_ribo",      "primate_gg_rna",       "gorilla"),
+    "xsp_chimp":           ("primate_pt_ribo",      "primate_pt_rna",       "chimp"),
+    "xsp_macaque":         ("primate_rm_ribo",      "primate_rm_rna",       "macaque"),
+    "xsp_human":           ("ruizorera_hsCM_ribo",  "ruizorera_hsCM_rna",   "human_refseq"),
+}
+for _name, (_ribo, _rna, _sp) in _XSP_ARMS.items():
+    _uni = _XSP / f"{_ribo}_universe.txt"
+    _ps = NEW / "data" / "xspecies_psites" / _ribo
+    _cv = NEW / "data" / "xspecies_rna_coverage_mm10" / _rna
+    if _uni.exists() and _ps.is_dir() and _cv.is_dir():
+        DATASETS[_name] = {
+            "psites_dir": _ps, "coverage_dir": _cv, "ref_pack": None,
+            "universe_tx": _uni, "species": _sp,
+        }
+
+
 def read_ids(h):
     return h["transcript_ids"].asstr()[:]
 

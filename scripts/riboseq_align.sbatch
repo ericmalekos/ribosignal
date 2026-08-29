@@ -62,6 +62,19 @@ ENV=/private/groups/carpenterlab/emalekos/conda_envs/riboseq
 RPY=$ENV/bin/python3
 SHEET=${SHEET:?set SHEET=<samplesheet.tsv>}
 OUTROOT=${OUTROOT:?set OUTROOT=<output dir>}
+# Multimap posture. DEFAULTS TO 1 and must stay that way: every pack, P-site set and model
+# target in this project is built on uniquely-mapped reads, per the project-wide Ribo-seq
+# rule (RiboCode and Ribo-TISH do not drop multi-mappers themselves, so keeping them
+# silently inflates P-site counts and breaks the periodicity test).
+#
+# MM=25 exists ONLY as the diagnostic arm that measures what mm1 discards. Its BAMs are
+# NOT a valid model target. When comparing the two postures, compare TOTAL RECORDS PER
+# TRANSCRIPT via bamlib.multimap_cost(); do NOT split on NH, because --quantMode
+# TranscriptomeSAM projects one genomic alignment onto every compatible isoform, so a
+# genomically unique read routinely carries NH:i:17. An NH split once reported "99.8% of
+# reads discarded" against STAR's own 30%.
+MM=${MM:-1}
+[[ "$MM" =~ ^[0-9]+$ ]] || { echo "MM must be an integer, got '$MM'" >&2; exit 1; }
 T=${SLURM_CPUS_PER_TASK:-12}
 
 mapfile -t ROWS < <(awk -F'\t' 'NR>1' "$SHEET")
@@ -76,12 +89,28 @@ if [[ "$UMIPAT" != "none" ]]; then
   [[ -x "$UMITOOLS" ]] || { echo "umi=$UMIPAT requested but $UMITOOLS is missing" >&2; exit 1; }
   [[ "$UMIPAT" =~ ^[NCGATX]+$ ]] || { echo "umi pattern '$UMIPAT' is not a bc-pattern" >&2; exit 1; }
 fi
+# human and mouse keep their historical hardcoded paths: those packs were built against
+# these exact files and re-pointing them is not a refactor, it is a re-validation.
+# Every other species resolves through scripts/xspecies/species.tsv, so adding an eighth
+# needs a row in that table and no edit here.
 case "$SPECIES" in
   mouse) IDX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_grcm39_vM38
          NCRNA=$NEW/data/ncrna_tx_mouse_vM38.txt; T2G=$NEW/data/tx_to_gene_mouse_vM38.tsv ;;
   human) IDX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_grch38_v49
          NCRNA=$NEW/data/ncrna_tx_human_v49.txt;  T2G=$NEW/data/tx_to_gene_human_v49.tsv ;;
-  *) echo "unknown species '$SPECIES'" >&2; exit 1 ;;
+  *)
+    SPTSV=$NEW/scripts/xspecies/species.tsv
+    ANNVER=$(awk -F'\t' -v s="$SPECIES" '!/^#/ && $1==s {print $2; exit}' "$SPTSV" 2>/dev/null)
+    [[ -n "$ANNVER" ]] || { echo "unknown species '$SPECIES' (not hardcoded, and no row in $SPTSV)" >&2; exit 1; }
+    IDX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_${SPECIES}_${ANNVER}
+    NCRNA=$NEW/data/annot/$SPECIES/ncrna_tx.txt
+    T2G=$NEW/data/annot/$SPECIES/tx_to_gene.tsv
+    # An empty ncRNA list is the exact silent failure normalize_annotation.py exists to
+    # prevent: the drop step would run, remove nothing, and report success.
+    [[ -s "$NCRNA" ]] && [[ $(wc -l < "$NCRNA") -ge 10 ]] || {
+      echo "ncRNA drop list $NCRNA is missing or implausibly small; run scripts/xspecies/build_species_refs.sbatch" >&2
+      exit 1; }
+    ;;
 esac
 BAMDIR=$OUTROOT/$DS
 mkdir -p "$BAMDIR"
@@ -92,7 +121,7 @@ done
 [[ -s "$OUTBAM" && -s "$OUTBAM.bai" ]] && { echo "SKIP $RUN (done)"; exit 0; }
 SCR=/data/tmp/emalekos/ribal_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}
 mkdir -p "$SCR"; trap 'rm -rf "$SCR"' EXIT
-echo "dataset=$DS run=$RUN species=$SPECIES adapter=$ADAPTER umi=$UMIPAT host=$(hostname) start=$(date -Iseconds)"
+echo "dataset=$DS run=$RUN species=$SPECIES adapter=$ADAPTER umi=$UMIPAT mm=$MM host=$(hostname) start=$(date -Iseconds)"
 
 # UMI extract BEFORE trimming: the UMI sits at the 5' end of the raw read, so it must come off before
 # cutadapt applies the -m/-M length window, or the window is measured on insert+UMI.
@@ -112,7 +141,7 @@ fi
 grep -E "Total reads processed|Reads written" "$BAMDIR/${RUN}.cutadapt.log" | sed 's/^/  /'
 
 "$ENV/bin/STAR" --genomeDir "$IDX" --readFilesIn "$SCR/t.fq.gz" --readFilesCommand zcat \
-  --runThreadN "$T" --alignEndsType EndToEnd --outFilterMultimapNmax 1 \
+  --runThreadN "$T" --alignEndsType EndToEnd --outFilterMultimapNmax "$MM" \
   --outSAMtype BAM Unsorted --quantMode TranscriptomeSAM \
   --outSAMattributes NH HI AS nM --outFileNamePrefix "$SCR/${RUN}."
 cp "$SCR/${RUN}.Log.final.out" "$BAMDIR/${RUN}.STAR.Log.final.out"

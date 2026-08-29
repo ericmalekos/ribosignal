@@ -2639,11 +2639,373 @@ Implemented as `_enable_mamba_cpu()` in `scripts/dump_pred_profiles.py`, gated o
 (off by default -- on a GPU the fast path is much quicker). Verified to produce finite output on the
 real `RiboSignalModel` (mamba4, 10 conv blocks, d_state 16) at L=1000 and L=3000.
 
-**Cost:** ~7.9 s per 3,000 nt transcript single-threaded. Shard wide (`--nshards`); at 16 cores a
-41,096-tx dump is in the same few-hour range as the attn CPU dump.
+**Cost, and a correction.** The microbenchmark is ~7.9 s per 3,000 nt transcript single-threaded.
+That was then extrapolated to "a 41,096-tx dump at 16 cores lands in the same few-hour range as the
+attn CPU dump" -- and that extrapolation was WRONG. The real run produced no dump at all in 12 h and
+was killed by the partition wall, i.e. roughly an order of magnitude worse than predicted. Either
+the dump does not parallelise the way the estimate assumed, or per-transcript cost scales worse at
+real transcript lengths than at the 3,000 nt test point.
+
+**So: CPU mamba is for smoke tests and small transcript sets.** It is NOT a general substitute for a
+GPU. For a full dump, shard hard across many jobs or wait for a GPU (~10-20 min there). The attn
+mixer, by contrast, genuinely does complete a 41,096-tx CPU dump in ~7 h.
 
 **Why it matters operationally:** the GPU partition on this cluster sits at 48/48 allocated for long
 stretches (8 A100 + 40 A5500). When that happens, a CPU run started immediately finishes before a
 GPU job that is still queued. Used on 2026-08-25 to run both Wang mm10 cross-species arms (attn and
 mamba4) concurrently on CPU rather than waiting. Training still wants a GPU -- the reference path is
 far too slow for a backward pass.
+
+### G. Drosophila is DROPPED from the modelling arm: no usable 3-nt periodicity (2026-08-26)
+
+Fly aligned cleanly and then failed at P-site calling. RiboCode reported "No obviously periodicity
+are detected" for all 9 BAMs and exited with "Error, can not determine the P-site locations". The
+alignment was not the problem: 472.7M input reads, 98.6M uniquely mapped, 31-38 nt, landing on CDS.
+
+**The cause is the nuclease.** GSE99920's GEO protocol reads: *"240 ul of lysate was incubated with
+anti-Flag antibody coated magnetic beads and 10000 units of RNase T1 ... to perform digestion of
+exposed mRNA and ribosome purification simultaneously."* RNase T1 cleaves specifically after G, so
+footprint ends are ragged and sequence-dependent, and the sub-codon precision that periodicity
+depends on is destroyed. RNase I, the standard, cuts without base preference and gives sharp ends.
+
+This is the same class of error as the GSE157050 rejection recorded in section 5J (polysome
+profiling mislabelled as ribosome profiling). The screening at dataset-selection time checked title,
+matched-RNA design, replicate count and poly(A) status, but **not the nuclease**. Add it: for any
+Ribo-seq candidate, read the digestion step out of the GEO extract protocol before downloading.
+
+#### The measurement, and a methodological correction worth keeping
+
+The first frame test pooled all read lengths under a single +12 P-site offset and reported
+38.0 / 35.1 / 27.0 for GSE99920. That number is right but the method was wrong: the correct offset
+varies with read length, so pooling 30-38 nt reads under one offset BLURS a real signal and can make
+a periodic library look flat. **Always compute the frame histogram per read length, and validate the
+method on an arm already known to be periodic.** Redone that way, with yeast as the positive control:
+
+| dataset | dominant read length | n | f0 / f1 / f2 | max |
+|---|---|---|---|---|
+| yeast GSE173654 (RiboCode PASSED) | 28 nt | 581,729 | **93.9** / 2.6 / 3.6 | **93.9%** |
+| fly GSE99920 (rejected, RNase T1) | 32 nt | 244,481 | 15.2 / 56.2 / 28.7 | 56.2% |
+| fly GSE147619 (candidate, RNase I) | 32 nt | 131,623 | 21.5 / 19.5 / 59.0 | 59.0% |
+
+Yeast concentrates 582k reads into ONE length class at 93.9% in frame. That is what sub-codon
+resolution looks like. Both fly datasets sit near 56-59% and, more tellingly, are **incoherent
+across read lengths** (GSE147619 gives 59.0 / 42.7 / 44.4 / 44.7 over its top four classes with no
+consistent phase), which is what a ragged-ended library looks like.
+
+#### The replacement candidate was tested and also rejected
+
+A literature search for an untreated fly study with matched RNA-seq and RNase I footprinting
+returned **GSE147619** (PRJNA615808, Drosophila embryo smORF translation) as the best candidate:
+wild-type Oregon-R with no treatment or genotype arm, matched cytoplasmic RNA-seq from the same
+lysate, 6 Ribo + 6 RNA over three developmental windows x 2 replicates, and RNase I confirmed in the
+GEO protocol (*"Footprinting was performed overnight at 4C with RNaseI (Invitrogen)"*).
+
+It was tested empirically on a 2M-read subset before committing to the 43.1 GB download, and
+rejected on three counts: periodicity is weak and phase-incoherent (table above); only **12.07%**
+of reads mapped uniquely with **87.31%** to too many loci; and the digestion follows polysome
+purification with monosomes deliberately discarded (*"We purified mRNAs in polysomes, away from
+monosomes (80S)"*), so the footprints are not the standard total-lysate monosome fraction.
+
+**GSE49197** (Dunn and Weissman, stop-codon readthrough) is disqualified without testing: it used
+**MNase**, and the paper states plainly that MNase's 3' A/T bias *"prevents us from achieving the
+sort of sub-codon resolution seen in ribosome profiling datasets generated with RNase I."*
+
+#### Decision
+
+Fly is dropped from the modelling arm. Its references, alignments, BAMs, coverage and QC are RETAINED
+and documented so the arm reads as processed-but-unusable rather than as a gap, and so the negative
+result is not re-derived. The expansion proceeds with **eight species**. The four-species iPSC-CM
+comparison, which is the primary generalisation test, is unaffected.
+
+Caveat on the search: the literature workflow completed only 58 of 93 agents before hitting a
+session limit, and the synthesis step failed. GSE60384, GSE168879/GSE168878 and GSE233555 were named
+as candidates but never fully verified. If fly is wanted later, those three are where to resume, and
+the nuclease is the first thing to check for each.
+
+---
+
+## Post-hoc rescoring of the HLA-I immunopeptidome arms (MS2Rescore, 2026-08-27)
+
+### Why
+
+The pgx tables report novel peptides from MSFragger alone: rank-1 PSM per spectrum, thresholded by
+MSFragger's `hyperscore` at 1% class-specific FDR against `REV_nuORF|` decoys. Hyperscore is a
+fragment-count statistic and is weakest exactly where these searches live, in nonspecific digestion
+over a large novel-ORF space. Rescoring adds orthogonal evidence: predicted fragment-ion intensities
+and predicted retention time.
+
+The purpose here is **confirmation of an ordering, not a larger headline count**. The pgx claim is a
+database-composition contrast (a model-derived database beats an every-AUG null at 25 to 150 times
+fewer sequences). Rescoring changes the scoring function, applied identically to every arm. If the
+model-over-null ordering survives a scoring function that shares nothing with hyperscore, the claim
+is robust; if it flips on a line, that line was fragile.
+
+### Configuration
+
+`proteogenomics/msfragger/ms2rescore_pgx_hla.json`, MS2Rescore 3.2.1:
+
+| component | setting | reason |
+|---|---|---|
+| feature generator | `basic` | charge, mass error, peptide length |
+| feature generator | `ms2pip`, model `Immuno-HCD`, tol 0.02 | fragment-intensity model trained on non-tryptic HLA peptides |
+| feature generator | `deeplc`, calibration 0.15 | retention-time prediction; absent from the earlier run in this project, and among the strongest discriminators for nonspecific searches |
+| rescoring engine | `mokapot` 0.10 | its output is used only for the feature table and as a sanity check; the reported counts come from the class-aware pass below |
+| decoy pattern | `^REV_` | matches the pgx database convention |
+
+### Work units
+
+`pgx/rescore_manifest.py` enumerates (line, arm, fraction). The `gencode` and `null_atg` databases do
+not depend on which signal model produced the ORF calls and are byte-identical between the attn and
+mamba4 pgx directories (verified by fasta md5), so each is rescored once rather than twice. That
+gives 6 unique arms per line: `gencode`, `null_atg`, and `{attn,mamba4}_model_{standard,poisson}`.
+
+126 units: 12 each for HBL-1, DoHH2 and SU-DHL-4 (2 fractions), 90 for THP-1 (15 fractions).
+`pgx/rescore.sbatch` runs one unit per array task, indexed by manifest data-line number so a rerun of
+an individual failure is exact. Output is gzipped (the feature table is 107 columns and compresses
+about 5x; the group filesystem is at 93% of its 15 TB quota).
+
+### Counting: three corrections, each forced by a measured failure
+
+`pgx/rescore_report.py`.
+
+1. **Class-aware.** Global mokapot optimises the canonical-dominated target/decoy separation and
+   interleaves novel targets with novel decoys, which collapses the novel-class FDR. Measured
+   earlier in this project on A549: 10/13 novel peptides (model/null) on raw hyperscore became
+   **1/6** under global rescoring. The fix, already written in `compare_rescored_classaware.py`, is
+   to retrain mokapot on the novel class only (`novel_t` vs `novel_d`) using the same MS2Rescore
+   feature columns. The novel class is too sparse to bootstrap at mokapot's default 1% `train_fdr`,
+   so the trainer walks a ladder of 0.05, 0.10, 0.25 and reports which one trained.
+
+2. **Seed-ensembled.** At two-fraction depth a single mokapot run is bimodal, not noisy. Across 8
+   seeds (`results/mokapot_stochastic.json`) SU-DHL-4 returned 2, 2, 18, 2, 18, 23, 23, 2 novel
+   peptides (SD 10.1) and DoHH2's null returned 7 to 29 (SD 9.0). That spread is the entire effect
+   size, so a single roll is not reportable. The fix is to average the **posterior error
+   probability** over N seeds. Averaging the PEP rather than the raw discriminant is deliberate:
+   mokapot's discriminant is not calibrated to a common scale across runs, while the PEP is a 0-1
+   quantity with the same meaning in every run. A PSM that mokapot dropped in every seed is scored
+   as PEP 1.0, never given a free pass.
+
+3. **Deterministic final cut.** The 1% threshold is a target/decoy cut on the ensembled score using
+   the same `pgx.report.cut` the hyperscore table uses, not mokapot's own q-values. This is what
+   makes the two columns comparable: the score changes and nothing else does.
+
+### What a rescored row counts, and how it differs from a hyperscore row
+
+MS2Rescore defaults to `max_psm_rank_input=10` and `max_psm_rank_output=1`: it rescores MSFragger's
+top-10 candidates per spectrum and writes back only the winner. The pgx hyperscore pipeline only
+ever looked at MSFragger's rank 1. Rescoring can therefore promote a rank-2-to-10 novel peptide over
+a rank-1 canonical one, so a changed count reflects **both** a changed threshold and a changed
+spectrum-to-peptide assignment. Separating those two contributions would require a rerun at
+`max_psm_rank_output` > 1, roughly 4x the output volume (the probe run discarded 30,658 non-winning
+PSMs against about 10,000 kept), and is not done here. It is a diagnostic, not the claim being
+tested: the hyperscore table already reports hyperscore selection under a hyperscore threshold, and
+the rescored table reports rescored selection under a rescored threshold, which is the comparison
+that decides whether the ordering is robust.
+
+### Known limitation
+
+These are shallow datasets: 1,415 to 5,527 baseline canonical PSMs per line, and 2 fractions for
+three of the four lines. The standing project finding is that Percolator-class rescoring helps at 30
+mzML and hurts at 10. THP-1, with 15 fractions, is the only line comfortably above that line, and it
+is also the line the earlier rescoring work never covered. Where the class is too sparse to train at
+any `train_fdr`, the report says `untrainable` rather than substituting a number.
+
+### H. The RefSeq C. elegans GTF mislabels its CDS rows, and what it cost (2026-08-27)
+
+NCBI's RefSeq annotation for C. elegans (GCF_000002985.6, WormBase WS298) writes the
+isoform's own `standard_name` into the feature-type column where `CDS` belongs:
+
+```
+NC_003284.9  RefSeq  F31B12.1k  10838615  10838650  .  -  0  gene_id "CELE_F31B12.1"; ...
+                     ^^^^^^^^^ should be CDS
+```
+
+204,530 of 204,542 CDS rows are affected, spread over 30,548 distinct names, leaving
+**12** rows in the whole file that actually say `CDS`. None of the other six RefSeq
+annotations used here (yeast, zebrafish, gorilla, chimp, macaque, human) contains a
+single non-standard feature row, so this is one file's defect rather than a RefSeq
+convention.
+
+**Why it survived every existing check.** `exon`, `transcript`, `gene`, `start_codon`
+and `stop_codon` rows are all untouched, so the file builds a correct STAR index, a
+correct transcriptome FASTA, a correct ncRNA drop list and a correct universe. The
+transcript counts all reconcile. Only a CDS-consuming step notices, and RiboCode does
+not fail on it: with no annotated CDS to compare against, it types **every** called ORF
+`novel`. That is exactly what it did, and the tell was in the output all along:
+
+| arm | annotated | novel |
+|---|---|---|
+| yeast | 5,344 | 4 |
+| zebrafish | 10,947 | 273 |
+| human | 23,144 | 6,976 |
+| **C. elegans** | **0** | **17,745** |
+
+A worm arm reporting 17,745 novel ORFs and zero annotated ones is not a biological
+result. It was caught by comparing the ORF-type composition across species, not by any
+assertion in the pipeline.
+
+**The repair, in `normalize_annotation.py`.** `repair_feature()` rewrites a row to `CDS`
+only when all three of these hold, and all three held for 204,530/204,530 rows:
+
+1. the feature type is not a known GTF feature,
+2. the frame column is a valid `0`/`1`/`2` (only CDS carries a frame), and
+3. the feature string equals the row's own `standard_name` attribute.
+
+Anything else non-standard is a **hard error**, matching the treatment of an unmapped
+biotype term: the normalizer is meant to be pointed at an eighth species safely, and a
+silent pass-through is what caused this.
+
+**A second silent failure found while fixing the first.** `--genome` was accepted
+without an existence check, so an unmatched shell glob was passed through as the literal
+pattern `*genomic.fna`, `detect_mito()` found no header to read, and the only symptom was
+24 worm tRNAs keeping `tRNA` instead of `Mt_tRNA`. A missing `--genome` now aborts.
+
+**Scope of the rebuild.** After re-normalizing, `ncrna_tx.txt`, `tx_to_gene.tsv` and
+`tx2biotype.tsv` are byte-identical to the pre-fix versions and CDS rows go 12 to
+204,536. The STAR index, salmon index, transcriptome FASTA, universe and ncRNA filtering
+are therefore all unaffected and were not rebuilt. Only `data/ribocode_annot_celegans`
+and the worm P-site / ORF-call outputs were regenerated. The superseded outputs are kept
+alongside as `*.broken_cds.2026-08-27` rather than deleted, per the intermediate-data
+policy.
+
+The GENCODE selftest (exact set equality against `data/ncrna_tx_human_v49.txt` = 2,447
+and `ncrna_tx_mouse_vM38.txt` = 2,579) still passes after both changes.
+
+### I. Genome-coordinate Ribo-seq BAMs and bigwig tracks (2026-08-27)
+
+`scripts/xspecies/ribo_genome_bigwig.sbatch`, driven by
+`data/external/xspecies/samplesheets/ribo_ALL_genome.tsv` (all 67 Ribo runs across the
+seven active species plus the dropped fly arm).
+
+**Why this is a re-alignment and not a conversion.** Every Ribo BAM this project had was
+`Aligned.toTranscriptome.out.bam`. `scripts/riboseq_align.sbatch` runs STAR with
+`--outSAMtype BAM Unsorted --quantMode TranscriptomeSAM` and copies out only the
+transcriptome BAM; the genomic one is written into node-local `$SCR` and removed by that
+job's own `trap ... EXIT`. `bamCoverage` cannot be pointed at what was on disk, because
+those BAMs' references are TRANSCRIPTS (201,583 `@SQ` lines for human, 6,477 for yeast),
+which no genome browser can display against an assembly. The FASTQs were all still local,
+so the fix was to re-align rather than to restore anything.
+
+**The posture is deliberately identical** to the transcriptome run, or the tracks would not
+describe the same reads as the ORF calls: `--outFilterMultimapNmax 1`,
+`--alignEndsType EndToEnd`, and the same per-run cutadapt arguments read from the same
+samplesheet column. The single intentional difference is the ncRNA drop. In transcript
+space `filter_tx_heldout.py` drops reads by TRANSCRIPT ID; in genome space the equivalent
+is dropping reads that fall in rRNA / tRNA / miRNA / Mt loci, using
+`data/annot/<species>/ncrna_postfilter.bed` via `samtools view -L <bed> -U <keep.bam>`
+(`-L` selects reads overlapping the intervals, `-U` writes the ones that do not, which is
+the set to keep). The job refuses to run on an interval file with fewer than 10 lines,
+since an empty one would filter nothing and report success.
+
+**bigwig settings**: `--binSize 1`, no normalization, so the track is raw per-base read
+depth and is directly comparable to the P-site profiles the model is scored against. The
+consequence to remember is that tracks are NOT comparable ACROSS runs without accounting
+for library size.
+
+**Validation, on the yeast smoke test before the other 66 were launched.** The genome and
+transcriptome runs of `SRR26680426` agree exactly: 25,378,479 input reads and 1.69%
+uniquely mapped in both. That equality is the evidence the posture really is the same.
+
+Two numbers that look wrong and are not:
+
+- **1.69% unique mapping.** STAR reports 96.16% of reads going to "too many loci". That is
+  `--outFilterMultimapNmax 1` discarding rRNA-repeat multimappers in an undepleted yeast
+  library, it is identical in the pre-existing transcriptome BAMs, and that arm still
+  yields 4,973 CDS calls at precision 1.000 with clean periodicity.
+- **The genomic BAM keeps MORE records than the transcriptome one** (300,660 vs 248,777),
+  inverting the usual isoform-expansion expectation. The two ncRNA filters are not
+  equivalent: `filter_tx_heldout.py` can only retain reads that align to an annotated
+  transcript at all, whereas the genomic BED filter also keeps intergenic and intronic
+  reads. Worth knowing before comparing a browser track against a pack profile.
+
+**Contig naming.** These are RefSeq assemblies, so contigs are `NC_000001.11` style rather
+than UCSC `chr1`. Load `genomes/xspecies_refs/<species>/genome.fna` as the IGV reference;
+a stock hg38 will not match.
+
+**deeptools** was installed into `conda_envs/riboseq` (3.5.6). The env was snapshotted first
+to `logs/env_snapshots/riboseq_before_deeptools_2026-08-27.txt` and the solve dry-run
+checked: 38 pure additions, no downgrade of numpy, pysam, python, STAR, salmon, samtools
+or cutadapt, all of which were re-verified after the install.
+
+Outputs: `data/xspecies_ribo_bigwig_genome/<arm>/<RUN>.bw` and
+`data/xspecies_ribo_bam_mm1_genome/<arm>/<RUN>.genome.bam` (+ `.bai`, STAR and cutadapt
+logs). The genomic BAMs are retained rather than deleted in-job, per the
+intermediate-data policy; they are the only copy and re-deriving them costs 67 STAR runs.
+
+---
+
+## HLA-I immunopeptidome rescoring and grading -- see the dedicated methods document
+
+The full manuscript-grade methods for the 2026-08-27/28 HLA-I analysis (database construction,
+MSFragger parameters, MS2Rescore configuration, mokapot training and FDR, the spectrum-grading
+rubric, software versions and the script map) are in
+**`docs/METHODS_hla_rescoring_and_grading.md`**, with the index of all results, figures and data at
+`docs/HLA_IMMUNOPEPTIDOME_README.md`.
+
+Kept there rather than inline because it is manuscript copy: every parameter is the value actually
+used, and the document is meant to be lifted into a methods section largely as written.
+
+### J. The mm25 multimap diagnostic arm (2026-08-28)
+
+The plan's fifth matrix cell: Ribo at `--outFilterMultimapNmax 25`, to measure per species
+what the standard mm1 posture discards.
+
+**Alignment.** `scripts/riboseq_align.sbatch` hardcoded `--outFilterMultimapNmax 1`. It now
+takes `MM=${MM:-1}`, so the default is unchanged for every existing caller and the mm25 arm
+is `MM=25` with `OUTROOT=data/xspecies_ribo_bam_mm25`. All 67 runs, same adapters, same
+`filter_tx_heldout.py` posture-A filter (isoform multimapping kept, cross-gene dropped).
+
+**ORF calling.** `scripts/xspecies/ribocode_xspecies.sbatch` hardcoded its output to
+`data/xspecies_psites/$DS`, which holds the mm1 P-sites, the packs, and every call set the
+model was scored against. Running a second posture through it unchanged would have silently
+overwritten them. It now takes `PSITEROOT`, defaulting to the old path; mm25 writes to
+`data/xspecies_psites_mm25/`.
+
+**Comparison.** `scripts/xspecies/compare_mm1_mm25_calls.py`, keyed `(gene_id, ORF_gstop)`.
+
+**The confound that had to be measured, not assumed.** A raw call-count ratio is
+uninterpretable on its own, because RiboCode silently drops any run whose 3-nt periodicity
+fails its metaplots gate: that run contributes no uncommented row to `<ds>_pre_config.txt`
+and simply is not in the pooled call. Chimp passed 8/8 runs at mm1 and 3/8 at mm25, so its
+0.884x looks like "mm25 calls fewer ORFs" when the real effect is five lost libraries.
+`runs_used()` counts contributing runs per posture and marks any arm where they differ
+`NO_depth_differs`. Six of seven arms are like-for-like; chimp is not.
+
+**Scheduling, and a mistake worth not repeating.** These jobs sat PENDING for hours with
+`Reason=Nodes_required_for_job_are_DOWN,_DRAINED_or_reserved...` while the partition had
+2,106 idle CPUs, 1.5-2 TB free memory per node, no drained nodes and no reservations. The
+message is misleading: the real cause is fairshare (priority 1369 after ~1,100 jobs that
+day) plus oversized walltime, since backfill only starts a job in a gap it can finish
+inside. Walltimes had been set from worst-case guesses rather than from the mm1 runtimes
+already on disk. Cutting them started a job within seconds:
+
+| arm | mm1 actual | requested | cut to |
+|---|---|---|---|
+| zebrafish | 0:11 | 10:00 | 1:30 |
+| gorilla | 0:40 | 11:45 | 3:00 |
+| chimp | 1:00 | 11:45 | 4:00 |
+| human | 1:51 | 11:45 | 6:00 |
+| macaque | 1:53 | 11:45 | 6:00 |
+
+Chimp began running on phoenix-10 immediately after its cut. Switching partition is NOT the
+lever (short/medium/long draw on the same nodes, and this account has no `high_priority`
+association); multi-partition submission is also unavailable because the association pins a
+single partition. **Size walltime from a measured prior run, not from fear.**
+
+**Cost notes.** Disk inflation is negligible after the posture-A filter (yeast final mm25
+BAM 1.09x mm1), contrary to the 4.1x suggested by `janich_ribo_mm25`, which came from a
+different, unfiltered pipeline. Time is the real cost: `filter_tx_heldout.py` is
+single-threaded over every record and human hit 2.02 BILLION records, taking 87 minutes for
+the filter alone. The first human attempt died at a 2h limit; the successful re-run took
+2:04:48.
+
+**A trap re-confirmed.** The timed-out human job left a 19 GB BAM that PASSED
+`samtools quickcheck` but was the unfiltered intermediate, because `filter_tx_heldout.py`
+overwrites in place and the job died during the sort that follows. quickcheck validates
+structure, not correctness or completeness. Its mtime, not its validity, is what exposed it.
+The file was deleted and the run redone.
+
+**Fly.** RiboCode fails on the fly mm25 BAMs exactly as it does at mm1: no read length in
+any of the 9 runs passes the periodicity test, so no P-site offsets can be assigned. This is
+the documented RNase T1 problem from section G, not a pipeline fault, and no attempt was
+made to lower `frame0_percent` to force calls out of a library with no periodicity.
