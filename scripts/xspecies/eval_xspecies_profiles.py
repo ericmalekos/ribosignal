@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
 import sys
 from pathlib import Path
 
@@ -45,7 +46,66 @@ import numpy as np
 NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
            "RNAZoo/experiments/riboseq_signal_model")
 sys.path.insert(0, str(NEW / "scripts"))
-from train import pearson, spearman  # noqa: E402
+from scipy.stats import rankdata  # noqa: E402
+
+# pearson and _rank/spearman are COPIED VERBATIM from scripts/train.py rather than
+# imported, because importing train pulls in torch, which the riboseq env does not have.
+# Copying is justified here only because both are three lines and are reproduced exactly;
+# if train.py's definitions change, these must be updated with them.
+
+
+def pearson(a, b):
+    a = a - a.mean()
+    b = b - b.mean()
+    d = math.sqrt(float(a @ a) * float(b @ b))
+    return float(a @ b) / d if d > 0 else float("nan")
+
+
+def _rank(x):
+    r = np.empty_like(x)
+    r[np.argsort(x, kind="stable")] = np.arange(len(x))
+    return r
+
+
+def spearman(a, b):
+    return pearson(_rank(a).astype(np.float64), _rank(b).astype(np.float64))
+
+
+def spearman_ties(a, b):
+    """Spearman with AVERAGE ranks for ties, which is the standard definition.
+
+    The project's train.spearman ranks via `_rank`, which uses
+    `argsort(kind="stable")` and assigns ORDINAL ranks 0..n-1. That breaks ties by
+    POSITION rather than averaging them. On a dense vector the two agree; on a sparse
+    P-site profile they do not, and the difference is not small.
+
+    A per-nt Ribo-seq profile is 74-94% zeros here. Under ordinal ranking every tied
+    zero receives a distinct rank in positional order, so the observed rank vector
+    becomes a proxy for POSITION along the transcript rather than for signal. The model
+    predicts low density in the 3'UTR; in a species with long 3'UTRs those positions are
+    both observed-zero (hence high ordinal rank, being last) and predicted-low, which
+    manufactures an ANTI-correlation out of nothing. Measured, the effect tracks the zero
+    fraction exactly:
+
+        pack        zero%   ordinal   avg-ties
+        yeast       78.0%     0.163      0.287
+        celegans    73.8%     0.142      0.321
+        gorilla     86.6%    -0.075      0.394
+        human       86.9%    -0.190      0.394
+        zebrafish   94.4%    -0.362      0.148
+
+    So the negative `profile_rho` values this script reported before 2026-08-29 were a
+    tie-handling artifact, NOT evidence of anti-correlated profiles. Both are emitted now:
+    `profile_rho` (tie-corrected, the one to use) and `profile_rho_ordinal` (the old
+    definition, kept so the change is auditable).
+
+    NOTE, unfixed deliberately: train._rank is shared with eval_localization.py and
+    inspect_distributions.py and feeds `spearman_median` columns in existing results
+    tables. Correcting it there would silently move previously published numbers, so it
+    is flagged rather than changed. Any Spearman computed on sparse data through
+    train.spearman is affected.
+    """
+    return pearson(rankdata(a).astype(np.float64), rankdata(b).astype(np.float64))
 
 ARCHS = ["attn", "mamba4"]
 RUN = "orf_v2_{a}_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes"
@@ -64,23 +124,29 @@ def score(npz: Path, min_nt: int, min_obs: int, rng: np.random.Generator) -> dic
     # this script reported total_r ~= 0 for every species. Scale the profile to the observed
     # depth before the log, and take the total from pred_total.
     ptot_head = d["pred_total"].astype(np.float64)
-    rs, rhos, shuf = [], [], []
+    rs, rhos, rhos_ord, shuf = [], [], [], []
     ptot, ototo = [], []
     n_used = 0
+    zfr = []
     for i, L in enumerate(lens):
         p = pred[off[i]:off[i + 1]].astype(np.float64)
         o = obs[off[i]:off[i + 1]].astype(np.float64)
         osum = o.sum()
+        if L >= min_nt and osum >= min_obs:
+            zfr.append(float((o == 0).mean()))
         ptot.append(ptot_head[i]); ototo.append(osum)
         if L < min_nt or osum < min_obs:
             continue
         ps = p * osum                      # same expected depth as the observation
         r = pearson(np.log1p(ps), np.log1p(o))
-        rho = spearman(p, o)
+        rho = spearman_ties(p, o)
+        rho_ord = spearman(p, o)
         if np.isfinite(r):
             rs.append(r); n_used += 1
         if np.isfinite(rho):
             rhos.append(rho)
+        if np.isfinite(rho_ord):
+            rhos_ord.append(rho_ord)
         os_ = o.copy(); rng.shuffle(os_)
         sr = pearson(np.log1p(ps), np.log1p(os_))
         if np.isfinite(sr):
@@ -90,6 +156,8 @@ def score(npz: Path, min_nt: int, min_obs: int, rng: np.random.Generator) -> dic
     return {"n_tx": int(len(lens)), "n_scored": n_used,
             "profile_r": float(np.median(rs)) if rs else float("nan"),
             "profile_rho": float(np.median(rhos)) if rhos else float("nan"),
+            "profile_rho_ordinal": float(np.median(rhos_ord)) if rhos_ord else float("nan"),
+            "zero_frac": float(np.mean(zfr)) if zfr else float("nan"),
             "shuffled_r": float(np.median(shuf)) if shuf else float("nan"),
             "total_r": tot_r}
 

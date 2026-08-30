@@ -1,0 +1,450 @@
+{
+ "model": "attn",
+ "source": {
+  "Fig1": [
+   "data/xspecies_dataset_registry.tsv",
+   "data/xspecies_refs/<arm>_universe.tsv",
+   "panel c frame percentages: methods.md section G (measured, dominant read length)"
+  ],
+  "Fig2": [
+   "results/xspecies_orf_classes_attn.tsv",
+   "results/xspecies_orf_calls.tsv"
+  ],
+  "Fig3": [
+   "results/xspecies_profile_eval.tsv",
+   "panel c: same table; profile_rho_ordinal vs profile_rho (methods section 6.2)"
+  ],
+  "Fig4": [
+   "results/xspecies_mm1_vs_mm25_calls.tsv",
+   "results/xspecies_model_vs_mm25_reference_attn.tsv"
+  ]
+ },
+ "values": {
+  "figure1": {
+   "runs": {
+    "human": {
+     "ribo": 5,
+     "rna": 0
+    },
+    "chimp": {
+     "ribo": 8,
+     "rna": 8
+    },
+    "gorilla": {
+     "ribo": 3,
+     "rna": 3
+    },
+    "macaque": {
+     "ribo": 7,
+     "rna": 7
+    },
+    "zebrafish": {
+     "ribo": 8,
+     "rna": 24
+    },
+    "celegans": {
+     "ribo": 11,
+     "rna": 10
+    },
+    "yeast": {
+     "ribo": 16,
+     "rna": 16
+    }
+   },
+   "universe": {
+    "yeast": [
+     6044,
+     6036
+    ],
+    "celegans": [
+     31332,
+     31026
+    ],
+    "zebrafish": [
+     65673,
+     56887
+    ],
+    "gorilla": [
+     91112,
+     81014
+    ],
+    "chimp": [
+     125558,
+     114692
+    ],
+    "macaque": [
+     131981,
+     118457
+    ],
+    "human": [
+     183028,
+     150635
+    ]
+   },
+   "fly_runs_dropped": 18,
+   "frame_pct": {
+    "S. cerevisiae\nGSE173654 (RNase I)": [
+     93.9,
+     2.6,
+     3.6
+    ],
+    "D. melanogaster\nGSE99920 (RNase T1)": [
+     15.2,
+     56.2,
+     28.7
+    ],
+    "D. melanogaster\nGSE147619 (RNase I)": [
+     21.5,
+     19.5,
+     59.0
+    ]
+   }
+  },
+  "figure2": {
+   "human": {
+    "precision": 0.912,
+    "recall": 0.933,
+    "f1": 0.922,
+    "CDS": {
+     "recall": 0.993,
+     "n_real": 20823
+    },
+    "uORF": {
+     "recall": 0.712,
+     "n_real": 4392
+    },
+    "ncORF": {
+     "recall": 0.768,
+     "n_real": 574
+    }
+   },
+   "chimp": {
+    "precision": 0.92,
+    "recall": 0.922,
+    "f1": 0.921,
+    "CDS": {
+     "recall": 0.995,
+     "n_real": 18715
+    },
+    "uORF": {
+     "recall": 0.706,
+     "n_real": 4611
+    },
+    "ncORF": {
+     "recall": 0.757,
+     "n_real": 222
+    }
+   },
+   "gorilla": {
+    "precision": 0.92,
+    "recall": 0.923,
+    "f1": 0.921,
+    "CDS": {
+     "recall": 0.995,
+     "n_real": 16580
+    },
+    "uORF": {
+     "recall": 0.58,
+     "n_real": 2549
+    },
+    "ncORF": {
+     "recall": 0.77,
+     "n_real": 187
+    }
+   },
+   "macaque": {
+    "precision": 0.921,
+    "recall": 0.909,
+    "f1": 0.915,
+    "CDS": {
+     "recall": 0.995,
+     "n_real": 18208
+    },
+    "uORF": {
+     "recall": 0.665,
+     "n_real": 5327
+    },
+    "ncORF": {
+     "recall": 0.747,
+     "n_real": 352
+    }
+   },
+   "zebrafish": {
+    "precision": 0.809,
+    "recall": 0.981,
+    "f1": 0.887,
+    "CDS": {
+     "recall": 0.999,
+     "n_real": 7985
+    },
+    "uORF": {
+     "recall": 0.645,
+     "n_real": 124
+    },
+    "ncORF": {
+     "recall": 1.0,
+     "n_real": 21
+    }
+   },
+   "celegans": {
+    "precision": 0.976,
+    "recall": 0.981,
+    "f1": 0.979,
+    "CDS": {
+     "recall": 0.993,
+     "n_real": 14598
+    },
+    "uORF": {
+     "recall": 0.533,
+     "n_real": 195
+    },
+    "ncORF": {
+     "recall": 1.0,
+     "n_real": 5
+    }
+   },
+   "yeast": {
+    "precision": 0.997,
+    "recall": 0.999,
+    "f1": 0.998,
+    "CDS": {
+     "recall": 1.0,
+     "n_real": 4973
+    },
+    "uORF": {
+     "recall": NaN,
+     "n_real": 0
+    },
+    "ncORF": {
+     "recall": NaN,
+     "n_real": 0
+    }
+   }
+  },
+  "figure3": {
+   "human": {
+    "profile_r": 0.5321958749399268,
+    "total_r": 0.8552422489689966,
+    "shuffled_r": -0.0011385521265910741
+   },
+   "chimp": {
+    "profile_r": 0.5212049878944347,
+    "total_r": 0.7448514917352711,
+    "shuffled_r": -0.0010144978069522872
+   },
+   "gorilla": {
+    "profile_r": 0.48683948154344636,
+    "total_r": 0.7603121465350555,
+    "shuffled_r": -0.001167217165157812
+   },
+   "macaque": {
+    "profile_r": 0.5366673870773189,
+    "total_r": 0.8108164218364429,
+    "shuffled_r": -0.0010928026807464166
+   },
+   "zebrafish": {
+    "profile_r": 0.13701782307257143,
+    "total_r": 0.58362512829108,
+    "shuffled_r": -0.0015806994538449027
+   },
+   "celegans": {
+    "profile_r": 0.32676952828108896,
+    "total_r": 0.7116769246256579,
+    "shuffled_r": -0.0009590280973695751
+   },
+   "yeast": {
+    "profile_r": 0.26880326870359694,
+    "total_r": 0.7026199894957219,
+    "shuffled_r": -0.0010261817139002735
+   },
+   "tie_subsample": {
+    "human": [
+     88.78100441139833,
+     -0.19539755135574466,
+     0.37927859562271826
+    ],
+    "chimp": [
+     87.55940860347062,
+     -0.06979757157135225,
+     0.38895978032275347
+    ],
+    "gorilla": [
+     89.00362202761711,
+     -0.14020432302566121,
+     0.35215530324425526
+    ],
+    "macaque": [
+     85.45860051838875,
+     -0.04710760365002785,
+     0.4198200782299768
+    ],
+    "zebrafish": [
+     95.33419513403027,
+     -0.40504274090880255,
+     0.1418471490587118
+    ],
+    "celegans": [
+     73.62054248316275,
+     0.15205469202338992,
+     0.3116607920987158
+    ],
+    "yeast": [
+     78.07435815311675,
+     0.15619347395865774,
+     0.2845032728961542
+    ]
+   }
+  },
+  "figure4": {
+   "ruizorera_hsCM_ribo": {
+    "ratio": 1.01,
+    "jaccard": 0.988,
+    "comparable": "yes",
+    "runs_mm1": 5,
+    "runs_mm25": 5
+   },
+   "primate_pt_ribo": {
+    "ratio": 0.884,
+    "jaccard": 0.858,
+    "comparable": "NO_depth_differs",
+    "runs_mm1": 8,
+    "runs_mm25": 3
+   },
+   "primate_gg_ribo": {
+    "ratio": 1.013,
+    "jaccard": 0.983,
+    "comparable": "yes",
+    "runs_mm1": 3,
+    "runs_mm25": 3
+   },
+   "primate_rm_ribo": {
+    "ratio": 1.009,
+    "jaccard": 0.977,
+    "comparable": "yes",
+    "runs_mm1": 7,
+    "runs_mm25": 7
+   },
+   "zf_gse46512_ribo": {
+    "ratio": 1.012,
+    "jaccard": 0.982,
+    "comparable": "yes",
+    "runs_mm1": 4,
+    "runs_mm25": 4
+   },
+   "worm_gse52905_ribo": {
+    "ratio": 1.002,
+    "jaccard": 0.998,
+    "comparable": "yes",
+    "runs_mm1": 11,
+    "runs_mm25": 11
+   },
+   "yeast_gse173654_ribo": {
+    "ratio": 1.0,
+    "jaccard": 0.999,
+    "comparable": "yes",
+    "runs_mm1": 16,
+    "runs_mm25": 16
+   },
+   "model_vs_reference": {
+    "yeast": {
+     "mm1": {
+      "precision": 0.997,
+      "recall": 0.999,
+      "f1": 0.998,
+      "n_ref": 4976
+     },
+     "mm25": {
+      "precision": 0.997,
+      "recall": 0.999,
+      "f1": 0.998,
+      "n_ref": 4976
+     }
+    },
+    "celegans": {
+     "mm1": {
+      "precision": 0.977,
+      "recall": 0.979,
+      "f1": 0.978,
+      "n_ref": 15275
+     },
+     "mm25": {
+      "precision": 0.977,
+      "recall": 0.979,
+      "f1": 0.978,
+      "n_ref": 15280
+     }
+    },
+    "zebrafish": {
+     "mm1": {
+      "precision": 0.816,
+      "recall": 0.974,
+      "f1": 0.888,
+      "n_ref": 8564
+     },
+     "mm25": {
+      "precision": 0.818,
+      "recall": 0.973,
+      "f1": 0.889,
+      "n_ref": 8602
+     }
+    },
+    "gorilla": {
+     "mm1": {
+      "precision": 0.919,
+      "recall": 0.912,
+      "f1": 0.916,
+      "n_ref": 21204
+     },
+     "mm25": {
+      "precision": 0.921,
+      "recall": 0.91,
+      "f1": 0.916,
+      "n_ref": 21304
+     }
+    },
+    "chimp": {
+     "mm1": {
+      "precision": 0.918,
+      "recall": 0.909,
+      "f1": 0.913,
+      "n_ref": 27820
+     },
+     "mm25": {
+      "precision": 0.871,
+      "recall": 0.933,
+      "f1": 0.901,
+      "n_ref": 25750
+     }
+    },
+    "macaque": {
+     "mm1": {
+      "precision": 0.919,
+      "recall": 0.903,
+      "f1": 0.911,
+      "n_ref": 28190
+     },
+     "mm25": {
+      "precision": 0.921,
+      "recall": 0.902,
+      "f1": 0.912,
+      "n_ref": 28269
+     }
+    },
+    "human": {
+     "mm1": {
+      "precision": 0.911,
+      "recall": 0.908,
+      "f1": 0.91,
+      "n_ref": 31793
+     },
+     "mm25": {
+      "precision": 0.914,
+      "recall": 0.906,
+      "f1": 0.91,
+      "n_ref": 31991
+     }
+    }
+   }
+  }
+ }
+}
