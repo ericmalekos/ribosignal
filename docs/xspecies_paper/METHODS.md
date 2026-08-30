@@ -337,6 +337,15 @@ total is taken from `pred_total`. An earlier version of this script omitted that
 reported a total correlation of approximately zero for every species, because summing a
 normalised distribution yields the constant 1.
 
+**`profile_r` is not the project's `pearson_median`.** The pipeline's own training and
+evaluation code computes `pearson(p, c/N)` on the raw profile, and that is the
+`pearson_median` tabulated elsewhere in this project. The statistic reported here applies
+log1p first, on the grounds that a raw P-site profile spans orders of magnitude and a few
+tall peaks otherwise dominate. The two are not interchangeable: per transcript they rank
+at Spearman 0.65 to 0.79 and share only 34 to 42% of their top decile. Figures in this
+report should not be compared against an existing `pearson_median` value. Which of the two
+is the better selection criterion is an open question and is not settled here.
+
 A null is included: `shuffled_r` recomputes the profile correlation after permuting each
 observed profile's positions. This distinguishes positional information from magnitude
 information, since a model that has learned only a transcript's overall level can still

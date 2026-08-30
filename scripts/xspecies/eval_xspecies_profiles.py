@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
 """Score predicted vs observed per-nt Ribo-seq profiles for the cross-species packs.
 
-Uses the project's OWN pearson/spearman from scripts/train.py rather than a fresh
-implementation, so the numbers are comparable to everything already in results.md.
+Uses the project's OWN pearson/spearman definitions (copied verbatim from scripts/train.py).
+
+CAUTION, corrected 2026-08-30: `profile_r` here is NOT the same statistic as the
+`pearson_median` reported by train.py/eval_extra.py and tabulated throughout results.md.
+Those compute pearson(p, c/N) on the RAW profile; this applies log1p first. The two are
+not interchangeable: measured per transcript, they rank transcripts at Spearman 0.65-0.79
+(human 0.734, worm 0.651) and share only 34-42% of their top decile. Do not compare
+`profile_r` against an existing `pearson_median` figure.
 
 WHAT IS MEASURED, per transcript, then summarised as a median across transcripts:
 
   profile_r        pearson on log1p(counts). log1p because the raw P-site profile is
                    count data spanning orders of magnitude and a handful of very tall
-                   peaks otherwise dominate the correlation; log1p is what the project
-                   uses throughout (39 call sites).
+                   peaks otherwise dominate the correlation. NOTE: this transform is
+                   LOCAL to this script. An earlier version of this docstring claimed
+                   log1p was the project convention "throughout (39 call sites)"; that was
+                   wrong. The project's other log1p uses are on transcript TOTALS
+                   (abundance, count head) and on the RNA coverage INPUT, never on a
+                   within-transcript profile before correlating.
   profile_rho      spearman on the raw profile, rank-based so it is insensitive to that
                    same scaling question. Reported alongside r deliberately: agreement
                    between the two is evidence the number is not an artifact of the
