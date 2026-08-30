@@ -1,0 +1,8 @@
+species	arm	n_transcripts	n_protein_coding	n_lncRNA
+yeast	yeast_gse173654_ribo	6044	6036	8
+celegans	worm_gse52905_ribo	31332	31026	306
+zebrafish	zf_gse46512_ribo	65673	56887	8786
+gorilla	primate_gg_ribo	91112	81014	10098
+chimp	primate_pt_ribo	125558	114692	10866
+macaque	primate_rm_ribo	131981	118457	13524
+human	ruizorera_hsCM_ribo	183028	150635	32393

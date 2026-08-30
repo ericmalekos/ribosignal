@@ -70,3 +70,6 @@ ${prefix}.*
 # on disk; the repo keeps the current version and git keeps the history.
 *.bak
 *.bak.*
+
+# Bundle tarballs are build products of deliverables/<name>/; the directory is tracked.
+deliverables/*.tar.gz
