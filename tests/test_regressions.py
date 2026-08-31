@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Regression tests for the invariants that have ALREADY broken silently in this project.
+"""Regression tests. Each one checks a bug that has already happened in this project.
 
-This is not coverage for its own sake. Every test below pins a specific incident where the pipeline
-ran to completion, produced plausible numbers, and the mistake surfaced days later. Nothing here
-needs a GPU, a SLURM allocation, or real data -- the whole suite is synthetic fixtures and should
-finish in seconds, because a suite that needs the cluster does not get run.
+In every case the pipeline ran to completion and produced plausible numbers, and the mistake was
+found days later. These tests make those specific mistakes fail immediately instead.
 
-    conda_envs/cas12a/bin/python3 -m pytest tests/ -q          # or: python3 tests/test_invariants.py
+No GPU, no SLURM allocation, no real data. Synthetic fixtures only, runs in about a second.
 
-What this DOES NOT cover: scientific errors on real inputs. It would not have caught the Janich
-untrimmed-FASTQ bug (needed a salmon mapping-rate check on real data) or the too-wide MSFragger
-fragment tolerances (needed a divergence test against real spectra). Those want assertions at
-pipeline entry on live data, which is a different mechanism -- see the note at the bottom.
+    conda_envs/cas12a/bin/python3 -m pytest tests/ -q
+    conda_envs/cas12a/bin/python3 tests/test_regressions.py
+
+These check code logic, not the data going into it. They would not have caught the Janich
+untrimmed-FASTQ bug or the too-wide MSFragger fragment tolerances, both of which needed checks on
+real inputs. See tests/README.md.
 """
 from __future__ import annotations
 
@@ -31,8 +31,8 @@ from pgx import rc_io, search, seqtools  # noqa: E402
 
 
 # ----------------------------------------------------------------------------------------------
-# 1. The pack contract. Every downstream eval slices coverage / target / ORF-track with the SAME
-#    offsets, so a drift in dtype or row alignment silently misaligns the label from the input.
+# 1. Pack layout. Coverage, target and ORF track are all sliced with the same offsets, so if a
+#    dtype or row order changes, the label stops lining up with the input and nothing errors.
 # ----------------------------------------------------------------------------------------------
 def test_pack_contract():
     order = ["ENST1.1", "ENST2.2", "ENST3.1"]
