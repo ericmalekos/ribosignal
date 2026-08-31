@@ -41,7 +41,15 @@ REGISTRY = {
         "tx2biotype": ROOT / "data" / "tx2biotype.tsv",
         "tx_fastas": [ANN / "gencode.v49.pc_transcripts.fa",
                       ANN / "gencode.v49.lncRNA_transcripts.fa"],
-        "ribocode_annot": EXP / "biotype_probe" / "expression_context_human" / "data" / "ribocode_annot",
+        # IN-PROJECT, like the mouse entry. This used to point at
+        #   EXP/biotype_probe/expression_context_human/data/ribocode_annot
+        # which no longer exists -- that sibling tree was wiped, and this was one of the
+        # load-bearing inputs lost with it (every pgx run for a human dataset failed in <1 s with
+        # "MISSING human.ribocode_annot"). `_primary` is the correct equivalent: built from the
+        # primary-assembly GTF, so it matches STAR_indexes/star_index_grch38_v49, which is what the
+        # human BAMs are aligned against. RiboCode joins on VERSIONED tx IDs, so the annotation and
+        # the alignment index must come from the same GENCODE release.
+        "ribocode_annot": ROOT / "data" / "human_ribocode_annot_primary",
     },
     "mouse": {
         "release": "vM38",

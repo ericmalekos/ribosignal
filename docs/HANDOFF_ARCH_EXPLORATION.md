@@ -214,7 +214,13 @@ target.** Different operating points invert conclusions; this has already happen
   CPU fallback: set **`RIBO_MAMBA_CPU=1`** and `dump_pred_profiles.py` swaps the CUDA kernels for
   mamba_ssm's own pure-PyTorch reference twins (`selective_scan_ref`, `mamba_inner_ref`,
   `causal_conv1d_ref`). Verified finite on the real model (mamba4, d_state 16) at L=1000 and 3000;
-  ~7.9 s per 3,000 nt transcript single-threaded, so shard wide (`--nshards`). The subtlety if you
+  ~7.9 s per 3,000 nt transcript single-threaded. **That microbenchmark does NOT extrapolate**: a
+  full 41,096-tx dump on 16 cores produced nothing in 12 h and was killed by the wall, roughly an
+  order of magnitude worse than naive scaling predicts. Treat CPU mamba as viable for SMOKE TESTS
+  and small tx sets, NOT as a GPU substitute for a full dump -- shard hard (`--nshards`) or use a
+  GPU, where the FULL eval chain on 70,883 tx measured 41-78 min on one A5500. The attn mixer does
+  finish a 41,096-tx CPU dump (~7 h); mamba on CPU did not finish one in 12 h.
+  The subtlety if you
   re-implement it: those names were bound at import time in SEVERAL modules, so patching one is not
   enough -- `mamba_inner_ref` calls the `causal_conv1d_fn` inside `selective_scan_interface`. See
   `_enable_mamba_cpu()`. **GPUs here run 48/48 allocated for long stretches**, so a CPU smoke test

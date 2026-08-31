@@ -382,11 +382,20 @@ value. The negative `profile_rho`
 figures reported by this script before 2026-08-29 were therefore a metric artifact and not
 evidence of anti-correlated profiles.
 
-The evaluation script now emits both statistics, labelled. `train.py` itself was **not**
-changed: its `spearman` is shared with `eval_localization.py` and `inspect_distributions.py`
-and feeds `spearman_median` columns in existing result tables, so correcting it there would
-silently move previously reported numbers. It is flagged instead. Any Spearman computed on
-sparse data through that function is affected.
+The evaluation script now emits both statistics, labelled. **`train._rank` was corrected on
+2026-08-30** to average tied ranks; it now matches `scipy.stats.rankdata` exactly (max absolute
+difference 2.2e-16 over 3,000 real transcript profiles), and the corrected median rank correlation
+on those profiles is +0.3519 against -0.2345 as previously computed, with the sign disagreeing on
+74.9% of transcripts. The function feeds `spearman` only -- it touches neither the loss nor
+checkpoint selection, so **no trained model is affected and nothing required retraining**.
+
+Values already written to disk were not recomputed: per-transcript Spearman is stored nowhere, so
+correcting a value requires re-evaluating that run's model, and no document, table, or figure reads
+the column -- this section is its only citation. Instead the stale key was renamed to
+`spearman_median_INVALID_ordinal_ties` in all 255 affected JSONs (6,364 keys), each carrying a note
+pointing here, so the wrong number cannot be read as a valid rank correlation. Backup at
+`results/spearman_flag_backup_2026-08-30.tgz`; the rename is reproducible via
+`scripts/flag_stale_spearman.py`. Any run evaluated after that date gets a correct value.
 
 ### 6.3 ORF calling from predicted profiles
 

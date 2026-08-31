@@ -37,6 +37,12 @@ results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/be
 `sha256sum -c release/orf_v2_<mixer>/SHA256SUMS` from inside the run directory. For external release
 the weights need a separate host (Zenodo / HuggingFace) -- they cannot go in the repo.
 
+**A Hugging Face repo is staged and ready to push** at
+`deliverables/hf_riboseq_signal_model/`: both checkpoints, `model.py`, per-checkpoint config and
+test metrics, a model card, and an **MIT** LICENSE. It has NOT been pushed -- that needs an
+account and a write token. Steps in that directory's `PUSH_INSTRUCTIONS.md`. Add the URL here once
+it is live, and consider a Zenodo deposit alongside it for a DOI.
+
 `args.json` and `test_metrics.json` are copied here verbatim so the config and headline metrics are
 version-controlled even though the weights are not.
 

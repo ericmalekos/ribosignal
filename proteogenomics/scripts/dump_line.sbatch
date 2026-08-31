@@ -32,6 +32,15 @@ RUN=${MODEL_RUN:-results/loto/orf_v2_attn_onehot_holdout_Hepatocytes}
 KOZAK=${KOZAK:-heuristic}
 PILOT=$NEW/proteogenomics/data/${LINE}_pilot
 OUTSUB=${OUTSUB:-pred}
+# UNIV / DEVICE / MAMBA_CPU are overridable; defaults reproduce the original behaviour exactly.
+#   UNIV=<prefix>  selects <PILOT>/<prefix>_universe{_tx.txt,.fa}. The full-depth all-run rebuild
+#                  writes <LINE>_full_universe*, so pass UNIV=${LINE}_full for those packs.
+#   DEVICE=cpu     runs on CPU. mamba needs RIBO_MAMBA_CPU=1 as well (mamba_ssm's fast path asserts
+#                  x.is_cuda; the pure-PyTorch reference twins are swapped in). CPU mamba is fine for
+#                  small tx sets but did NOT finish a 41k-tx dump in 12 h -- prefer a GPU there.
+UNIV=${UNIV:-$LINE}
+DEVICE=${DEVICE:-cuda}
+NVFLAG=""; [ "$DEVICE" = cuda ] && NVFLAG="--nv" 
 case "$KOZAK" in
   heuristic) ORFTRACK=$NEW/data/packed_heldout_${HELDOUT}/orf_track_v2.npy ;;
   nokozak)   ORFTRACK=$NEW/data/packed_heldout_${HELDOUT}/orf_track_v2_nokozak.npy ;;
@@ -49,12 +58,15 @@ fi
 echo "MODEL_RUN=$RUN  SIF=$(basename "$SIF")  KOZAK=$KOZAK  track=$(basename "$ORFTRACK")"
 echo "host=$(hostname) LINE=$LINE HELDOUT=$HELDOUT start=$(date -Iseconds)"
 [[ -f "$ORFTRACK" ]] || { echo "missing orf_track $ORFTRACK" >&2; exit 1; }
-[[ -f "$PILOT/${LINE}_universe.fa" ]] || { echo "missing universe fasta" >&2; exit 1; }
-singularity exec --nv --no-home --cleanenv --env PYTHONNOUSERSITE=1 \
+[[ -f "$PILOT/${UNIV}_universe.fa" ]] || { echo "missing universe fasta $PILOT/${UNIV}_universe.fa" >&2; exit 1; }
+# shellcheck disable=SC2086
+singularity exec $NVFLAG --no-home --cleanenv --env PYTHONNOUSERSITE=1 \
   --env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
-  --env RIBO_ORF_TRACK="$ORFTRACK" --env RIBO_ONEHOT_FASTA="$PILOT/${LINE}_universe.fa" \
+  --env MPLCONFIGDIR=/tmp --env HF_HOME=/tmp \
+  --env RIBO_MAMBA_CPU="${RIBO_MAMBA_CPU:-}" \
+  --env RIBO_ORF_TRACK="$ORFTRACK" --env RIBO_ONEHOT_FASTA="$PILOT/${UNIV}_universe.fa" \
   -B "$BASE" "$SIF" \
   python3 "$NEW/scripts/dump_pred_profiles.py" --run "$RUN" \
-    --heldout "$HELDOUT" --tx_list "$PILOT/${LINE}_universe_tx.txt" \
-    --fasta "$PILOT/${LINE}_universe.fa" --out "$PILOT/$OUTSUB" --budget 16000 --device cuda
+    --heldout "$HELDOUT" --tx_list "$PILOT/${UNIV}_universe_tx.txt" \
+    --fasta "$PILOT/${UNIV}_universe.fa" --out "$PILOT/$OUTSUB" --budget 16000 --device "$DEVICE" 
 echo "done=$(date -Iseconds)"

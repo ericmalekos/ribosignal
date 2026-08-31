@@ -5454,3 +5454,347 @@ removes anyway, which is why its call set is unmoved (3 mm25-only calls out of 5
 
 **mm25 BAMs and call sets are a diagnostic. They are not a model target and must not feed
 any pack.**
+
+---
+
+# Manuscript bundle v2 (2026-08-30) -- `deliverables/manuscript_v2/`
+
+Consolidation of the cross-species and proteogenomic work into one bundle, after an adversarial
+review of the v1 bundle. v1 (`deliverables/manuscript/`) and the partner bundle
+(`deliverables/xspecies_figures/`) are retained unchanged.
+
+## What was removed, and why
+
+| removed | why |
+|---|---|
+| HLA anchor-motif analysis | superseded; also contradicted by the two cell lines its figure did not show (on HBL-1 the model-only set carried 0/14 of the line's top P2 anchor against 3/7 for null-only) |
+| achieved novel-class FDR | 0-5 novel decoys per model arm, so the rate is not estimable. Replaced by counting at 1% GLOBAL FDR against the constant canonical decoy population |
+| cross-architecture union databases | answered a question about pooling databases, not about whether selection works |
+| pooling across cell lines | a sum over four lines that disagree in sign is not a summary of them |
+| position-shuffled profile null | trivially near zero |
+| Wilson intervals on seed-pooled counts | 15 mokapot seeds are re-analyses of the same spectra, not independent observations, so those intervals were ~4x too narrow |
+| Spearman tie-artifact panel | a corrected internal metric bug; it belongs in methods |
+
+## What was added
+
+**Precision alongside recall for every ORF class.** The previous presentation reported recall
+only, which hid the numbers that matter for a user of the call set:
+
+| species | uORF recall | uORF precision | ncORF recall | ncORF precision |
+|---|--:|--:|--:|--:|
+| human | 0.712 | **0.632** | 0.768 | **0.551** |
+| chimp | 0.706 | 0.665 | 0.757 | 0.569 |
+| macaque | 0.665 | 0.707 | 0.747 | 0.562 |
+| gorilla | 0.580 | 0.574 | 0.770 | 0.498 |
+| zebrafish | 0.645 | **0.084** | 1.000 (n=21) | 0.512 |
+| *C. elegans* | 0.533 | 0.559 | 1.000 (n=5) | 0.625 |
+
+Zebrafish predicts 958 uORFs where 124 exist.
+
+**The annotation-only reference.** CDS recall is 0.993-1.000 in every species and annotated CDS
+is 65-100% of every reference call set, so calling every annotated CDS and nothing else scores
+`F1 = 2r/(1+r)` at precision 1.0. Against that upper bound the model adds:
+
+| species | CDS share | annotation-only F1 | model F1 | delta |
+|---|--:|--:|--:|--:|
+| macaque | 64.9% | 0.787 | 0.915 | **+0.128** |
+| human | 67.2% | 0.804 | 0.922 | **+0.118** |
+| chimp | 68.1% | 0.810 | 0.921 | **+0.111** |
+| gorilla | 79.0% | 0.883 | 0.921 | +0.038 |
+| *C. elegans* | 95.8% | 0.979 | 0.979 | +0.000 |
+| yeast | 99.9% | 0.999 | 0.998 | **-0.001** |
+| zebrafish | 94.6% | 0.972 | 0.887 | **-0.085** |
+
+**The three species with the highest headline F1 are the three where the model adds nothing.**
+The headline F1 ranks transcriptomes by compactness, not models by quality. Quote the delta.
+
+**The mouse macrophage substrate**, which the v1 bundle omitted entirely and which carries far
+more weight than the HLA arms: 12 populations, 18 mzML each, 3,266,678 canonical PSMs at
+baseline, all at 1% global FDR, 30 aa tryptic ORF floor.
+
+| arm | DB novel seqs | novel PSMs | canonical PSMs lost | % of baseline | canonical lost per novel gained | net-positive populations |
+|---|--:|--:|--:|--:|--:|--:|
+| null, every non-coding ORF | 11,992,737 | 5,547 | -227,529 | **-6.96%** | 41.0 | 0/12 |
+| null, every AUG | 1,024,009 | 1,867 | -65,170 | **-2.00%** | 34.9 | 0/12 |
+| **model (attn)** | 13,031 | 956 | **-1,010** | **-0.03%** | **1.1** | 6/12 |
+| real Ribo-seq, BMDM NT | 6,072 | 1,126 | -742 | -0.02% | 0.7 | 9/12 |
+| real Ribo-seq, BMDM NT+LPS | 15,180 | 1,746 | -2,275 | -0.07% | 1.3 | 7/12 |
+
+The exchange rate, canonical identifications destroyed per novel identification gained, is the
+number that orders the arms: 35 to 41 for the two nulls, **1.1 for the model**, and 0.7 for a
+database built from real ribosome profiling on a matched cell type. A model that has never seen
+the sample is within a factor of two of an actual Ribo-seq experiment and ~30x cheaper than
+enumeration. The two database kinds are complementary rather than redundant: over 11 transfer
+populations they share 386 of 1,545 novel (spectrum, peptide) identifications, 25% of the union.
+
+**Per-run periodicity.** RiboCode silently drops any run failing its metaplots gate. Six of seven
+species lose nothing (median frame-0 78.7-92.2%). **Zebrafish passes 4 of 8 at median 67.4%**;
+Drosophila passes 0 of 9. This was previously invisible in every table.
+
+**Annotation depth as the cross-species confound.** Annotated transcripts per gene run 1.00
+(yeast) to 6.45 (human), annotated lncRNA genes 8 to 35,899, reference uORFs per test gene 0.000
+to 0.372. Class sizes are annotation projects, not biology, and no attempt is made to separate
+them from the recall differences.
+
+**CPAT / CPC2 as competing selection rules** (Fig S6), on the older `pgx_<model>` build, so
+directions are comparable and magnitudes are not.
+
+## HLA-I, re-reported per line at global FDR (nothing pooled)
+
+Net distinct peptides against a GENCODE-only search:
+
+| arm | HBL-1 | DoHH2 | SU-DHL-4 | THP-1 |
+|---|--:|--:|--:|--:|
+| null (every AUG) | -57 | +32 | -30 | -4 |
+| attn | **-103** | +78 | +3 | +1 |
+| mamba4 | -3 | +79 | +11 | +1 |
+| attn Poisson | -81 | +14 | +6 | +1 |
+| mamba4 Poisson | +12 | +14 | +6 | +1 |
+
+The mamba4 arms are net positive or break even in all four lines. **On HBL-1 attn loses more
+peptides than the null does, from a database 19x smaller**, so canonical cost is not monotone in
+database size. The architecture difference is real but is carried by one cell line: DoHH2 gives
++78 against +79 (identical at PSM level) and THP-1 returns exactly one novel peptide from two
+spectra in every model arm.
+
+## Macrophage architecture and calibration arms, re-derived at global FDR (2026-08-30)
+
+**Where they were.** The 30 aa macrophage build (`pgx_xsubtype_aa30`) that Fig 4 uses carries
+**only** `model_predicted_attn`. mamba4 and both Poisson-calibrated arms exist only in the earlier
+`search_<arch>_union[_cal]` trees, whose `db_summary.json` records **`min_aa: 7`** -- the MHC
+floor, not the 30 aa tryptic floor. Correcting that floor is why the 30 aa rebuild happened, and
+it covered attn only.
+
+**What was done.** Restored `.tsv` PSM tables only from the four archived searches (79 GB, against
+387 GB for the full pepXML: `pgx.report` reads rank-1 rows and four fields). Digested to the
+standard `rank1.tsv.gz` with `digest_macro_tsv.sh` (awk, because the raw tables hold all five
+candidate ranks at ~925 MB per population and `csv.DictReader` timed out). Scored with
+`pgx/score_macro_union_arms.py` at 1% global FDR via the same `pgx.report.cut` path as every other
+proteogenomic number.
+
+**Validation.** `pgx/validate_macro_union_scoring.py` reproduces the shipped per-population tables'
+canonical column **exactly**: 0 PSM disagreement on all four arms, the baseline and the null. Novel
+columns are deliberately not compared (shipped = class-specific FDR, re-derived = global).
+
+| arm | novel PSMs | novel pep | ΔcanonPSM | % base | canon lost / novel gained | net+ pops |
+|---|--:|--:|--:|--:|--:|--:|
+| null (every AUG) | 11,450 | 7,963 | -63,487 | -1.93% | 5.5 | 2/12 |
+| **attn** | 6,070 | 3,424 | **-7,072** | **-0.21%** | **1.2** | 3/12 |
+| mamba4 | 6,406 | 3,676 | -26,173 | -0.80% | 4.1 | 3/12 |
+| attn Poisson | 3,266 | 1,197 | -22,423 | -0.68% | 6.9 | 4/12 |
+| mamba4 Poisson | 3,548 | 1,354 | -28,301 | -0.86% | 8.0 | 2/12 |
+
+### CORRECTION (same day): the architecture gap above is an artefact, and the 30 aa build HAS mamba4
+
+The claim first written here, that attn is 3.5x cheaper than mamba4, was wrong on two counts.
+
+**a. `model_predicted` in `pgx_xsubtype_aa30` IS the mamba4 arm.** It was excluded from Fig 4 as
+"architecture unrecoverable", citing `HLA_vs_macrophage_comparison.md`. That warning is about a
+DIFFERENT artifact: the unsuffixed markdown table `macro_model_vs_null.md` from the 7 aa era.
+Three sources identify the arm (the aa30 README, the poster STATUS doc, and the derivation chain,
+since aa30 length-filtered `pgx_xsubtype`'s FASTAs and that tree is mamba-only with arm name
+`model_predicted`). At the CORRECT 30 aa floor:
+
+| arm | novel PSM | dCanonPSM | %base | exch PSM | exch pep | net+ |
+|---|--:|--:|--:|--:|--:|--:|
+| attn | 956 | -1,010 | -0.03% | 1.06 | 0.88 | 6/12 |
+| mamba4 | 1,014 | -1,419 | -0.04% | 1.40 | 1.09 | 5/12 |
+
+**Indistinguishable.** 0.03% vs 0.04% of 3.27M canonical PSMs.
+
+**b. The gap needs BOTH the wrong floor and the PSM unit to appear.** At 7 aa the PSM exchange
+rate is 1.17 vs 4.09 (3.5x); the same accepted set counted in PEPTIDES is 1.82 vs 2.09 (1.15x).
+The extra canonical PSMs mamba4 displaces sit on peptides that survive elsewhere in the search.
+
+**Standing lesson: report both units.** A single-unit comparison made an artefact look like a
+result. Every proteogenomic quantity in manuscript_v2 is now PSMs AND distinct peptides.
+
+### What the 7 aa build DOES establish
+
+**Poisson calibration is the wrong operation for database construction.** It halves novel yield in
+both architectures and raises canonical cost: peptide exchange rate 1.82 -> 3.32 (attn) and
+2.09 -> 3.56 (mamba4). The dial that buys non-canonical ORF-calling precision (Fig 3) does not
+transfer to building a search space.
+
+
+
+### The 7 aa floor's own cost, quantified
+
+Against the 30 aa build on the same populations: the null's exchange rate is 5.5 here vs 34.9
+there (a 7 aa null admits far more short ORFs and absorbs far more novel PSMs at the global cut),
+and attn is net positive in 3/12 populations here vs 6/12 at the correct floor. **Never quote the
+two builds side by side.** They are kept in separate data files
+(`macrophage_totals.json` vs `macro_union_arms_global_fdr.json`) so a merge cannot happen by
+accident. Fig 6 and Fig 5 DO share the 7 aa floor, which is correct for HLA-I, so the
+attn-vs-mamba4 contrast reads across those two.
+
+### Gotchas recorded
+
+- Two populations (Peritoneal, SpleenRecruited) have 17 fractions, not 18, in this build. Identical
+  across all six arms, so the comparison stays paired, but Fig 4's "18 mzML each" is the 30 aa
+  build's count.
+- `search/<POP>/model_vs_null.md` reports RAW rank-1 counts (canonical 849,994 for BMDM) while the
+  `macro_model_vs_null_<arm>.md` tables report FDR-filtered ones (335,548). Same directory tree,
+  10x apart. Read the header before quoting either.
+- A `pgrep -f "rsync.*<pattern>"` wait loop matched its OWN command line and never exited: the
+  self-match trap in CLAUDE.md, hit again. Record the PID at launch instead.
+
+
+## Poster reconciliation (2026-08-30)
+
+Full writeup: `deliverables/manuscript_v2/docs/POSTER_RECONCILIATION.md`. Four causes.
+
+1. **mamba4 wrongly excluded from the 30 aa build** (above). Fixed.
+2. **The architecture gap is a floor + unit artefact** (above). Fixed.
+3. **Transfer medians included BMDM.** The poster's P12 uses the **11** transfer populations,
+   excluding BMDM because the Ribo-seq databases were BUILT from it. Over 11: model **-3** median
+   net peptides vs real Ribo-seq **+18**, 5/11 vs 8/11. Over 12 (what FigS5's caption used): +3 vs
+   +16, 6/12 vs 9/12. **Including the matched population flips the sign of the comparison.** Fixed;
+   FigS5 now prints the 11-population basis.
+4. **Frozen vs unfrozen reports** in the 7 aa tree: BMDM mamba is +31 net peptides frozen and -21
+   unfrozen, for identical databases and identical spectra. A 52-peptide swing that changes the
+   sign. The 30 aa tree has only frozen reports, so this bundle is unaffected, but anyone quoting
+   the 7 aa tree must state which set.
+
+**Reconciles exactly and was already right:** P11 attn 6/12 above baseline; P13 overlap
+866 / 1,065 / 386 shared of a 1,545 union (25%); and all four 7 aa union arms reproduce the
+shipped canonical column with zero PSM disagreement.
+
+## Two macrophage exclusions applied (2026-08-30)
+
+**RAW264 dropped from every macrophage population set** (12 -> 11). It is an immortalised cell
+line, not a primary tissue macrophage population. **This is not neutral: RAW264 is a population
+the model does badly on, so removing it IMPROVES the model's numbers**, moving the transfer median
+from -3 to +3 net peptides. Stated in the manuscript rather than left to be discovered.
+
+**The LPS-pooled Ribo-seq arm dropped** (`model_ribocode_bmdm`, untreated + LPS). The comparison is
+against an untreated reference; pooling a stimulated condition into it changes what "real Ribo-seq"
+means partway through. Only `model_ribocode_bmdm_nt` (506 seqs, fixed) is retained.
+
+Both are applied in the extractors, so every total, median and count is recomputed rather than
+filtered at plot time. The 7 aa scorer's `POPS` list was cut to match, keeping the two builds
+population-matched.
+
+### 30 aa build, 11 primary populations, baseline 2,858,063 canonical PSMs / 580,511 peptides
+
+| arm | novel PSM | novel pep | %canon PSM | %canon pep | exch PSM | exch pep | net+ |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| null, every ncRNA ORF | 4,631 | 1,305 | -7.13% | -7.65% | 44.02 | 34.03 | 0/11 |
+| null, every AUG | 1,555 | 466 | -2.04% | -2.29% | 37.56 | 28.47 | 0/11 |
+| **attn** | 910 | 279 | **-0.03%** | -0.04% | **0.97** | **0.78** | 6/11 |
+| **mamba4** | 966 | 290 | -0.04% | -0.05% | 1.24 | 0.97 | 5/11 |
+| real Ribo-seq BMDM-NT | 982 | 296 | -0.02% | -0.03% | 0.62 | 0.48 | 9/11 |
+
+**Both model arms are at or below 1.0 on the peptide exchange rate**, and attn is below 1.0 on PSMs
+too: it recovers more novel spectra than it costs. The measured Ribo-seq database still wins
+(0.62 / 0.48, 9/11), which is the honest framing: the model's case is not needing Ribo-seq, not
+beating it.
+
+Transfer basis is now **10** populations (BMDM excluded as matched, RAW264 as a cell line): model
+median +3 net peptides in 5/10, real Ribo-seq +19 in 8/10. PSM overlap recomputed from
+per-population rows: 910 model / 982 Ribo-seq / **380 shared of a 1,512 union = 25.1%** (was 25.0%
+with RAW264, so complementarity is unchanged by the exclusion).
+
+`docs/POSTER_RECONCILIATION.md` deliberately keeps the POSTER's basis (12 populations, LPS arm
+present) so the two remain comparable where they are computed the same way.
+
+### 7 aa build re-scored on the same 11 populations
+
+| arm | novel PSM | novel pep | exch PSM | exch pep | net+ |
+|---|--:|--:|--:|--:|--:|
+| null (every AUG) | 9,960 | 7,028 | 5.20 | 2.21 | 2/11 |
+| attn | 5,210 | 3,035 | **0.14** | 1.51 | 3/11 |
+| mamba4 | 5,534 | 3,277 | **3.52** | 1.83 | 3/11 |
+| attn Poisson | 2,701 | 1,044 | 8.10 | 3.70 | 3/11 |
+| mamba4 Poisson | 3,021 | 1,213 | 3.82 | 2.55 | 2/11 |
+
+**The 7 aa PSM-level architecture ordering is unstable in three independent ways and must not be
+quoted.** It reads 25x here, 3.5x before RAW264 was excluded (that ONE cell line carried 6,343 of
+attn's 7,070 lost canonical PSMs), 1.2x on the same data counted in peptides, and 1.3x at the
+correct 30 aa floor. The Poisson pair reverses outright (mamba4 3.82 vs attn 8.10, opposite to the
+raw arms).
+
+**Poisson calibration remains the one robust finding from this build**: it halves novel yield and
+raises canonical cost in both architectures, in both units, with the same sign throughout
+(peptide exchange 1.51 -> 3.70 attn, 1.83 -> 2.55 mamba4).
+
+## Architecture and FM-embedding ablations added to the bundle (2026-08-31)
+
+These existed as results.md Tasks 15/17 and figures B6/C11 but were absent from manuscript_v2, so
+a reader had to take the deployed recipe on trust. Now `FigS7_architecture_and_inputs` +
+`data/architecture_ablations.json`, extracted programmatically from each run's
+`test_metrics.json` rather than transcribed from prose.
+
+**Metric is the pipeline's `pearson_median` on RAW counts, NOT the log1p `profile_r` of the
+cross-species figures.** Not interchangeable.
+
+### Sequence backend x MIXER (non-union family, 33,918 scored tx, matched config)
+
+**Both deployed mixers have a one-hot arm (3 seeds each); only attn has FM arms.**
+
+| backend | transformer 2L | Mamba 2L | Mamba 4L |
+|---|--:|--:|--:|
+| **one-hot** | **0.6379** x3 | 0.6274 x3 | 0.6255 x3 |
+| RiNALMo 650M | 0.6089 | NOT RUN | NOT RUN |
+| Orthrus | 0.6056 | NOT RUN | NOT RUN |
+| HydraRNA | 0.6217 | NOT RUN | NOT RUN |
+| RiNALMo + one-hot | 0.6094 | NOT RUN | NOT RUN |
+| Orthrus + one-hot | 0.6088 | NOT RUN | NOT RUN |
+| HydraRNA + one-hot | 0.6210 | NOT RUN | NOT RUN |
+
+**THE FM EMBEDDING STORES ARE GONE.** `data/{rinalmo,orthrus4t,hydrarna}_token_emb/` are not on
+the local filesystem, not under the project path in the warm archive, and not among the 28 rows of
+`data/ARCHIVE_INDEX.tsv`. `results/ckpt_cmp_EXCLUSIONS.md` claimed they "were archived" and could
+be restored from the index; **that was wrong and is now corrected in place**. Running the Mamba x
+FM cells means regenerating all three stores from scratch, the slowest and most storage-heavy step
+in the pipeline. FigS7 marks them NOT RUN rather than blank.
+
+**Scope of the claim, narrowed accordingly:** a frozen FM embedding does not beat raw one-hot
+FOR THE TRANSFORMER. Whether that holds for a state-space body is untested.
+
+<details><summary>superseded single-seed attn figures</summary>
+
+| backend | pc profile r | vs one-hot |
+|---|--:|--:|
+| one-hot (seed 0 only) | 0.6250 | -- |
+| HydraRNA | 0.6217 | -0.0033 |
+| RiNALMo 650M | 0.6089 | -0.0161 |
+| Orthrus | 0.6056 | -0.0195 |
+| HydraRNA + one-hot | 0.6210 | -0.0041 |
+| RiNALMo + one-hot | 0.6094 | -0.0156 |
+| Orthrus + one-hot | 0.6088 | -0.0163 |
+
+</details>
+
+**One-hot wins outright, and CONCATENATING an FM embedding with one-hot does not help either.**
+Confirms Task 15 at the current nokozak/mm1/union-era config. Frozen-embedding regime only; a
+fine-tuned backbone was never run and the manuscript says so.
+
+### Mixer and capacity (union family, 70,883 scored tx)
+
+| config | pc profile r | pc periodicity | seeds |
+|---|--:|--:|--:|
+| transformer 2L (deployed) | 0.6711 | **0.3374** | 3 |
+| transformer 4L | 0.6683 | 0.3244 | 1 |
+| Mamba 2L | 0.6840 | 0.3070 | 1 |
+| Mamba 4L | 0.6931 | 0.3047 | 3 |
+| Mamba 6L | **0.6979** | 0.2795 | 1 |
+
+**Every step that raises profile correlation lowers periodicity, monotonically across five
+configs.** An ORF caller reads the periodicity, so the correlation ranking is NOT the deployment
+ranking. Same trade the Poisson dial exposes, seen through architecture instead of stringency.
+Note this REVERSES Task 17C's old read (Mamba 0.599 vs transformer 0.639) -- that was the
+pre-nokozak non-union config.
+
+### Training variance, measured for the first time in the bundle
+
+3 seeds for both deployed arms: spread **0.0024** (transformer 2L) and **0.0087** (Mamba 4L),
+against a between-arm range of 0.030. The architecture differences are not seed noise. This is the
+only place training variance is quantified; every other result in the manuscript is one seed.
+
+### Gotcha recorded
+
+**Two scoring universes, never mixable.** Backends were run non-union (33,918 tx), mixers union
+(70,883 tx). A backend row against a mixer row compares medians over universes differing 2x.
+FigS7 keeps them in separate panels, each labelled with its n, and the extractor's docstring says
+so.

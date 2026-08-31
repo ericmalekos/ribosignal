@@ -14,7 +14,8 @@ The main test metric (profile Pearson) scores shape only. This adds:
      single-isoform Pearson matches the overall Pearson, the ~18x multimap inflation is not
      distorting the shape result -- a cheap check that needs no target rebuild.
 
-Loads the run's args.json + best.pt, evaluates on that run's held-out test fold, writes
+Loads the run's args.json and the checkpoint named by --ckpt (default best.pt), evaluates on
+that run's held-out test fold, writes
 <run>/extra_metrics.json. Reuses dataset.py + model.py + train.py helpers.
 """
 from __future__ import annotations
@@ -91,6 +92,14 @@ def main():
     ap.add_argument("--eval_cap", type=int, default=0, help="0 = all test tx")
     ap.add_argument("--budget", type=int, default=24000)
     ap.add_argument("--device", default="cuda")
+    # Checkpoint selection is the point of the audit comparison: train_loto.py saves best.pt on
+    # val pearson_median and best_frame0.pt on the CDS-anchored frame-0 fraction, and the two are
+    # different epochs in all 30 runs that have both. Being able to evaluate either on the SAME
+    # held-out fold is what makes the criteria comparable.
+    ap.add_argument("--ckpt", default="best.pt",
+                    help="checkpoint filename inside --run (best.pt | best_frame0.pt)")
+    ap.add_argument("--out-suffix", default="",
+                    help="appended to the output filenames so two checkpoints do not overwrite")
     args = ap.parse_args()
     run = Path(args.run)
     if not run.is_absolute():
@@ -133,7 +142,7 @@ def main():
                             mamba_expand=cfg.get("mamba_expand", 2),
                             learn_start_context=cfg.get("learn_start_context", False),
                             fm_to_mixer=cfg.get("fm_to_mixer", False)).to(device)
-    model.load_state_dict(torch.load(run / "best.pt", map_location=device))
+    model.load_state_dict(torch.load(run / args.ckpt, map_location=device))
     model.eval()
 
     rows = []   # (biotype, single_iso, profile_pearson, pred_logcount, obs_log1p_N)
@@ -222,9 +231,10 @@ def main():
         "uorf_5utr": utr_block(7, "pc 5'UTR (uORF)"),
         "dorf_3utr": utr_block(9, "pc 3'UTR (dORF)"),
     }
-    (run / "extra_metrics.json").write_text(json.dumps(out, indent=2))
+    out["checkpoint"] = args.ckpt
+    (run / f"extra_metrics{args.out_suffix}.json").write_text(json.dumps(out, indent=2))
     print(json.dumps(out, indent=2), file=sys.stderr)
-    print(f"wrote {run / 'extra_metrics.json'}", file=sys.stderr)
+    print(f"wrote {run / ('extra_metrics' + args.out_suffix + '.json')}", file=sys.stderr)
 
     # Per-transcript dump for the multifold pooled aggregation: pooling every fold's test tx
     # gives a lncRNA median over ~1,239 transcripts rather than ~264 per fold. Same MIN_SIGNAL
@@ -232,13 +242,13 @@ def main():
     def fx(x):
         return f"{x:.6f}" if isinstance(x, float) and x == x else "nan"
 
-    with (run / "pertx.tsv").open("w") as fh:
+    with (run / f"pertx{args.out_suffix}.tsv").open("w") as fh:
         fh.write("tx_id\tbiotype\tn_psites\tprofile_pearson\t"
                  "utr5_pearson\tutr5_psites\tutr3_pearson\tutr3_psites\n")
         for r in rows:
             fh.write(f"{r[5]}\t{r[0]}\t{r[6]}\t{r[2]:.6f}\t"
                      f"{fx(r[7])}\t{r[8]}\t{fx(r[9])}\t{r[10]}\n")
-    print(f"wrote {run / 'pertx.tsv'} ({len(rows)} tx)", file=sys.stderr)
+    print(f"wrote {run / ('pertx' + args.out_suffix + '.tsv')} ({len(rows)} tx)", file=sys.stderr)
 
 
 if __name__ == "__main__":

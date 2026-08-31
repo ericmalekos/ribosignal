@@ -254,6 +254,11 @@ actually *wins* HBL-1 (20 vs 14) and SU-DHL-4 (28 vs 22) -- while carrying 25x t
 paying a canonical-ID cost the model arms do not. Density asks the question that matters for search-space
 selection: per sequence you commit to searching, how much do you find?
 
+The density ratio is a proxy for something now measured directly. On the four HLA-I immunopeptidomes, the
+null's *achieved* novel-class FDR is **8.74% [8.04, 9.50] against 1.34% [1.08, 1.67]** for the model arms at
+the same nominal 1% -- so the null's extra raw-count discoveries are roughly one in eleven wrong. See
+[](immunopeptidomics.md).
+
 Two honest notes for reading the figure:
 
 - **THP-1's 2,744x should not anchor the claim.** Its null found a single novel peptide from 301,855
@@ -263,6 +268,11 @@ Two honest notes for reading the figure:
 - **No error bars, deliberately.** These are single-search point estimates, not replicated measurements. The
   honest uncertainty statement is the peptide count printed beside each point (7 to 16). A Poisson interval on
   those counts would imply a replication structure that does not exist.
+
+  This holds for the deterministic hyperscore searches on this page. It does **not** hold for the rescored
+  HLA-I analysis in [](immunopeptidomics.md), where mokapot's stochastic fit gives a genuine replication
+  structure over 15 seeds and the pooled decoy counts do support intervals. Do not carry this note across to
+  that page.
 
 ## The ORF-length floor is set by the ASSAY, not by a default
 

@@ -5,6 +5,12 @@ Supersedes `HANDOFF_DOWNLOADS_2026_08_24.md` (download-only). Scope is now:
 
 ---
 
+> **UPDATE 2026-08-26: there is now ONE project image** covering everything the table below splits
+> across four environments, and mamba can run on CPU. If you are moving on to PREDICTION, read
+> `docs/HANDOFF_PREDICTION_2026_08_26.md` first -- it supersedes the environment guidance here.
+> Short version: `singularity_cache/riboseq-model.sif` has torch + mamba_ssm + h5py + pysam +
+> STAR/salmon/samtools/cutadapt + RiboCode, at versions matching `conda_envs/riboseq` exactly.
+
 ## 0. Orientation -- paths, environments, scripts
 
 **Project root (all relative paths below are from here):**

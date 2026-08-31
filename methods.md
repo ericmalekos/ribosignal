@@ -3062,3 +3062,40 @@ with the FASTQ as its first item and was stopped mid-copy by its recorded PID; b
 `archive_to_warm.sh` deletes only after a verified copy, all 186 files were still intact
 and no stub had been written. Check `squeue` and the pending work list before archiving an
 input, not just before archiving an output.
+
+---
+
+# Poisson stringency sweep on the cross-species arms (2026-08-30)
+
+**Why.** The cross-species ORF-call tables reported RECALL by class and an overall F1. Neither
+answers the question a user of the predicted call set has: if the model hands me a uORF call, is
+it right? That is precision, it is the number the stringency dial moves, and on the non-canonical
+classes it is far from recall (human uORF 0.632 precision against 0.712 recall; zebrafish 0.084
+against 0.645).
+
+**The sweep.** `scripts/xspecies/sweep_poisson_xspecies.sbatch`, job 37342702, a 140-task array:
+7 species x 2 architectures x theta in {0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 1.0, 1.5, 2.5},
+seed 0 throughout. Each task runs `ribocode_dropin.py --variant pred_preddepth --pred_poisson
+--pred_scale THETA`, which draws the per-nucleotide density as Poisson(theta x predicted_total x
+p) instead of rounding it. Outputs under `results/xspecies_poisson_sweep/<sp>_<arch>/theta_<t>/`.
+
+**Scoring.** `scripts/xspecies/analyze_poisson_sweep.py` scores each sweep point against that
+species' observed call set through `compare_dropin_calls.build_loader` and the CDS / uORF / ncORF
+class definitions from `orf_classes.py`, so membership rules and genomic `(gene_id, ORF_gstop)`
+keying are identical to the published tables and a sweep row at theta = 1 is directly comparable
+to the deterministic row. Writes `results/xspecies_poisson_sweep_curve.tsv` and
+`results/xspecies_poisson_operating_points.json`.
+
+**The operating point took two constraints, and the first rule was wrong.** The rule implemented
+first was "the most permissive theta whose CDS precision clears 0.90". The sweep itself showed
+that is useless: **CDS precision is essentially flat in theta**, above 0.96 across the entire
+swept range in six of seven species, so the rule is non-binding and degenerates to selecting the
+top of the grid, which is the point with the *worst* non-canonical precision. What actually
+degrades under tightening is CDS RECALL. The rule is now the **strictest theta** (best
+non-canonical precision, which is what the dial exists to buy) keeping **CDS precision >= 0.90
+AND CDS recall >= 0.90**. A species satisfying neither anywhere is reported as having no
+operating point rather than being given one; zebrafish is that case.
+
+**Sbatch hygiene.** The array checks the exit code of `ribocode_dropin.py` AND the existence and
+non-emptiness of its output, because `set -uo pipefail` without `-e` previously let a driver
+report COMPLETED for tasks whose real work had died.

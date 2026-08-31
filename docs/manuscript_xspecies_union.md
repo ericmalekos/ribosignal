@@ -288,3 +288,47 @@ _Length sweep_ (standalone theta=1; predicted+observed calls both restricted to 
 | 20 | 6,954/7,737 | 0.969 | 0.767/0.390/0.517 | 0.603/0.571/0.587 | 0.357/0.088/0.142 | 0.636/0.344/0.447 |
 | 30 | 6,714/7,252 | 0.969 | 0.750/0.402/0.523 | 0.645/0.605/0.624 | 0.439/0.096/0.157 | 0.636/0.358/0.458 |
 | 40 | 6,536/6,877 | 0.969 | 0.726/0.423/0.534 | 0.644/0.647/0.645 | 0.481/0.099/0.165 | 0.627/0.383/0.476 |
+
+### Wang liver (attn_union xspecies _mm10)  (xsp-attn_union_mm10 universe)
+- run: `/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/heldout_xspecies/attn_union/mouse_wang_liver_mm10`
+- **primary floor = ORFs >= 20 aa** (headline tables); sweep below spans full range.
+- reference = observed Hepatocytes calls (>= 20 aa): 14,088 (CDS 11,963, uORF 774, novel 673, dORF 162)
+
+| arm | CDS P/R/F1 | uORF P/R | novel P/R | dORF P/R | non-canon F1 |
+|---|---|---|---|---|---|
+| pred_obsdepth (shape @ real depth) | 0.963/0.958/0.960 | 0.446/0.428 | 0.379/0.669 | 0.133/0.340 | 0.391 |
+| pred_preddepth (standalone theta=1) | 0.938/0.944/0.941 | 0.343/0.691 | 0.311/0.733 | 0.071/0.549 | 0.360 |
+- standalone theta=1 over-call: total 16,952 calls vs 14,088 real (all 1.203x; novel 2.357x, dORF 7.722x)
+| Poisson CDS-anchored (th=0.05, CDSrec 0.90) | 0.935/0.897/0.915 | 0.560/0.150 | 0.409/0.446 | 0.238/0.216 | 0.302 |
+
+_Length sweep_ (standalone theta=1; predicted+observed calls both restricted to ORFs >= min_aa; P/R/F1). CDS length-invariant (ref); tiny-ORF tail is uORF-heavy:
+| min_aa | n_pred/n_real | CDS F1 | uORF P/R/F1 | novel P/R/F1 | dORF P/R/F1 | non-canon P/R/F1 |
+|---|---|---|---|---|---|---|
+| 5 | 19,883/15,082 | 0.941 | 0.314/0.680/0.429 | 0.263/0.723/0.386 | 0.059/0.546/0.107 | 0.239/0.601/0.342 |
+| 10 | 18,852/14,842 | 0.941 | 0.337/0.688/0.452 | 0.283/0.720/0.407 | 0.067/0.557/0.119 | 0.254/0.601/0.357 |
+| 15 | 17,870/14,470 | 0.941 | 0.345/0.691/0.460 | 0.298/0.727/0.423 | 0.068/0.551/0.122 | 0.259/0.604/0.363 |
+| 20 | 16,952/14,088 | 0.941 | 0.343/0.691/0.458 | 0.311/0.733/0.436 | 0.071/0.549/0.126 | 0.258/0.597/0.360 |
+| 30 | 15,566/13,522 | 0.941 | 0.345/0.697/0.461 | 0.334/0.740/0.460 | 0.076/0.559/0.134 | 0.262/0.594/0.363 |
+| 40 | 14,563/13,054 | 0.941 | 0.326/0.706/0.446 | 0.358/0.761/0.487 | 0.074/0.584/0.131 | 0.261/0.604/0.364 |
+
+### Wang liver (mamba4_union xspecies _mm10)  (xsp-mamba4_union_mm10 universe)
+- run: `/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/heldout_xspecies/mamba4_union/mouse_wang_liver_mm10`
+- **primary floor = ORFs >= 20 aa** (headline tables); sweep below spans full range.
+- reference = observed Hepatocytes calls (>= 20 aa): 14,088 (CDS 11,963, uORF 774, novel 673, dORF 162)
+
+| arm | CDS P/R/F1 | uORF P/R | novel P/R | dORF P/R | non-canon F1 |
+|---|---|---|---|---|---|
+| pred_obsdepth (shape @ real depth) | 0.961/0.964/0.962 | 0.462/0.443 | 0.412/0.685 | 0.141/0.284 | 0.409 |
+| pred_preddepth (standalone theta=1) | 0.935/0.941/0.939 | 0.379/0.606 | 0.327/0.730 | 0.089/0.414 | 0.383 |
+- standalone theta=1 over-call: total 16,011 calls vs 14,088 real (all 1.136x; novel 2.232x, dORF 4.648x)
+| Poisson CDS-anchored (th=0.05, CDSrec 0.89) | 0.934/0.890/0.912 | 0.564/0.131 | 0.419/0.464 | 0.270/0.148 | 0.296 |
+
+_Length sweep_ (standalone theta=1; predicted+observed calls both restricted to ORFs >= min_aa; P/R/F1). CDS length-invariant (ref); tiny-ORF tail is uORF-heavy:
+| min_aa | n_pred/n_real | CDS F1 | uORF P/R/F1 | novel P/R/F1 | dORF P/R/F1 | non-canon P/R/F1 |
+|---|---|---|---|---|---|---|
+| 5 | 18,464/15,082 | 0.938 | 0.344/0.609/0.439 | 0.279/0.722/0.403 | 0.072/0.413/0.122 | 0.269/0.555/0.363 |
+| 10 | 17,619/14,842 | 0.938 | 0.366/0.606/0.457 | 0.299/0.723/0.423 | 0.081/0.422/0.136 | 0.285/0.552/0.376 |
+| 15 | 16,758/14,470 | 0.938 | 0.379/0.606/0.467 | 0.317/0.727/0.442 | 0.085/0.420/0.141 | 0.295/0.555/0.385 |
+| 20 | 16,011/14,088 | 0.939 | 0.379/0.606/0.466 | 0.327/0.730/0.452 | 0.089/0.414/0.146 | 0.294/0.550/0.383 |
+| 30 | 14,924/13,522 | 0.939 | 0.386/0.617/0.475 | 0.351/0.742/0.477 | 0.089/0.402/0.145 | 0.298/0.553/0.388 |
+| 40 | 14,098/13,054 | 0.939 | 0.377/0.631/0.472 | 0.368/0.750/0.494 | 0.087/0.416/0.143 | 0.297/0.561/0.389 |

@@ -52,8 +52,37 @@ def load_biotype():
 
 
 def _rank(x):
-    r = np.empty_like(x)
-    r[np.argsort(x, kind="stable")] = np.arange(len(x))
+    """Average ranks for ties -- the standard definition, and NOT optional on these data.
+
+    The previous implementation assigned ORDINAL ranks 0..n-1 via argsort(kind="stable"), which
+    never ties. On a P-site profile that is 74-95% zeros, every tied zero received a distinct rank
+    in POSITIONAL order, so the observed rank vector became a proxy for position along the
+    transcript rather than for signal. The model correctly predicts low density in a long 3'UTR;
+    those positions are simultaneously observed-zero (hence high ordinal rank, being last) and
+    predicted-low, which manufactures an anti-correlation out of nothing.
+
+    Measured on 3,000 human transcripts (median 89.7% zeros): median -0.2345 ordinal against
+    +0.3519 with averaged ties, disagreeing in SIGN on 74.9% of transcripts. Ordinal ranking
+    reported 74.9% of transcripts as anti-correlated; corrected, none are. See
+    docs/xspecies_paper/METHODS.md section 6.2 for the per-species table.
+
+    This function feeds `spearman` only -- it touches neither the loss nor checkpoint selection,
+    so no trained model is affected.
+    """
+    x = np.asarray(x, dtype=np.float64)
+    order = np.argsort(x, kind="stable")
+    r = np.empty(len(x), dtype=np.float64)
+    r[order] = np.arange(len(x), dtype=np.float64)
+    # average the ranks within each run of equal values
+    xs = x[order]
+    i = 0
+    while i < len(xs):
+        j = i + 1
+        while j < len(xs) and xs[j] == xs[i]:
+            j += 1
+        if j - i > 1:
+            r[order[i:j]] = (i + j - 1) / 2.0
+        i = j
     return r
 
 

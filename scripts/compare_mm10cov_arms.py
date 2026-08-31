@@ -23,7 +23,10 @@ R = Path(__file__).resolve().parent.parent
 LOTO = R / "results/loto"
 BASE = "orf_v2_mamba4_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes"
 MM10 = "orf_v2_mamba4_onehot_union_noBrain_nokozak_mm10cov"
-METRICS = ["pearson_median", "frame0_pred_median", "period_pred_median", "spearman_median"]
+# spearman_median removed 2026-08-30: stored values predate the train._rank tie-handling fix and
+# are invalid on sparse profiles (see docs/xspecies_paper/METHODS.md section 6.2). Re-evaluate a run
+# if a rank correlation is wanted.
+METRICS = ["pearson_median", "frame0_pred_median", "period_pred_median"]
 
 
 def load(run):

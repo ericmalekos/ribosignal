@@ -50,9 +50,11 @@ def main():
             "d_emb": D_EMB[b],
             "n_test": g(t, "n", default=0),
             "all_pearson": g(t, "all", "pearson_median"),
-            "all_spearman": g(t, "all", "spearman_median"),
+            # spearman_median dropped: values written before 2026-08-30 came from a _rank that
+            # did not average ties, which on 74-95%-zero profiles measures position rather than
+            # signal (sign wrong on ~75% of transcripts). Those keys are now renamed
+            # spearman_median_INVALID_ordinal_ties on disk. Re-evaluate a run to get a valid one.
             "pc_pearson": g(t, "protein_coding", "pearson_median"),
-            "pc_spearman": g(t, "protein_coding", "spearman_median"),
             "pc_period_pred": g(t, "protein_coding", "period_pred_median"),
             "pc_period_obs": g(t, "protein_coding", "period_obs_median"),
             "pc_n": g(t, "protein_coding", "n"),

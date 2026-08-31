@@ -72,7 +72,9 @@ Each page is short and focused. **Setup** and **The model** cover the machinery;
 **Test sets** define exactly what the model learned from and is judged on; **Calling** covers turning a
 predicted profile into ORF calls, including the calibration dial and its randomness; **Metrics** defines
 every number we track; **Benchmarks** is the living results table + figure, regenerated on each build;
-**Proteogenomics** is the independent mass-spec test of the predictions.
+**Proteogenomics** is the independent mass-spec test of the predictions; **Immunopeptidomics** repeats that
+test on four HLA-I datasets, where the search is nonspecific and therefore harder, and reports the achieved
+false-discovery rate with confidence intervals rather than a discovery-density proxy.
 
 ```{toctree}
 :maxdepth: 2
@@ -119,4 +121,5 @@ learned/index
 metrics
 benchmarks
 proteogenomics
+immunopeptidomics
 ```
