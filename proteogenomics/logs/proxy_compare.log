@@ -1,8 +1,0 @@
-=== proxy aligns cleared 2026-07-21T05:22:18-07:00 ===
-35864405        RUNNING   00:59:01 
-35864405.ba+    RUNNING   00:59:01 
-35864406        RUNNING   00:59:01 
-35864406.ba+    RUNNING   00:59:01 
-  mm1 coverage: MISSING
-  mm20 coverage: MISSING
-missing /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/mm_proxy/DoHH2_mm1_coverage.hd5

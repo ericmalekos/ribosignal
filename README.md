@@ -138,8 +138,9 @@ isolates whether the model places ribosomes correctly.
 ## Training
 
 Human tissue Ribo-seq (GEO **GSE182371**), leave-one-tissue-out with Hepatocytes held out,
-unique-mapper alignments only. `scripts/train.py` is the training entry point; see
-`release/README.md` for the exact configuration of each released checkpoint.
+unique-mapper alignments only. `scripts/train.py` is the training entry point. The exact
+configuration and held-out metrics for each checkpoint ship with the weights as
+`<arch>_config.json` and `<arch>_test_metrics.json`.
 
 ## Citation
 

@@ -1,8 +1,0 @@
-=== SUDHL4 downstream (self-contained) 2026-07-21T05:19:20-07:00 ===
-wrote /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/proteogenomics/data/SUDHL4_pilot/SUDHL4_universe.fa
-wrote /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/packed_heldout_human_sudhl4/  global_mean_coverage=207.358
-  transcripts=33,610  sum_L=82,297,904  target_total=0  coverage_total=17,065,154,000  scorable(>=50 psites)=0
-wrote /private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/data/packed_heldout_human_sudhl4/orf_track_v2.npy (82297904, 5) float16 (823 MB); means {'orf_f0': 0.37461756012644015, 'orf_f1': 0.3682915545455447, 'orf_f2': 0.3698722387875152, 'start_ext': 0.04060620212416042, 'is_stop': 0.041693868655512785}
-SUDHL4 predict submitted: 35864407
-=== post_predict SUDHL4 (waiting on predict 35864407) 2026-07-21T05:20:24-07:00 ===
-NO pred_profiles.npz -- predict failed

@@ -97,3 +97,11 @@ design_count_magnitude_transferability.md
 # NOTE: files pushed before commit `docs-private` remain reachable in git history.
 docs/
 proteogenomics/**/*.md
+
+# Kept on disk, not published: covered by the manuscript, or internal.
+results/
+env/
+proteogenomics/
+release/README.md
+# tests/ imports packlib and pgx, neither of which is published
+tests/
