@@ -135,19 +135,6 @@ Two other variants exist for evaluation rather than deployment: `real` runs the 
 observed profile, and `pred_obsdepth` uses the predicted shape scaled to an observed depth, which
 isolates whether the model places ribosomes correctly.
 
-## What is here
-
-```
-scripts/     the prediction path and the scripts that build its inputs
-scripts/xspecies/  reference build and RNA-seq alignment drivers
-release/     which checkpoint is which, with configs and held-out metrics
-containers/  Dockerfile and Singularity definition; the image bakes in the released weights
-env/         pinned environment specs
-tests/       invariant tests
-docs/        reference and dataset registries
-proteogenomics/   the proteogenomic database-search pipeline
-```
-
 ## Training
 
 Human tissue Ribo-seq (GEO **GSE182371**), leave-one-tissue-out with Hepatocytes held out,
