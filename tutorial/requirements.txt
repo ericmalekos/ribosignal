@@ -1,8 +1,0 @@
-# Build deps for the tutorial site (install into a dedicated docs env, e.g. conda_envs/sphinx-docs).
-sphinx
-myst-parser
-sphinx-rtd-theme
-sphinx-copybutton
-sphinx-design
-sphinxcontrib-mermaid
-sphinx-autobuild

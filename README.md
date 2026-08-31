@@ -1,130 +1,108 @@
-# riboseq_signal_model
+# RiboSignal
 
-> Current vs superseded results: **`docs/STATUS_CURRENT_VS_ARCHIVED.md`**.
+Predicts a **per-nucleotide ribosome P-site profile** for a transcript from its mature mRNA
+sequence and matched RNA-seq coverage. No ribosome-profiling experiment is needed at inference.
 
-Predict per-nucleotide Ribo-seq P-site signal along a transcript from sequence (+ optional matched
-RNA-seq coverage). A dilated-CNN body with a transformer or Mamba mixer feeds two heads: a profile head
-(multinomial over the transcript, the periodic P-site SHAPE) and a count head (log total P-sites, the
-DEPTH). Trained on Chothani matched primary human tissues (GENCODE v49 / GRCh38), transcriptome
-coordinates.
+The predicted profile can be fed to an ORF caller in place of real Ribo-seq, which is what it is
+for: calling translated ORFs, including upstream and non-canonical ones, in samples where no
+Ribo-seq exists.
 
-## Status (2026-08-04)
+**Weights:** <https://huggingface.co/emalek/RiboSignal> (MIT)
 
-Model TRAINED + FULLY EVALUATED. It predicts translation from SEQUENCE, so it needs no Ribo-seq at
-inference.
+| checkpoint | mixer | params | device |
+|---|---|--:|---|
+| `mamba4_best.pt` | dilated CNN + 4 bidirectional Mamba blocks | 7,521,026 | GPU only (`mamba_ssm`) |
+| `attn_best.pt` | dilated CNN + 2 transformer layers | 5,071,106 | CPU or GPU |
 
-### TWO models ship (decision 2026-07-31, Task 26)
+---
 
-| | `orf_v2_mamba4` | `orf_v2_attn` |
-|---|---|---|
-| role | **primary / headline** | supplemental, but a maintained release |
-| mixer | dilated CNN + 4 Bi-Mamba blocks | dilated CNN + 2 transformer layers |
-| params | 7,521,026 | 5,071,106 |
-| held-out Pearson (3 seeds) | **0.6799** (0.6753-0.6851) | 0.6595 (0.6585-0.6603) |
-| device | **GPU only** (mamba-ssm CUDA kernels) | **CPU or GPU** |
+## Minimal example: predict a profile
 
-mamba4 wins by +0.0204 with non-overlapping seed ranges (its worst seed beats attn's best), so the
-separation is real and not a seed artefact. It is ~5x noisier across seeds though (spread 0.0098 vs
-0.0018), so never quote a single-seed mamba4 number without the spread.
+### 1. Get the weights
 
-**attn is not deprecated.** It is the only one of the two that runs without a GPU, so it stays the
-released inference path for CPU-bound users. Keep both sets of docs, figures, and checkpoints current.
+```bash
+pip install huggingface_hub torch numpy
+python -c "
+from huggingface_hub import snapshot_download
+snapshot_download('emalek/RiboSignal', local_dir='weights')"
+```
 
-Encoding: one-hot. FM embeddings (RiNALMo / Orthrus / HydraRNA) give no lift over one-hot (Task 15),
-so the released models carry no foundation-model dependency.
+### 2. Build the three inputs
 
-### Landed work
+A checkpoint alone is not enough. The model reads **ten channels per nucleotide**: 4 one-hot
+A/C/G/T, 5 ORF-candidate track, 1 RNA-seq coverage. Each comes from one script in `scripts/`.
 
-Tasks 1-26 plus 46/52/53 (see `results.md`): held-out-chromosome baselines, FM + input/architecture
-ablations, uORF/dORF-aware eval, 9-fold leave-one-tissue-out transfer, ORF-localization + RiboCode
-drop-in calling, cross-study (human Ruiz-Orera) + cross-species (mouse Wang) transfer, depth crossover
-(predicting beats measuring below ~29M P-sites), non-AUG ATG+CTG drop-in, the Kozak ablation, the
-posture-B multimap sensitivity check, the 3-seed architecture decision, and the macrophage
-proteogenomics application across 12 populations.
+```bash
+# a. transcript FASTA -> ORF-candidate track (frames, start context, stop)
+python scripts/build_orf_track.py \
+    --fasta transcripts.fa \
+    --out   orf_track_v2_nokozak.npy \
+    --kozak none
 
-Added 2026-08-08 (tasks 61, 63-68):
+# b. RNA-seq BAM (transcriptome coords) -> per-nucleotide coverage
+python scripts/rnaseq_coverage.py \
+    --bam  rnaseq.toTranscriptome.bam \
+    --out  coverage.hd5
+```
 
-- **Every held-out number re-measured on the shipping models.** The cross-study and cross-species
-  drop-in figures had been on a pre-nokozak / pre-mm1 / pre-union checkpoint, invisible because run
-  directories are named for the DATASET rather than the CHECKPOINT. The SHAPE claim survived
-  (`pred_obsdepth` within 0.006); the STANDALONE claim did not (`pred_preddepth` fell ~0.05, e.g.
-  Ruiz-Orera 0.930 -> 0.876/0.880). Per-dataset tables are generated with their source checkpoint
-  printed beside every row: `tutorial/make_heldout_{human,mouse}.py`.
-- **Both calling arms, on a Ribo-seq-FREE anchor** (`results/released_two_arm_orf_calls.json`, 16
-  rows). Poisson raises precision on all 8 dumps but improves F1 on only ONE of four datasets, and
-  halves non-canonical F1 every time. Report both arms; neither alone is honest.
-- **Task 61, the no-RNA-seq ablation, NARROWS the cell-type-specificity claim.** Sequence alone
-  recovers 98.5% of profile shape; the count head loses 0.193 Pearson without RNA-seq. Specificity is
-  in WHICH ORFs clear the depth threshold, not in the shape. Write "cell-type-specific translation",
-  cite -0.193, and never "cell-type-specific profile shape". Figure `figures/B6_input_ablation/`.
-- **Task 68, the RNA-quality factorial** (Ribo-seq held fixed, RNA-seq varied along its two paths):
-  the coverage path is worth only +0.001 to +0.010 F1, while the universe path adds **17% more real
-  ORFs**. Both models converge to the same non-canonical F1 (0.520) once the RNA is good, from 0.029
-  apart -- on this axis RNA quality outweighs the architecture choice.
-- **The final-recipe pipeline, and what it changed (2026-08-13).** One aligner for both species
-  (`scripts/riboseq_align.sbatch`, EndToEnd + mm1 + ncRNA/cross-gene filter); policy in
-  `docs/PIPELINE_POLICY.md`, entry points in `docs/CANONICAL_ENTRYPOINTS.md`. Canonical alignment
-  strips **22.3% of novel** and **12.5% of uORF** reference calls vs 1.4% of annotated, while the
-  model's own standalone predictions are byte-identical -- so the earlier non-canonical F1 was
-  INFLATED by the model matching alignment artifacts. **Never compare canonical non-canonical
-  numbers to previously reported ones.**
-- **Reproducibility is per-tissue, and 3.04% was the flattering tissue.** Across all 8 Chothani
-  tissues the median regeneration divergence is **3.86%** (range 3.04-11.66%, per-nt r 0.432-0.980);
-  HUVEC, the tissue the original claim rested on, is the BEST of the eight. Quote the range, not
-  3.04% alone. Figure `figures/S_reproducibility/`.
-- **Figure audit.** Five of six Fig 1 panels were on the stale checkpoint AND on the wrong model
-  (locked decision D1b makes mamba4 the main Fig 1 model; the panels were all attn). A1/A2/B4/B5 now
-  take `FIG_MODEL`, default mamba4, and record the model in their values JSON. See
-  `figures/README.md` "Checkpoint provenance".
+> **`--kozak none` is required.** Both released checkpoints were trained without the Kozak
+> heuristic. Feeding them a heuristic-Kozak track silently degrades the prediction.
 
-Key decision from Task 20: the hand-picked Kozak start-context factor is redundant with what the
-sequence backbone learns, so the ORF-track default is `--kozak none`. Both shipped models are trained
-on the no-Kozak track; only the OLD deployed checkpoint retains the heuristic (train/inference match).
+### 3. Predict
 
-## Documents (read in this order)
+```bash
+export RIBO_PACK_DIR=packed/          # tx_order, offsets, lengths, coverage
+export RIBO_ORF_TRACK=orf_track_v2_nokozak.npy
+export RIBO_ONEHOT_FASTA=transcripts.fa
 
-- **`results.md`** -- findings, Tasks 1-21, headline numbers and tables. Start here.
-- **`methods.md`** -- what was done and why: target definition, inputs, splits, model, per-task
-  methodology (sections 1-7 + subsections 5B..5N).
-- **`KOZAK_PLAN.md`**, **`LOTO_PLAN.md`** -- plan + outcome for the Kozak ablation and the leave-one-
-  tissue-out pilot.
-- **`design_count_magnitude_transferability.md`** -- design rationale for the dual-head + transferability.
-- **`proteogenomics/`** -- the MS application: its own `methods.md` + `results.md`, the `pgx` pipeline,
-  and `DATA_PROVENANCE.md` (log every external dataset there before use).
-- **`HANDOFF.md`** -- HISTORICAL. The 2026-07-08 kickoff brief, written before any code existed. Kept
-  for provenance; it describes the project as not yet started and is not a guide to the current state.
-- Auto-memory `project_riboseq_signal_model.md` (in the Claude memory dir) -- the running cross-session
-  STATE block; read its tail first when resuming.
+python scripts/dump_pred_profiles.py \
+    --run    weights/ \
+    --device cpu                      # use cuda for the mamba4 checkpoint
+```
 
-## Layout
+Writes `pred_profiles.npz` with, per transcript, a `pred_flat` profile summing to 1 and a
+`pred_total` count.
 
-- `scripts/` -- all build / train / eval code. Training entrypoints: `train.py` (fold-based held-out
-  chromosome) and `train_loto.py` (leave-one-tissue-out). Model in `model.py`, data in `dataset.py`.
-- `data/` -- `packed/` (Fibroblast target + coverage + ORF tracks + tx_order), `packed_<Tissue>/` (other
-  tissues), `target/`, universe FASTA/TSV, external held-out sets under `data/external/`.
-- `results/` -- per-run output dirs (`args.json`, `best.pt`, metrics JSON, `pertx.tsv`, `dropin*/`).
-- `figures/` -- curated figures, each folder with a `FIGURE_DATA_INPUTS.md` provenance file.
-- `logs/` -- captured train / eval / dropin / heldout / input-build logs.
-- `manuscript/`, `tutorial/` -- writeup scaffolding.
-- `release/` -- **which checkpoints actually ship.** Config, metrics, checksums and companion-artifact
-  paths for the two released models. Read this before attributing any result to "the model".
-- `env/` -- pinned conda specs + the Singularity images. NOTE: training runs in CONTAINERS, and attn
-  and mamba4 use DIFFERENT images (only one carries the Mamba CUDA kernels).
+### 4. Optional: call ORFs from the predicted profile
 
-## Run a released model (predict from sequence)
+```bash
+python scripts/ribocode_dropin.py \
+    --profiles pred_profiles.npz \
+    --annot    ribocode_annot/ \
+    --variant  pred_preddepth \
+    --out      calls/ \
+    --min_aa 5 --pval 0.05
+```
 
-Inference uses `dump_pred_profiles.py` (per-nt predicted profile per transcript) or `eval_localization.py`
-(ORF-level scoring). A trained run dir carries its full config in `args.json`; point the eval scripts at
-`--run <results/.../run_dir>`. GPU via the `rnazoo-rinalmo` SIF, or CPU with the `--device cpu` variants.
-See methods.md 5C (training protocol) and 5G/5H (eval + drop-in) for exact commands.
+`--variant pred_preddepth` is the fully de novo call: predicted shape and the model's own count
+head, using no observed Ribo-seq. Add `--pred_poisson --pred_scale 0.05` to trade non-canonical
+yield for non-canonical precision.
 
-Pick by device: `orf_v2_mamba4` if a GPU is available (better, and the headline numbers), `orf_v2_attn`
-if not. `--device cpu` on a mamba4 run dir will fail in the mamba-ssm CUDA kernels -- that is a hard
-constraint of the dependency, not a configuration problem.
+---
 
-## Conventions
+## What is here
 
-SLURM cluster `prism`: heavy work via sbatch (partitions short/medium/long/gpu), head node `mustard` for
-light inspection + serial downloads only; outputs on the group filesystem, scratch under
-`/data/tmp/emalekos`. Mitochondrial (chrM) genes are excluded everywhere (methods.md 7.1). Ribo-seq STAR
-alignment keeps single-mappers only and drops rRNA/tRNA/miRNA loci. ASCII punctuation only.
+```
+scripts/     the prediction path and the scripts that build its inputs
+release/     which checkpoint is which, with configs and held-out metrics
+containers/  Dockerfile and Singularity definition
+env/         pinned environment specs
+tests/       invariant tests
+docs/        reference and dataset registries
+proteogenomics/   the proteogenomic database-search pipeline
+```
+
+## Training
+
+Human tissue Ribo-seq (GEO **GSE182371**), leave-one-tissue-out with Hepatocytes held out,
+unique-mapper alignments only. `scripts/train.py` is the training entry point; see
+`release/README.md` for the exact configuration of each released checkpoint.
+
+## Citation
+
+Manuscript in preparation. Until then cite this repository and
+<https://huggingface.co/emalek/RiboSignal>.
+
+## License
+
+MIT.

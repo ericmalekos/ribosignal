@@ -1,9 +1,0 @@
-[2026-07-22 10:21:16] Create metaplot file and predict the P-site locations ...
-Warning:The predicted P-site location(6) for length 28 is not the highest peak(12),					                 please confirm according metagene plots.
-Warning:The predicted P-site location(6) for length 25 is not the highest peak(9),					                 please confirm according metagene plots.
-Warning:The predicted P-site location(6) for length 29 is not the highest peak(12),					                 please confirm according metagene plots.
-Warning:The predicted P-site location(6) for length 28 is not the highest peak(12),					                 please confirm according metagene plots.
-Warning:The predicted P-site location(6) for length 25 is not the highest peak(3),					                 please confirm according metagene plots.
-Warning:The predicted P-site location(6) for length 29 is not the highest peak(12),					                 please confirm according metagene plots.
-[2026-07-22 10:22:49] Complete prediction of the P-site locations
-	Loading transcripts.pickle ...

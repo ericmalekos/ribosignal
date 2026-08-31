@@ -1,8 +1,0 @@
-# arch_attn_values.json -> LONG (no record table; one row per value)
-path	value
-example_tx	ENST00000958170.1
-length	2297
-obs_total	499025
-pearson	0.91147113
-cds	27;1398
-source_npz	/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/dropin/pred_profiles.npz

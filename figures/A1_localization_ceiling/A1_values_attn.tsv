@@ -1,6 +1,0 @@
-# A1_values_attn.json -> WIDE (record table at 'values', 2 rows)
-model	key	all	noncanonical
-attn	Held-out
-Hepatocytes	{"pred":0.8876898616872848,"obs":0.8278544111721517,"pred_raw":0.9348677769385335,"obs_raw":0.9067314544493491}	{"pred":0.8282111370868928,"obs":0.8786968993098985,"pred_raw":0.8311256407340141,"obs_raw":0.885549993009834}
-attn	Cross-study
-Ruiz-Orera	{"pred":0.8924954924670473,"obs":0.8246643617879447,"pred_raw":0.9424312258193134,"obs_raw":0.9076909456555301}	{"pred":0.8424202646061657,"obs":0.8736394716165947,"pred_raw":0.8496880868890726,"obs_raw":0.8870220364382768}

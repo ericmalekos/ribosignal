@@ -73,3 +73,20 @@ ${prefix}.*
 
 # Bundle tarballs are build products of deliverables/<name>/; the directory is tracked.
 deliverables/*.tar.gz
+
+# --- repository cleanup 2026-08-31 -------------------------------------------------
+# Working artifacts kept on disk but out of the public repository. Their full history
+# remains in git before commit `cleanup`; nothing was deleted from the filesystem.
+figures/
+poster_package/
+poster_incoming/
+logs/
+tutorial/
+deliverables/
+manuscript/
+results.md
+methods.md
+._.DS_Store
+*_PLAN.md
+HANDOFF*.md
+design_count_magnitude_transferability.md

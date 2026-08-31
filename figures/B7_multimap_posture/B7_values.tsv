@@ -1,8 +1,0 @@
-# B7_values.json -> LONG (no record table; one row per value)
-path	value
-n_tx_assessed	30950
-median_pearson	0.999987
-frac_pearson_ge_0.999_pct	85.722132
-frac_pearson_lt_0.95_pct	5.3053312
-total_depth_ratio_mm1_mm20	0.9235817
-n_multimap_inflated_mm20_gt_1.5x	983

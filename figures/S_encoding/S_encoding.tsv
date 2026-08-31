@@ -1,5 +1,0 @@
-encoding	run	n_scored	pc_profile_pearson_median	lncRNA_profile_pearson_median	all_profile_pearson_median	pc_period_pred_median	pc_period_obs_median	delta_pc_vs_onehot
-one-hot (shipped)	orf_v2_attn_onehot_noBrain_nokozak_mm1_holdout_Hepatocytes	33918	0.625044	0.427542	0.622984	0.442693	0.157803	+0.000000
-RiNALMo (650M)	orf_v2_attn_rinalmo_noBrain_nokozak_mm1_holdout_Hepatocytes	33918	0.608948	0.449884	0.606947	0.456351	0.157803	-0.016097
-Orthrus (Mamba)	orf_v2_attn_orthrus_noBrain_nokozak_mm1_holdout_Hepatocytes	33918	0.605582	0.423372	0.603389	0.448148	0.157803	-0.019463
-HydraRNA (full-length)	orf_v2_attn_hydrarna_noBrain_nokozak_mm1_holdout_Hepatocytes	33918	0.621729	0.434823	0.619431	0.434797	0.157803	-0.003315

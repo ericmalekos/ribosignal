@@ -1,8 +1,0 @@
-# E3_values.json -> WIDE (record table at 'pairs', 6 rows)
-note	orf_class	reference	exp_recall	model_recall	model	rna_input	n_ref	cell_selection
-Standalone model recall vs the shallow Wang experiment, on the two deeper references. Model loses to both deeper experiments on recall and to all three on precision/F1; see FIGURE_DATA_INPUTS.md.	annotated	gse243134	0.9864	0.9964	attn	gse243134	10383	fixed (not argmax)
-Standalone model recall vs the shallow Wang experiment, on the two deeper references. Model loses to both deeper experiments on recall and to all three on precision/F1; see FIGURE_DATA_INPUTS.md.	annotated	janich	0.9877	0.9969	attn	gse243134	10361	fixed (not argmax)
-Standalone model recall vs the shallow Wang experiment, on the two deeper references. Model loses to both deeper experiments on recall and to all three on precision/F1; see FIGURE_DATA_INPUTS.md.	novel	gse243134	0.5747	0.6953	attn	gse243134	663	fixed (not argmax)
-Standalone model recall vs the shallow Wang experiment, on the two deeper references. Model loses to both deeper experiments on recall and to all three on precision/F1; see FIGURE_DATA_INPUTS.md.	novel	janich	0.6123	0.7188	attn	gse243134	601	fixed (not argmax)
-Standalone model recall vs the shallow Wang experiment, on the two deeper references. Model loses to both deeper experiments on recall and to all three on precision/F1; see FIGURE_DATA_INPUTS.md.	uORF	gse243134	0.5423	0.6844	attn	gse243134	697	fixed (not argmax)
-Standalone model recall vs the shallow Wang experiment, on the two deeper references. Model loses to both deeper experiments on recall and to all three on precision/F1; see FIGURE_DATA_INPUTS.md.	uORF	janich	0.6085	0.7113	attn	gse243134	613	fixed (not argmax)

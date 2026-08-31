@@ -1,8 +1,0 @@
-	/private/groups/carpenterlab/emalekos/conda_envs/riboseq/bin/STAR-avx2 --runThreadN 16 --genomeDir /private/groups/carpenterlab/emalekos/STAR_indexes/star_index_grcm39_vM38 --readFilesIn /data/tmp/emalekos/heldout/mouse_gse120762_lps_SRR7956053_1008315/SRR7956053.trimmed.fastq.gz --readFilesCommand zcat --outSAMtype BAM SortedByCoordinate --quantMode TranscriptomeSAM --outFilterMismatchNoverLmax 0.05 --outFilterMatchNminOverLread 0.7 --outFilterMultimapNmax 1 --alignEndsType EndToEnd --outSAMattributes NH HI AS nM MD --outFileNamePrefix /data/tmp/emalekos/heldout/mouse_gse120762_lps_SRR7956053_1008315/SRR7956053. --outTmpDir /data/tmp/emalekos/heldout/mouse_gse120762_lps_SRR7956053_1008315/_STAR_tmp --limitBAMsortRAM 30000000000
-	STAR version: 2.7.11b   compiled: 2025-11-14T12:06:42+0000 :/opt/conda/conda-bld/star_1763121846936/work/source
-Jul 22 10:13:08 ..... started STAR run
-Jul 22 10:13:08 ..... loading genome
-Jul 22 10:13:21 ..... started mapping
-Jul 22 10:15:47 ..... finished mapping
-Jul 22 10:15:48 ..... started sorting BAM
-Jul 22 10:15:54 ..... finished successfully

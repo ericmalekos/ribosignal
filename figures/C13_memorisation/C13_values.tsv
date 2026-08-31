@@ -1,4 +1,0 @@
-# C13_values.json -> WIDE (record table at 'models', 2 rows)
-source_dir	key	holdout	n_unseen	n_matched_seen	n_all_seen	mean_r_unseen	ci_unseen	mean_r_matched_seen	ci_matched_seen	mean_r_all_seen	delta_unseen_minus_matched	median_counts_unseen	median_counts_matched
-/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/memorisation_control	attn	Hepatocytes	98	980	70785	0.14819519	[0.12105400848942839,0.17692001490018378]	0.24813024	[0.23489971709551424,0.262604733570786]	0.61627706	-0.099935047	66	67
-/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/results/memorisation_control	mamba4	Hepatocytes	98	980	70785	0.13703248	[0.10372786197315999,0.17348527719769177]	0.24496325	[0.2312230433364278,0.2595798125872303]	0.62859365	-0.10793077	66	67

@@ -1,5 +1,0 @@
-# C10_values.json -> WIDE (record table at '<root>', 3 rows)
-key	gene	label	ts	te	start_saliency_rank	L	mean_in_orf_over_mean
-ENST00000399697.7	POLR1D	uORF	147	183	3	2036	8.6909304
-ENST00000429711.7	RPL32	CDS	77	485	292	2094	3.3995423
-ENST00000647872.1	LINC02693	lncRNA ORF	258	924	10	7914	4.6174812

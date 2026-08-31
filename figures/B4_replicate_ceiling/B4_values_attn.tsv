@@ -1,6 +1,0 @@
-# B4_values_attn.json -> WIDE (record table at 'strata', 4 rows)
-run	ceiling_source	model_source	label	ceiling_key	model_key	ceiling	model	pct_of_ceiling
-orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes	results/replicate_concordance.json	results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/extra_metrics.json	PC whole-tx	pc_whole	protein_coding	0.95205086	0.66992786	70.366814
-orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes	results/replicate_concordance.json	results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/extra_metrics.json	lncRNA whole-tx	lncRNA_whole	lncRNA	0.89008374	0.45827904	51.487183
-orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes	results/replicate_concordance.json	results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/extra_metrics.json	PC 5'UTR (uORF)	pc_uorf5	uorf_5utr	0.95295587	0.58191933	61.064667
-orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes	results/replicate_concordance.json	results/loto/orf_v2_attn_onehot_union_noBrain_nokozak_mm1_holdout_Hepatocytes/extra_metrics.json	PC 3'UTR (dORF)	pc_dorf3	dorf_3utr	0.74922141	0.25473158	33.999506
