@@ -27,26 +27,61 @@ from huggingface_hub import snapshot_download
 snapshot_download('emalek/RiboSignal', local_dir='weights')"
 ```
 
-### 2. Build the three inputs
+### 2. Prepare the RNA-seq
 
-A checkpoint alone is not enough. The model reads **ten channels per nucleotide**: 4 one-hot
-A/C/G/T, 5 ORF-candidate track, 1 RNA-seq coverage. Each comes from one script in `scripts/`.
+The model reads **ten channels per nucleotide**: 4 one-hot A/C/G/T, 5 ORF-candidate track, and
+1 RNA-seq coverage. The coverage channel comes from a STAR alignment in **transcriptome
+coordinates**.
 
 ```bash
-# a. transcript FASTA -> ORF-candidate track (frames, start context, stop)
-python scripts/build_orf_track.py \
-    --fasta transcripts.fa \
-    --out   orf_track_v2_nokozak.npy \
-    --kozak none
+# a. STAR index over the genome, with the annotation the transcripts come from
+STAR --runMode genomeGenerate --genomeDir star_index/ \
+     --genomeFastaFiles genome.fa --sjdbGTFfile annotation.gtf \
+     --sjdbOverhang $((READ_LEN - 1)) \
+     --genomeSAindexNbases $NB          # min(14, log2(genome_len)/2 - 1)
 
-# b. RNA-seq BAM (transcriptome coords) -> per-nucleotide coverage
+# b. trim adapters. -m 20 only; do NOT pass --maximum-length or --discard-untrimmed,
+#    which are correct for ribosome footprints and wrong for RNA-seq
+cutadapt -a "$ADAPTER" -m 20 -j "$T" -o t1.fq.gz reads.fq.gz        # single-end
+cutadapt -a "$ADAPTER" -A "$ADAPTER" -m 20 -j "$T" \
+         -o t1.fq.gz -p t2.fq.gz R1.fq.gz R2.fq.gz                  # paired-end
+
+# c. align to the TRANSCRIPTOME
+STAR --genomeDir star_index/ --readFilesIn t1.fq.gz [t2.fq.gz] --readFilesCommand zcat \
+     --runThreadN "$T" --outSAMtype None --quantMode TranscriptomeSAM \
+     --outFilterMultimapNmax 10 --outSAMattributes NH HI AS nM \
+     --outFileNamePrefix out/sample.
+
+# d. verify the BAM, then convert to per-nucleotide coverage
+samtools quickcheck out/sample.Aligned.toTranscriptome.out.bam
 python scripts/rnaseq_coverage.py \
-    --bam  rnaseq.toTranscriptome.bam \
-    --out  coverage.hd5
+       out/sample.Aligned.toTranscriptome.out.bam  coverage.hd5  SAMPLE_ID
 ```
 
-> **`--kozak none` is required.** Both released checkpoints were trained without the Kozak
-> heuristic. Feeding them a heuristic-Kozak track silently degrades the prediction.
+`scripts/xspecies/align_rna_xspecies.sbatch` runs a-d end to end as a SLURM array;
+`scripts/xspecies/build_species_refs.sbatch` builds the index and the RiboCode annotation.
+
+Four things that are easy to get wrong, each of which has cost this project real time:
+
+- **`--quantMode TranscriptomeSAM`.** The model works in transcript coordinates. A genome BAM
+  will not do.
+- **`--sjdbOverhang` and `--genomeSAindexNbases` are per-genome.** The mammalian default of 14 is
+  wrong for small genomes (about 10 for a 12 Mb yeast genome), and STAR does **not** error on a
+  bad value, it silently builds a poor index.
+- **`samtools quickcheck`, not a header grep.** A BAM truncated mid-write keeps a perfectly valid
+  header, so `view -H | grep SO:coordinate` accepts it.
+- **RNA-seq should be poly(A)-selected.** A ribo-depleted total-RNA arm retains tRNA and 7SL and
+  once collapsed a transcript universe from tens of thousands to 3,321. `library_selection = cDNA`
+  in SRA metadata does not prove poly(A); check the protocol text.
+
+### 2b. Build the ORF-candidate track
+
+```bash
+python scripts/build_orf_track.py \
+       --fasta transcripts.fa \
+       --out   orf_track_v2_nokozak.npy \
+       --mode atg --kozak none
+```
 
 ### 3. Predict
 
@@ -84,6 +119,7 @@ yield for non-canonical precision.
 
 ```
 scripts/     the prediction path and the scripts that build its inputs
+scripts/xspecies/  reference build and RNA-seq alignment drivers
 release/     which checkpoint is which, with configs and held-out metrics
 containers/  Dockerfile and Singularity definition
 env/         pinned environment specs
@@ -105,4 +141,4 @@ Manuscript in preparation. Until then cite this repository and
 
 ## License
 
-MIT.
+MIT, see `LICENSE`.
