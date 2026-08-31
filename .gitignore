@@ -90,3 +90,10 @@ methods.md
 *_PLAN.md
 HANDOFF*.md
 design_count_magnitude_transferability.md
+
+# Project documentation: kept on disk, not published. These are working notes, handoffs,
+# poster drafts, plans and registries written for this project's own use. The public repo
+# carries the README and the in-context READMEs under env/, release/, tests/ and data/.
+# NOTE: files pushed before commit `docs-private` remain reachable in git history.
+docs/
+proteogenomics/**/*.md
