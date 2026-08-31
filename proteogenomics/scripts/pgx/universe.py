@@ -2,7 +2,7 @@
 """Expressed-transcript universe for the `pgx` pipeline.
 
 Same rule as the validated `build_line_universe.py`, lifted here so the model arm and BOTH null
-arms are built from ONE universe object (comparability is the whole point of the null contrast):
+arms are built from ONE universe object, so the null contrast compares like with like:
 
     TPM >= --min-tpm  AND  transcript_type in {protein_coding, lncRNA}
     AND  chrom != chrM  AND  mature length <= --max-len

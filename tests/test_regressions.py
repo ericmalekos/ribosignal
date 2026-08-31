@@ -278,7 +278,7 @@ def test_bh_is_nan_safe():
 def test_coding_potential_pool_matches_null_arm():
     """The CPAT/CPC2 candidate pool must EQUAL build_dbs' null_atg candidate set.
 
-    PINS: the whole point of the coding-potential arms is that only the SELECTOR differs from the
+    CHECKS: in the coding-potential arms only the SELECTOR differs from the
     null -- same universe, same enumeration, same class filter, same min length. On first
     implementation the pool omitted `_add`'s canonical-identity filter and came out a superset by 19
     proteins on 1,000 transcripts. Small, but it means CPAT/CPC2 would be scoring a different

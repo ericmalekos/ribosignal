@@ -51,7 +51,7 @@ micromamba create -p <prefix> --file env/<name>.spec.txt
 Key pins: python 3.11.15 / numpy 2.4.6 (cas12a), STAR 2.7.11b, salmon 2.1.2, cutadapt 5.2,
 samtools 1.23.1, MSFragger 4.2.
 
-## Two inconsistencies worth knowing
+## Two inconsistencies
 
 **1. `cas12a` carries `torch==2.12.0+cpu`.** It is a CPU-only torch and is NOT the training
 environment -- training is the containers above. Use `cas12a` for CPU inference and analysis only.

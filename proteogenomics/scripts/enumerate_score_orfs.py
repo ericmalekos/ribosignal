@@ -44,7 +44,7 @@ def candidate_orfs(seq, min_nt, starts=("ATG",)):
     """All <start>..in-frame-stop ORFs -> (start0, end0_excl, start_codon); end0_excl past the stop.
 
     One ORF per (start position, next in-frame stop), so nested ORFs sharing a stop but opening at
-    different starts are all emitted -- that is the point for non-AUG: a CUG upstream of the first
+    different starts are all emitted, which is what non-AUG calling needs: a CUG upstream of the first
     in-frame AUG yields an N-terminally EXTENDED protein whose upstream tryptic peptides exist in no
     AUG-only database.
     """

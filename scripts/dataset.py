@@ -33,7 +33,7 @@ TX_INDEX_HYDRARNA = NEW / "data" / "hydrarna_token_emb" / "tx_index.tsv"
 # universe FASTA on the fly. It measures how much lift the FM embeddings provide over raw sequence
 # (same architecture + ORF track + coverage, only the emb input differs). ONEHOT_SENTINEL flags it.
 # RIBO_ONEHOT_FASTA overrides the universe FASTA so a cross-species held-out (e.g. mouse vM38) can
-# run the one-hot backend on its own sequence without any FM embeddings (the whole point of one-hot).
+# run the one-hot backend on its own sequence, with no FM embeddings.
 ONEHOT_UNIVERSE_FASTA = Path(os.environ.get(
     "RIBO_ONEHOT_FASTA", str(NEW / "data" / "fibroblast_universe.fa")))
 ONEHOT_SENTINEL = "__onehot__"
