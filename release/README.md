@@ -53,20 +53,8 @@ A checkpoint alone is not enough. All three must match what the model trained on
 | env var | path | note |
 |---|---|---|
 | `RIBO_PACK_DIR` | `data/packed_union/` | union universe, 84,472 tx |
-| `RIBO_ORF_TRACK` | `data/packed_union/orf_track_v2_nokozak.npy` | **see the warning below** |
+| `RIBO_ORF_TRACK` | `data/packed_union/orf_track_v2_nokozak.npy` | `--kozak none`, as the name says |
 | `RIBO_ONEHOT_FASTA` | `data/union_universe.fa` | |
-
-### ORF-track naming hazard -- read this
-
-`data/packed_union/orf_track_v2.npy` carries the BARE name but contains `--kozak none` content. The
-pack predates the 2026-07-31 naming fix, under which bare means *heuristic Kozak*. Its
-`orf_track_v2_meta.json` is authoritative and says `"kozak": "none"`.
-
-Use `orf_track_v2_nokozak.npy` (a symlink to the same bytes, added for exactly this reason) so the
-name states the content. Misreading the bare name as heuristic is the mistake that previously fed a
-nokozak-trained model the Kozak track. Full detail in `data/packed_union/NAMING_WARNING.md`.
-
-The released models are `--kozak none` models. That is the correct inference setting for both.
 
 ## Training configuration
 

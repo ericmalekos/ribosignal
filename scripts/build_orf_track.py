@@ -36,7 +36,8 @@ occupancy at 10 start codons. Kozak = 0.5*[purine at -3] + 0.5*[G at +4] of the 
 Packed in the SAME tx order + offsets as data/packed/coverage.npy so the loader slices it
 exactly like coverage.
 
-Output (default): data/packed/orf_track.npy (atg, int8) or orf_track_v2.npy (ext, float16),
+Output (default): data/packed/orf_track.npy (atg, int8) or orf_track_v2_<kozak>.npy
+(ext, float16, where <kozak> is nokozak / kozak / kozakpwm),
 plus a sibling _meta.json.
 """
 import argparse
@@ -194,7 +195,14 @@ def main():
             print("ERROR: --kozak pwm requires --pwm_file", file=sys.stderr)
             return 1
         pwm_data = json.loads(Path(args.pwm_file).read_text())
-    default_name = {"atg": "orf_track.npy", "ext": "orf_track_v2.npy",
+    # The default name states the START-CONTEXT MODEL, not just the mode. It used to be a bare
+    # "orf_track_v2.npy" for every --kozak setting, so a `--kozak none` build and a
+    # `--kozak heuristic` build wrote the SAME filename with different content, and telling them
+    # apart meant opening the sidecar meta. Feeding a nokozak-trained model the heuristic track
+    # is a silent accuracy loss, not an error.
+    _kz = {"none": "_nokozak", "heuristic": "_kozak", "pwm": "_kozakpwm"}[args.kozak]
+    default_name = {"atg": "orf_track.npy",
+                    "ext": f"orf_track_v2{_kz}.npy",
                     "atgctg": "orf_track_v3.npy"}[args.mode]
     out_path = Path(args.out) if args.out else pack / default_name
 
