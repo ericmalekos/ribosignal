@@ -68,3 +68,8 @@ jobs:
           file: containers/Dockerfile.riboseq-model
           push: true
           tags: ${{ steps.tags.outputs.tags }}
+          # The image bakes in the released weights from Hugging Face. While
+          # emalek/RiboSignal is PRIVATE this needs a token; once the repo is public the
+          # secret can be removed and the build works with an empty value.
+          build-args: |
+            HF_TOKEN=${{ secrets.HF_TOKEN }}

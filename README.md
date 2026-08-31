@@ -20,6 +20,15 @@ Ribo-seq exists.
 
 ### 1. Get the weights
 
+The published container already has them baked in at `$RIBO_WEIGHTS`:
+
+```bash
+docker run --rm -it ghcr.io/ericmalekos/riboseq-model:latest \
+       ls $RIBO_WEIGHTS
+```
+
+Or fetch them directly:
+
 ```bash
 pip install huggingface_hub torch numpy
 python -c "
@@ -61,19 +70,6 @@ python scripts/rnaseq_coverage.py \
 `scripts/xspecies/align_rna_xspecies.sbatch` runs a-d end to end as a SLURM array;
 `scripts/xspecies/build_species_refs.sbatch` builds the index and the RiboCode annotation.
 
-Four things that are easy to get wrong, each of which has cost this project real time:
-
-- **`--quantMode TranscriptomeSAM`.** The model works in transcript coordinates. A genome BAM
-  will not do.
-- **`--sjdbOverhang` and `--genomeSAindexNbases` are per-genome.** The mammalian default of 14 is
-  wrong for small genomes (about 10 for a 12 Mb yeast genome), and STAR does **not** error on a
-  bad value, it silently builds a poor index.
-- **`samtools quickcheck`, not a header grep.** A BAM truncated mid-write keeps a perfectly valid
-  header, so `view -H | grep SO:coordinate` accepts it.
-- **RNA-seq should be poly(A)-selected.** A ribo-depleted total-RNA arm retains tRNA and 7SL and
-  once collapsed a transcript universe from tens of thousands to 3,321. `library_selection = cDNA`
-  in SRA metadata does not prove poly(A); check the protocol text.
-
 ### 2b. Build the ORF-candidate track
 
 ```bash
@@ -98,7 +94,29 @@ python scripts/dump_pred_profiles.py \
 Writes `pred_profiles.npz` with, per transcript, a `pred_flat` profile summing to 1 and a
 `pred_total` count.
 
-### 4. Optional: call ORFs from the predicted profile
+### 4. Optional: tighten precision with the Poisson dial
+
+The fully de novo call over-calls short non-canonical ORFs, because the caller gates on absolute
+P-site thresholds while the model's count head is scaled to its training depth. Sampling the
+predicted density as Poisson at a reduced effective depth gives it the detection noise a real
+experiment has, so weak diffuse ORFs fail the frame test and drop out.
+
+Add two flags to the call in step 5:
+
+```bash
+    --pred_poisson --pred_scale 0.05
+```
+
+`--pred_scale` (theta) simulates an experiment of that fraction of the predicted depth. Lower is
+stricter. At theta = 0.05 on held-out data this costs about six points of annotated-CDS recall and
+buys 0.10 to 0.15 of uORF precision and 0.10 to 0.29 of non-canonical precision, roughly halving
+the number of non-canonical calls.
+
+Anchor the choice on CDS, the one class the annotation makes trustworthy: pick the most permissive
+theta whose CDS precision and recall both stay above 0.90. Note that CDS precision is nearly flat
+in theta, so recall is the binding constraint.
+
+### 5. Call ORFs from the predicted profile
 
 ```bash
 python scripts/ribocode_dropin.py \
@@ -106,14 +124,16 @@ python scripts/ribocode_dropin.py \
     --annot    ribocode_annot/ \
     --variant  pred_preddepth \
     --out      calls/ \
-    --min_aa 5 --pval 0.05
+    --min_aa 30 --pval 0.05
 ```
 
 `--variant pred_preddepth` is the fully de novo call: predicted shape and the model's own count
-head, using no observed Ribo-seq. Add `--pred_poisson --pred_scale 0.05` to trade non-canonical
-yield for non-canonical precision.
+head, using no observed Ribo-seq. `--min_aa 30` is the floor used throughout this work; for MHC
+immunopeptidomics, where peptides are 8 to 11 aa, the floor is 7 instead.
 
----
+Two other variants exist for evaluation rather than deployment: `real` runs the caller on an
+observed profile, and `pred_obsdepth` uses the predicted shape scaled to an observed depth, which
+isolates whether the model places ribosomes correctly.
 
 ## What is here
 
@@ -121,7 +141,7 @@ yield for non-canonical precision.
 scripts/     the prediction path and the scripts that build its inputs
 scripts/xspecies/  reference build and RNA-seq alignment drivers
 release/     which checkpoint is which, with configs and held-out metrics
-containers/  Dockerfile and Singularity definition
+containers/  Dockerfile and Singularity definition; the image bakes in the released weights
 env/         pinned environment specs
 tests/       invariant tests
 docs/        reference and dataset registries

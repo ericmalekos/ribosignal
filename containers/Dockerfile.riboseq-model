@@ -67,3 +67,38 @@ print('py deps OK', torch.__version__, torch.version.cuda, numpy.__version__)" &
 
 ENV PATH="/opt/conda/envs/rsm/bin:$PATH"
 ENV PYTHONNOUSERSITE=1
+
+# ---------------------------------------------------------------------------------------------
+# Bake the released weights in, so the image needs no runtime download and no network.
+#
+# REQUIRES THE HUGGING FACE REPOSITORY TO BE PUBLIC, or an HF_TOKEN build argument. A GitHub-hosted
+# runner has no credentials, so while emalek/RiboSignal is private this layer fails the build
+# without the token. That is the same redistribution blocker this project already hit with
+# HydraRNA, and the reason the weights were mirrored to Hugging Face in the first place.
+ARG HF_TOKEN=""
+ARG HF_REPO="emalek/RiboSignal"
+ARG HF_REVISION="main"
+ENV RIBO_WEIGHTS=/opt/riboseq-model/weights
+
+RUN --mount=type=cache,target=/root/.cache/huggingface \
+    HF_TOKEN="$HF_TOKEN" HF_REPO="$HF_REPO" HF_REVISION="$HF_REVISION" \
+    /opt/conda/envs/rsm/bin/python -c "\
+import os; from huggingface_hub import snapshot_download; \
+snapshot_download(os.environ['HF_REPO'], revision=os.environ['HF_REVISION'], \
+                  local_dir=os.environ['RIBO_WEIGHTS'], \
+                  token=(os.environ.get('HF_TOKEN') or None), \
+                  allow_patterns=['*.pt','*_config.json','*_test_metrics.json','model.py', \
+                                  'LICENSE','SHA256SUMS'])" \
+    && rm -rf "$RIBO_WEIGHTS/.cache"
+
+# fail the BUILD if the weights did not land or do not load
+RUN /opt/conda/envs/rsm/bin/python -c "\
+import os, torch, pathlib; \
+w = pathlib.Path(os.environ['RIBO_WEIGHTS']); \
+missing = [n for n in ('attn_best.pt','mamba4_best.pt') if not (w/n).is_file()]; \
+assert not missing, f'weights missing from image: {missing}'; \
+[print(n, f'{sum(v.numel() for v in torch.load(w/n, map_location=\"cpu\").values()):,} params') \
+ for n in ('attn_best.pt','mamba4_best.pt')]"
+
+LABEL org.opencontainers.image.source="https://github.com/ericmalekos/ribosignal"
+LABEL org.opencontainers.image.licenses="MIT"
