@@ -71,10 +71,12 @@ ENV PYTHONNOUSERSITE=1
 # ---------------------------------------------------------------------------------------------
 # Bake the released weights in, so the image needs no runtime download and no network.
 #
-# REQUIRES THE HUGGING FACE REPOSITORY TO BE PUBLIC, or an HF_TOKEN build argument. A GitHub-hosted
-# runner has no credentials, so while emalek/RiboSignal is private this layer fails the build
-# without the token. That is the same redistribution blocker this project already hit with
-# HydraRNA, and the reason the weights were mirrored to Hugging Face in the first place.
+# emalek/RiboSignal is PUBLIC, so this fetches anonymously and needs no credentials. The HF_TOKEN
+# argument is kept for anyone forking with private weights; leave it empty otherwise.
+#
+# Keeping the repository public is what makes this image buildable on a GitHub-hosted runner at
+# all. This project already hit the opposite case with HydraRNA, whose Google-Drive-only weights
+# made its image unbuildable in CI, and mirroring to Hugging Face is what fixed it.
 ARG HF_TOKEN=""
 ARG HF_REPO="emalek/RiboSignal"
 ARG HF_REVISION="main"
