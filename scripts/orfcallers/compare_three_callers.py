@@ -100,12 +100,12 @@ def load_ribotaper(arm):
 LOAD = {"RiboCode": load_ribocode, "Ribo-TISH": load_ribotish, "RiboTaper": load_ribotaper}
 
 
-def calibrate(rows, ref_by_strand):
+def calibrate(caller, rows, ref_by_strand):
     """Best per-strand start offset against RiboCode canonical, re-derived every run."""
     off = {}
     for st in ("+", "-"):
         ref = ref_by_strand[st]
-        cand = [(g, p) for (g, s, p, c) in rows if s == st and CANON_OF(rows, c) == "canonical"]
+        cand = [(g, p) for (g, s, p, c) in rows if s == st and canon_of(caller, c) == "canonical"]
         best = (0, -1)
         for o in range(-4, 5):
             n = len({(g, p + o) for g, p in cand} & ref)
@@ -128,11 +128,15 @@ def keyed(caller, rows, off):
     return d
 
 
-def CANON_OF(rows, c):
-    for caller, m in CANON.items():
-        if c in m:
-            return m[c]
-    return None
+def canon_of(caller, c):
+    """Canonical class for ONE caller's category name.
+
+    Scoped to the caller deliberately. An earlier version scanned every caller's map and returned
+    the first hit, ignoring which caller it was asked about. `uORF` and `dORF` appear in both the
+    RiboCode and RiboTaper maps and today mean the same class, so nothing was wrong yet, but a
+    future caller reusing a name for a different class would have been silently mis-classed.
+    """
+    return CANON[caller].get(c)
 
 
 def prf(pred, real):
@@ -169,7 +173,7 @@ def main():
            for st in ("+", "-")}
     offs = {"RiboCode": {"+": 0, "-": 0}}
     for c in ("Ribo-TISH", "RiboTaper"):
-        offs[c] = calibrate(raw[c]["real"], ref)
+        offs[c] = calibrate(c, raw[c]["real"], ref)
     print("calibrated start-coordinate offsets vs RiboCode ORF_gstart:")
     for c, o in offs.items():
         print(f"   {c:<10} + {o['+']:+d}   - {o['-']:+d}")
