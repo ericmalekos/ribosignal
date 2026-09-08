@@ -3,28 +3,31 @@
   "all": {
     "n": 70883,
     "pearson_median": 0.6850669727862163,
-    "spearman_median": 0.0037372339176129725,
     "period_pred_median": 0.2632025343154752,
     "period_obs_median": 0.145679324178579,
     "frame0_pred_median": 0.8196353420682856,
-    "n_frame0": 64930
+    "n_frame0": 64930,
+    "spearman_median_INVALID_ordinal_ties": 0.0037372339176129725,
+    "spearman_median_note": "Tie-broken: train._rank assigned ordinal ranks without averaging ties, which on these 74-95%-zero profiles measures position rather than signal (sign wrong on ~75% of transcripts). Fixed in train._rank 2026-08-30; this stored value predates the fix and must not be read as a rank correlation. See docs/xspecies_paper/METHODS.md section 6.2."
   },
   "protein_coding": {
     "n": 32869,
     "pearson_median": 0.6978651228401735,
-    "spearman_median": 0.00940940653654011,
     "period_pred_median": 0.28555007922020487,
     "period_obs_median": 0.15780283676122167,
     "frame0_pred_median": 0.8189976546283073,
-    "n_frame0": 31625
+    "n_frame0": 31625,
+    "spearman_median_INVALID_ordinal_ties": 0.00940940653654011,
+    "spearman_median_note": "Tie-broken: train._rank assigned ordinal ranks without averaging ties, which on these 74-95%-zero profiles measures position rather than signal (sign wrong on ~75% of transcripts). Fixed in train._rank 2026-08-30; this stored value predates the fix and must not be read as a rank correlation. See docs/xspecies_paper/METHODS.md section 6.2."
   },
   "lncRNA": {
     "n": 1049,
     "pearson_median": 0.4793389400353433,
-    "spearman_median": -0.19777999205998217,
     "period_pred_median": 0.06020851196008088,
     "period_obs_median": 0.02409286745914528,
     "frame0_pred_median": null,
-    "n_frame0": 0
+    "n_frame0": 0,
+    "spearman_median_INVALID_ordinal_ties": -0.19777999205998217,
+    "spearman_median_note": "Tie-broken: train._rank assigned ordinal ranks without averaging ties, which on these 74-95%-zero profiles measures position rather than signal (sign wrong on ~75% of transcripts). Fixed in train._rank 2026-08-30; this stored value predates the fix and must not be read as a rank correlation. See docs/xspecies_paper/METHODS.md section 6.2."
   }
 }

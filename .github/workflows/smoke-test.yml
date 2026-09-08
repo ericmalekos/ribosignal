@@ -1,0 +1,47 @@
+name: Smoke test
+
+# Runs the whole prediction chain on every push and PR, on a plain CPU runner: synthetic
+# pack -> ORF track -> BOTH released checkpoints -> density. See scripts/smoke_test.py for
+# what it asserts and, more to the point, what it does not.
+#
+# It exists because the repository had no test of any kind, and the README quickstart was
+# broken in three independent ways for long enough to be released that way. Anything that
+# breaks loading a checkpoint, resolving a path, or the feature layout fails here in about
+# two minutes.
+#
+# No GPU, and none needed: mamba4 falls back to scripts/mamba_ref.py.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'      # the version containers/Dockerfile.riboseq-model pins
+
+      # The weights are ~50 MB and change only when a checkpoint is re-released.
+      - name: Cache Hugging Face downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ runner.os }}-emalek-RiboSignal
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install "numpy<2" huggingface_hub
+
+      - name: mamba_ref self-test
+        run: python scripts/mamba_ref.py
+
+      - name: End-to-end smoke test
+        run: python scripts/smoke_test.py --download --workdir "$RUNNER_TEMP/smoke"

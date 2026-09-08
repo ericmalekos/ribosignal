@@ -48,10 +48,8 @@ from pathlib import Path
 
 import numpy as np
 
-NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-           "RNAZoo/experiments/riboseq_signal_model")
-PACK = NEW / "data" / "packed"
-FASTA = NEW / "data" / "fibroblast_universe.fa"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paths  # noqa: E402
 
 # Relative initiation efficiency of AUG + near-cognate starts (T-alphabet), ordinal, from the
 # non-AUG initiation literature (CUG strongest non-AUG, then GUG/ACG, then the rest).
@@ -175,9 +173,9 @@ def main():
     ap.add_argument("--out", default=None, help="output .npy (default per mode)")
     ap.add_argument("--pack", default=None,
                     help="pack dir (offsets/lengths/tx_order) to build the track for "
-                         "(default the Fibroblast pack; use a held-out pack for cross-species)")
+                         "(default $RIBO_PACK_DIR, else <repo>/data/packed)")
     ap.add_argument("--fasta", default=None,
-                    help="universe FASTA matching --pack's tx (default fibroblast_universe.fa)")
+                    help="universe FASTA matching --pack's tx (default $RIBO_ONEHOT_FASTA)")
     ap.add_argument("--kozak", choices=["none", "heuristic", "pwm"], default="none",
                     help="ext-mode start-channel context model: none (codon weight only, Kozak removed; "
                          "the DEFAULT since results.md Task 20 -- the Kozak factor is redundant with what "
@@ -187,8 +185,14 @@ def main():
                          "atg/atgctg modes.")
     ap.add_argument("--pwm_file", default=None, help="kozak_pwm.json (required for --kozak pwm)")
     args = ap.parse_args()
-    pack = Path(args.pack) if args.pack else PACK
-    fasta = Path(args.fasta) if args.fasta else FASTA
+    pack = Path(args.pack) if args.pack else paths.pack_dir()
+    fasta = Path(args.fasta) if args.fasta else paths.onehot_fasta()
+    if not (pack / "tx_order.txt").is_file():
+        print(paths.missing(pack, "pack dir", "RIBO_PACK_DIR", "pack"), file=sys.stderr)
+        return 1
+    if not fasta.is_file():
+        print(paths.missing(fasta, "universe FASTA", "RIBO_ONEHOT_FASTA", "fasta"), file=sys.stderr)
+        return 1
     pwm_data = None
     if args.kozak == "pwm":
         if not args.pwm_file:

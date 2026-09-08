@@ -3,22 +3,25 @@
   "all": {
     "n": 70883,
     "pearson_median": 0.6585281520443113,
-    "spearman_median": -0.03047691815168671,
     "period_pred_median": 0.31448888927997387,
-    "period_obs_median": 0.145679324178579
+    "period_obs_median": 0.145679324178579,
+    "spearman_median_INVALID_ordinal_ties": -0.03047691815168671,
+    "spearman_median_note": "Tie-broken: train._rank assigned ordinal ranks without averaging ties, which on these 74-95%-zero profiles measures position rather than signal (sign wrong on ~75% of transcripts). Fixed in train._rank 2026-08-30; this stored value predates the fix and must not be read as a rank correlation. See docs/xspecies_paper/METHODS.md section 6.2."
   },
   "protein_coding": {
     "n": 32869,
     "pearson_median": 0.6699278573267087,
-    "spearman_median": -0.02108185869956758,
     "period_pred_median": 0.33587484219778907,
-    "period_obs_median": 0.15780283676122167
+    "period_obs_median": 0.15780283676122167,
+    "spearman_median_INVALID_ordinal_ties": -0.02108185869956758,
+    "spearman_median_note": "Tie-broken: train._rank assigned ordinal ranks without averaging ties, which on these 74-95%-zero profiles measures position rather than signal (sign wrong on ~75% of transcripts). Fixed in train._rank 2026-08-30; this stored value predates the fix and must not be read as a rank correlation. See docs/xspecies_paper/METHODS.md section 6.2."
   },
   "lncRNA": {
     "n": 1049,
     "pearson_median": 0.458279039688977,
-    "spearman_median": -0.3135543737847027,
     "period_pred_median": 0.07268398156130003,
-    "period_obs_median": 0.02409286745914528
+    "period_obs_median": 0.02409286745914528,
+    "spearman_median_INVALID_ordinal_ties": -0.3135543737847027,
+    "spearman_median_note": "Tie-broken: train._rank assigned ordinal ranks without averaging ties, which on these 74-95%-zero profiles measures position rather than signal (sign wrong on ~75% of transcripts). Fixed in train._rank 2026-08-30; this stored value predates the fix and must not be read as a rank correlation. See docs/xspecies_paper/METHODS.md section 6.2."
   }
 }

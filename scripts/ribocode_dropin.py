@@ -31,8 +31,53 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from RiboCode import detectORF
-from RiboCode.prepare_transcripts import load_transcripts_pickle
+
+# RiboCode is imported inside main(), not here. build_density() is the shared density code
+# path -- orfcallers/ribotish_dropin.py imports it, and so does the smoke test -- and RiboCode
+# is a heavy install that those callers do not otherwise need. A module-level import made
+# `from ribocode_dropin import build_density` fail without it, for no reason.
+
+
+def validate_density_flags(variant, floor_mult=0.0, pred_scale=1.0, poisson=False,
+                           subsample=1.0):
+    """Refuse a flag this variant will not act on, instead of ignoring it silently.
+
+    Each variant reads a different subset of the knobs, and the discarded ones used to
+    vanish without a word -- `--variant pred_obsdepth --pred_scale 0.05` ran happily and
+    changed nothing, while ribotish_dropin.py went on to name the output file
+    `..._depth0.05` as though it had. A run that means one thing and is labelled another
+    is worse than a crash.
+
+    The reasons are not symmetric, so they are stated individually:
+
+      real            takes the observed counts through untouched. Shaping flags apply to
+                      the PREDICTED profile and there is nothing predicted here.
+      pred_obsdepth   takes its depth from obs.sum(), which is the point: it isolates
+                      whether the model puts ribosomes in the right PLACE by handing it
+                      the right total. --pred_scale dials the predicted depth, of which
+                      this variant uses none, so there is no reference-depth version of
+                      the Poisson correction to apply. (lam = p * (ptot * pred_scale) acts
+                      on the *predicted* count.) Use pred_preddepth to dial depth.
+      pred_preddepth  uses all of them.
+
+    --subsample thins the REAL counts, so it belongs to `real` alone.
+    """
+    bad = []
+    if variant == "real":
+        if floor_mult > 0:
+            bad.append("--floor_mult floors the predicted profile; `real` has none")
+        if pred_scale != 1.0:
+            bad.append("--pred_scale scales the predicted depth; `real` uses observed counts")
+        if poisson:
+            bad.append("--pred_poisson samples the predicted density; `real` is already counts")
+    else:
+        if subsample != 1.0:
+            bad.append("--subsample thins observed counts; it applies to `real` only")
+        if variant == "pred_obsdepth" and pred_scale != 1.0:
+            bad.append("--pred_scale has no effect under pred_obsdepth, whose depth is the "
+                       "observed obs.sum(); use --variant pred_preddepth to dial depth")
+    if bad:
+        raise ValueError(f"--variant {variant} cannot honour: " + "; ".join(bad))
 
 
 def build_density(variant, prof, obs, ptot, floor_mult=0.0, pred_scale=1.0, rng=None, poisson=False):
@@ -45,6 +90,7 @@ def build_density(variant, prof, obs, ptot, floor_mult=0.0, pred_scale=1.0, rng=
     3'UTR (the source of the spurious dORF over-calls) while leaving the concentrated CDS/uORF peaks
     intact. The profile is NOT renormalized after flooring, so surviving (CDS) counts are preserved
     and the zeroed positions drop out. Pred variants only; real counts are untouched."""
+    validate_density_flags(variant, floor_mult, pred_scale, poisson)
     if variant == "real":
         return obs.astype(np.float32)
     p = prof.astype(np.float64)
@@ -96,7 +142,15 @@ def main():
                          "empty = ATG only, matching the official per-tissue runs. Filenames are NOT "
                          "tagged, so write alt-start runs to a SEPARATE --out dir (e.g. dropin_ctg).")
     args = ap.parse_args()
+    try:
+        validate_density_flags(args.variant, args.floor_mult, args.pred_scale,
+                               args.pred_poisson, args.subsample)
+    except ValueError as e:
+        ap.error(str(e))
     alt_list = [c.strip().upper() for c in args.alt_start_codons.split(",") if c.strip()] or None
+
+    from RiboCode import detectORF
+    from RiboCode.prepare_transcripts import load_transcripts_pickle
 
     annot = Path(args.annot)
     out = Path(args.out)
@@ -121,7 +175,7 @@ def main():
     n_ok = n_missing = n_lenmm = 0
     total_depth = 0.0
     rng = np.random.default_rng(args.seed)
-    subsample = args.subsample if args.variant == "real" else 1.0  # thinning is real-variant only
+    subsample = args.subsample  # validated above: != 1.0 only reaches here for `real`
     for j, tx in enumerate(tx_ids):
         t = transcript_dict.get(str(tx))
         if t is None:

@@ -37,16 +37,73 @@ from dataset import (  # noqa: E402
     TokenBudgetSampler,
     collate_pad,
     heldout_pack_dir,
-    heldout_test_tx,
     load_split,
     loto_split,
+    pack_test_tx,
     tissue_pack_dir,
 )
 from model import RiboSignalModel  # noqa: E402
 
-NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-           "RNAZoo/experiments/riboseq_signal_model")
-FASTA = NEW / "data" / "fibroblast_universe.fa"
+import paths  # noqa: E402
+
+
+def resolve_run(run, arch=None, checkpoint=None, config=None):
+    """Find the checkpoint and its training config inside a --run directory.
+
+    The released weights and this loader disagreed on names: HuggingFace publishes
+    `attn_best.pt` + `attn_config.json` and `mamba4_best.pt` + `mamba4_config.json`, while
+    this script demanded `best.pt` + `args.json`, so the README quickstart could not run
+    for anyone. Both layouts are accepted now, plus explicit --checkpoint/--config for a
+    directory that follows neither:
+
+      weights/attn_best.pt   + weights/attn_config.json     (HuggingFace / the container)
+      weights/mamba4_best.pt + weights/mamba4_config.json
+      <run>/best.pt          + <run>/args.json              (a training run directory)
+
+    A directory holding both released checkpoints is ambiguous, so --arch names one.
+    Returns (checkpoint_path, config_path).
+    """
+    run = Path(run)
+    ckpt = Path(checkpoint) if checkpoint else None
+    cfg = Path(config) if config else None
+
+    if ckpt is None:
+        if not run.is_dir():
+            sys.exit(f"--run {run} is not a directory (and no --checkpoint given)")
+        if arch:
+            ckpt = run / f"{arch}_best.pt"
+            if not ckpt.is_file():
+                sys.exit(f"--arch {arch} but {ckpt} does not exist; "
+                         f"found {sorted(q.name for q in run.glob('*best.pt')) or 'no *best.pt'}")
+        else:
+            found = sorted(run.glob("*_best.pt")) + ([run / "best.pt"]
+                                                     if (run / "best.pt").is_file() else [])
+            if not found:
+                sys.exit(f"no checkpoint in {run}: expected <arch>_best.pt or best.pt. "
+                         f"Fetch the released weights with:\n"
+                         f"  pip install huggingface_hub && python -c "
+                         f"'from huggingface_hub import snapshot_download; "
+                         f"snapshot_download(\"emalek/RiboSignal\", local_dir=\"weights\")'")
+            if len(found) > 1:
+                sys.exit(f"{run} holds {len(found)} checkpoints "
+                         f"({', '.join(q.name for q in found)}); pick one with --arch "
+                         f"(e.g. --arch attn) or --checkpoint")
+            ckpt = found[0]
+    if not ckpt.is_file():
+        sys.exit(f"checkpoint {ckpt} does not exist")
+
+    if cfg is None:
+        stem = ckpt.name[:-len("_best.pt")] if ckpt.name.endswith("_best.pt") else ""
+        # the released name first, then the training-run name, then the same prefix
+        cands = ([ckpt.parent / f"{stem}_config.json", ckpt.parent / f"{stem}_args.json"]
+                 if stem else []) + [ckpt.parent / "args.json", ckpt.parent / "config.json"]
+        cfg = next((c for c in cands if c.is_file()), None)
+        if cfg is None:
+            sys.exit(f"no config for {ckpt.name}: looked for "
+                     f"{', '.join(str(c) for c in cands)}. Pass --config.")
+    if not cfg.is_file():
+        sys.exit(f"config {cfg} does not exist")
+    return ckpt, cfg
 
 
 def read_fasta(path):
@@ -80,10 +137,21 @@ def _enable_mamba_cpu():
     Verified finite on the real RiboSignalModel (mamba4, d_state 16) at L=1000 and 3000.
 
     Enabled by RIBO_MAMBA_CPU=1. Off by default: on a GPU the fast path is far quicker.
+
+    This applies where mamba_ssm is INSTALLED but the GPU is not there to run -- the
+    container, a CPU node. Where mamba_ssm cannot be installed at all, which is anywhere
+    without a CUDA toolchain, there is nothing here to patch and model.py falls back to
+    scripts/mamba_ref.py by itself; this becomes a no-op rather than an ImportError.
     """
-    import causal_conv1d.causal_conv1d_interface as cci
-    import mamba_ssm.modules.mamba_simple as ms
-    import mamba_ssm.ops.selective_scan_interface as ssi
+    try:
+        import causal_conv1d.causal_conv1d_interface as cci
+        import mamba_ssm.modules.mamba_simple as ms
+        import mamba_ssm.ops.selective_scan_interface as ssi
+    except ImportError as e:
+        print(f"RIBO_MAMBA_CPU=1 but mamba_ssm is not installed ({e}); "
+              f"scripts/mamba_ref.py already runs the mixer on CPU, so this is a no-op",
+              file=sys.stderr)
+        return
     ssi.selective_scan_fn = ssi.selective_scan_ref
     ssi.mamba_inner_fn = ssi.mamba_inner_ref
     ssi.causal_conv1d_fn = cci.causal_conv1d_ref
@@ -98,8 +166,23 @@ def main():
     if os.environ.get("RIBO_MAMBA_CPU", "") == "1":
         _enable_mamba_cpu()
     ap = argparse.ArgumentParser()
-    ap.add_argument("--run", required=True)
+    ap.add_argument("--run", required=True,
+                    help="directory holding the checkpoint and its config: a HuggingFace "
+                         "snapshot (attn_best.pt / attn_config.json) or a training run "
+                         "(best.pt / args.json). Used as given -- relative paths resolve "
+                         "against the working directory, not any other tree.")
+    ap.add_argument("--arch", choices=["attn", "mamba4"], default=None,
+                    help="which released checkpoint to load when --run holds both")
+    ap.add_argument("--checkpoint", default=None,
+                    help="explicit .pt path, overriding discovery inside --run")
+    ap.add_argument("--config", default=None,
+                    help="explicit training-config json, overriding discovery inside --run")
     ap.add_argument("--out", default=None, help="default <run>/dropin (or <run>/dropin_<heldout>)")
+    ap.add_argument("--pack", default=None,
+                    help="score this pack directory directly, whatever it is called. The "
+                         "alternative, --heldout <name>, only reaches "
+                         "$RIBO_DATA_DIR/packed_heldout_<name>; a pack you just built with "
+                         "build_pack.py need not be named that way.")
     ap.add_argument("--heldout", default=None,
                     help="external held-out dataset name (packed_heldout_<name>); applies the "
                          "trained model to that dataset's every scorable tx (no train/val split)")
@@ -110,7 +193,8 @@ def main():
                          "target, e.g. proteogenomics A549: score the RNA-seq-expressed tx, not the "
                          "Ribo-seq-scorable ones). Only used with --heldout.")
     ap.add_argument("--fasta", default=None,
-                    help="override the seq-verification FASTA (cross-species held-out universe)")
+                    help="FASTA the predicted transcripts are verified against (default "
+                         "$RIBO_ONEHOT_FASTA, the same universe the one-hot backend reads)")
     ap.add_argument("--nshards", type=int, default=1,
                     help="split the test tx into N interleaved shards (for short-partition CPU "
                          "runs that cannot dump the whole set in one wall-clock window)")
@@ -120,24 +204,32 @@ def main():
     args = ap.parse_args()
 
     run = Path(args.run)
-    if not run.is_absolute():
-        run = NEW / run
+    ckpt_path, cfg_path = resolve_run(run, args.arch, args.checkpoint, args.config)
     default_out = (f"dropin_{args.heldout}" if args.heldout else "dropin")
     out = Path(args.out) if args.out else (run / default_out)
     out.mkdir(parents=True, exist_ok=True)
-    cfg = json.loads((run / "args.json").read_text())
+    cfg = json.loads(cfg_path.read_text())
     device = args.device if (args.device != "cuda" or torch.cuda.is_available()) else "cpu"
     backend = cfg.get("emb_backend", "rinalmo")
 
-    if args.heldout:
-        tissue = args.heldout
-        store = PackedStore(pack=heldout_pack_dir(args.heldout), tx_index=BACKENDS[backend])
+    if args.pack or args.heldout:
+        pack = Path(args.pack) if args.pack else heldout_pack_dir(args.heldout)
+        if not (pack / "tx_order.txt").is_file():
+            sys.exit(f"{pack} is not a pack: no tx_order.txt. Build one with\n"
+                     f"  python scripts/build_pack.py --fasta <transcripts.fa> "
+                     f"--coverage <coverage.hd5> --out {pack}")
+        tissue = args.heldout or pack.name
+        store = PackedStore(pack=pack, tx_index=BACKENDS[backend])
         if args.tx_list:
             wl = [t for t in Path(args.tx_list).read_text().split() if t]
             test_ids = store.usable(wl)
             print(f"tx_list: {len(wl)} requested -> {len(test_ids)} usable in pack", file=sys.stderr)
         else:
-            test_ids = store.usable(heldout_test_tx(args.heldout, args.min_signal))
+            test_ids = store.usable(pack_test_tx(pack, args.min_signal))
+            if not test_ids:
+                sys.exit(f"no transcript in {pack} has >= {args.min_signal} pooled P-sites. "
+                         f"An inference-only pack has none by construction -- pass "
+                         f"--tx_list {pack / 'expressed_tx.txt'} to score the expressed ones.")
     elif cfg.get("holdout"):
         tissue = cfg["holdout"]
         store = PackedStore(pack=tissue_pack_dir(tissue), tx_index=BACKENDS[backend])
@@ -165,8 +257,12 @@ def main():
     if args.nshards > 1:
         test_ids = sorted(test_ids)[args.shard::args.nshards]
 
-    seqs = read_fasta(Path(args.fasta) if args.fasta else FASTA)
-    print(f"run={run.name} tissue={tissue} backend={backend} test_tx={len(test_ids)} "
+    fasta = Path(args.fasta) if args.fasta else paths.onehot_fasta()
+    if not fasta.is_file():
+        sys.exit(paths.missing(fasta, "sequence FASTA", "RIBO_ONEHOT_FASTA", "fasta"))
+    seqs = read_fasta(fasta)
+    print(f"run={run.name} ckpt={ckpt_path.name} cfg={cfg_path.name} tissue={tissue} "
+          f"backend={backend} test_tx={len(test_ids)} "
           f"shard={args.shard}/{args.nshards} device={device}", file=sys.stderr)
 
     use_orf = cfg.get("use_orf_track", False)
@@ -187,7 +283,11 @@ def main():
                             mamba_expand=cfg.get("mamba_expand", 2),
                             learn_start_context=cfg.get("learn_start_context", False),
                             fm_to_mixer=cfg.get("fm_to_mixer", False)).to(device)
-    model.load_state_dict(torch.load(run / "best.pt", map_location=device))
+    # weights_only=True is not optional here: the README tells users to download a
+    # checkpoint off the internet and load it, and a pickled state_dict is arbitrary code
+    # execution otherwise. Passed explicitly rather than relying on the torch default,
+    # which has changed across releases.
+    model.load_state_dict(torch.load(ckpt_path, map_location=device, weights_only=True))
     model.eval()
 
     tx_ids, pred_profile, obs_counts, pred_total = [], [], [], []
@@ -229,7 +329,8 @@ def main():
            if args.nshards > 1 else out / "pred_profiles.npz")
     np.savez_compressed(dst, tx_ids=tx_ids_s, lengths=lengths, pred_flat=pred_flat,
                         obs_flat=obs_flat, pred_total=ptot,
-                        meta=np.array([run.name, tissue, backend, str(n_skip)], dtype="<U64"))
+                        meta=np.array([ckpt_path.stem, tissue, backend, str(n_skip)],
+                                      dtype="<U64"))
     print(f"wrote {dst}: {len(tx_ids_s)} tx ({n_skip} skipped seq/len mismatch)", file=sys.stderr)
 
 

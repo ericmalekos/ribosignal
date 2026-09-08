@@ -4,8 +4,10 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=64G
 #SBATCH --time=04:00:00
-#SBATCH --output=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/logs/xspecies/rna_%A_%a.out
-#SBATCH --error=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/logs/xspecies/rna_%A_%a.err
+#SBATCH --output=logs/xspecies/rna_%A_%a.out
+#SBATCH --error=logs/xspecies/rna_%A_%a.err
+# Log paths are relative to the submission directory; mkdir -p logs/xspecies first, or
+# SLURM drops the job before it starts.
 #
 # RNA-seq alignment for the cross-species arm, at ONE multimap posture per invocation.
 #
@@ -29,8 +31,15 @@
 # never defaulted.
 set -euo pipefail
 
-NEW=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
-ENV=/private/groups/carpenterlab/emalekos/conda_envs/riboseq
+# ---- locations ---------------------------------------------------------------------
+# Nothing below is specific to one cluster. RIBO_REPO defaults to the directory sbatch
+# was launched from, which is the repo root if you follow the launch line above; the
+# tool prefix defaults to the conda environment that is active at submit time. Set
+# RIBO_ENV / RIBO_REPO explicitly when either assumption does not hold.
+REPO=${RIBO_REPO:-${SLURM_SUBMIT_DIR:-$PWD}}
+ENV=${RIBO_ENV:-${CONDA_PREFIX:?set RIBO_ENV=<prefix of the env holding STAR/salmon/samtools/cutadapt>}}
+OUTROOT=${RIBO_DATA_DIR:-$REPO/data}
+IDXROOT=${RIBO_STAR_INDEXES:?set RIBO_STAR_INDEXES=<dir holding star_index_<species>_<ann>>}
 SHEET=${SHEET:?set SHEET=<samplesheet.tsv>}
 MM=${MM:?set MM=<multimap posture, e.g. 1 or 10>}
 T=${SLURM_CPUS_PER_TASK:-12}
@@ -45,21 +54,21 @@ IFS=$'\t' read -r DS RUN R1 R2 ADAPTER SPECIES LAYOUT <<< "${ROWS[$SLURM_ARRAY_T
 [[ "$LAYOUT" == "PAIRED" || "$LAYOUT" == "SINGLE" ]] || {
   echo "samplesheet row parsed wrong: layout='$LAYOUT' species='$SPECIES'" >&2; exit 1; }
 
-SPTSV=$NEW/scripts/xspecies/species.tsv
+SPTSV=$REPO/scripts/xspecies/species.tsv
 ANNVER=$(awk -F'\t' -v s="$SPECIES" '!/^#/ && $1==s {print $2; exit}' "$SPTSV")
 [[ -n "$ANNVER" ]] || { echo "species '$SPECIES' has no row in $SPTSV" >&2; exit 1; }
-IDX=/private/groups/carpenterlab/emalekos/STAR_indexes/star_index_${SPECIES}_${ANNVER}
+IDX=$IDXROOT/star_index_${SPECIES}_${ANNVER}
 [[ -s "$IDX/SA" ]] || { echo "missing STAR index $IDX" >&2; exit 1; }
 
-OUTBAMDIR=$NEW/data/xspecies_rna_bam_mm${MM}/$DS
-OUTCOVDIR=$NEW/data/xspecies_rna_coverage_mm${MM}/$DS
+OUTBAMDIR=$OUTROOT/xspecies_rna_bam_mm${MM}/$DS
+OUTCOVDIR=$OUTROOT/xspecies_rna_coverage_mm${MM}/$DS
 mkdir -p "$OUTBAMDIR" "$OUTCOVDIR"
 OUTBAM=$OUTBAMDIR/${RUN}.Aligned.toTranscriptome.out.bam
 OUTCOV=$OUTCOVDIR/${RUN}_coverage.hd5
 
 [[ -s "$OUTCOV" ]] && { echo "SKIP $RUN (coverage exists)"; exit 0; }
 
-SCR=/data/tmp/emalekos/xsprna_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}
+SCR=${RIBO_TMPDIR:-${TMPDIR:-/tmp}}/xsprna_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}
 mkdir -p "$SCR"; trap 'rm -rf "$SCR"' EXIT
 
 echo "dataset=$DS run=$RUN species=$SPECIES mm=$MM layout=$LAYOUT adapter=$ADAPTER"
@@ -105,7 +114,8 @@ TXBAM="$SCR/${RUN}.Aligned.toTranscriptome.out.bam"
 "$ENV/bin/samtools" quickcheck "$TXBAM" || { echo "ABORT: $TXBAM failed quickcheck" >&2; exit 2; }
 
 # ---- per-nt coverage --------------------------------------------------------
-"$ENV/bin/python" "$NEW/scripts/rnaseq_coverage.py" "$TXBAM" "$OUTCOV" "$RUN"
+"$ENV/bin/python" "$REPO/scripts/rnaseq_coverage.py" \
+    --bam "$TXBAM" --out "$OUTCOV" --sample "$RUN"
 [[ -s "$OUTCOV" ]] || { echo "ABORT: no coverage written" >&2; exit 3; }
 mv "$TXBAM" "$OUTBAM"
 

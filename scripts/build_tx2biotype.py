@@ -18,10 +18,14 @@ import re
 import sys
 from pathlib import Path
 
-DEFAULT_GTF = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-                   "annotations/gencode.v49.annotation.gtf")
-DEFAULT_OUT = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/"
-                   "experiments/riboseq_signal_model/data/tx2biotype.tsv")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paths  # noqa: E402
+
+# The GTF is an input you supply; only the output has a sensible in-repo default.
+DEFAULT_GTF = paths._env_path("RIBO_GTF",
+                              paths._env_path("RIBO_ANNOT_DIR", paths.data_dir() / "annotations")
+                              / "gencode.v49.annotation.gtf")
+DEFAULT_OUT = paths.tx2biotype()
 
 _ATTR = {k: re.compile(k + r' "([^"]+)"') for k in
          ("gene_id", "transcript_id", "gene_name", "gene_type", "transcript_type")}
@@ -40,6 +44,9 @@ def main():
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     args = ap.parse_args()
     gtf, out_path = args.gtf, args.out
+    if not gtf.is_file():
+        sys.exit(paths.missing(gtf, "annotation GTF", "RIBO_GTF", "gtf"))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     meta = {}          # tx_id -> [gene_id, gene_name, chrom, strand, transcript_type, gene_type]
     length = {}        # tx_id -> summed exon length

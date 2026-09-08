@@ -1,4 +1,7 @@
-# RiboSignal
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/ribosignal-wordmark-dark.svg">
+  <img src="assets/ribosignal-wordmark.svg" alt="RiboSignal" width="440">
+</picture>
 
 Predicts a **per-nucleotide ribosome P-site profile** for a transcript from its mature mRNA
 sequence and matched RNA-seq coverage. No ribosome-profiling experiment is needed at inference.
@@ -11,30 +14,66 @@ Ribo-seq exists.
 
 | checkpoint | mixer | params | device |
 |---|---|--:|---|
-| `mamba4_best.pt` | dilated CNN + 4 bidirectional Mamba blocks | 7,521,026 | GPU only (`mamba_ssm`) |
+| `mamba4_best.pt` | dilated CNN + 4 bidirectional Mamba blocks | 7,521,026 | GPU, or CPU via the reference path |
 | `attn_best.pt` | dilated CNN + 2 transformer layers | 5,071,106 | CPU or GPU |
 
+mamba4 is fastest with `mamba_ssm`'s CUDA kernels, which is what it was trained against. That
+package cannot be installed without a CUDA toolchain, so where it is missing the mixer falls back
+to `scripts/mamba_ref.py`, a transcription of upstream's own pure-PyTorch reference path with
+identical parameter names and shapes. The checkpoint loads and runs unchanged; it is just slower,
+seconds per kilobase rather than milliseconds. `RIBO_MAMBA_IMPL=cuda` refuses to fall back, which
+is how CI proves the fast path is really installed.
+
 ---
+
+## Requirements
+
+Python 3.10 or later. Nothing is needed for every step, so install per step rather than all at
+once:
+
+| step | needs |
+|---|---|
+| 1, 1b, 3 (predict) | `torch numpy huggingface_hub` |
+| 2 (align) | STAR, cutadapt, samtools |
+| 2d (coverage), 2b (pack) | `pysam h5py` |
+| 5 (call ORFs) | RiboCode 1.2.15 |
+| 6a-6d (other callers) | Ribo-TISH / RiboTaper / ribotricer, each in its own environment |
+
+CPU is enough throughout, including for mamba4. `containers/Dockerfile.riboseq-model` builds one
+image with all of it plus CUDA, and bakes in the weights:
+
+```bash
+docker run --rm -it ghcr.io/ericmalekos/riboseq-model:latest ls $RIBO_WEIGHTS
+```
 
 ## Minimal example: predict a profile
 
 ### 1. Get the weights
 
-The published container already has them baked in at `$RIBO_WEIGHTS`:
-
-```bash
-docker run --rm -it ghcr.io/ericmalekos/riboseq-model:latest \
-       ls $RIBO_WEIGHTS
-```
-
-Or fetch them directly:
+The container above already has them at `$RIBO_WEIGHTS`. Otherwise fetch them directly:
 
 ```bash
 pip install huggingface_hub torch numpy
 python -c "
 from huggingface_hub import snapshot_download
 snapshot_download('emalek/RiboSignal', local_dir='weights')"
+
+cd weights && sha256sum -c SHA256SUMS && cd -   # same digests as release/orf_v2_*/SHA256SUMS
 ```
+
+### 1b. Check that it runs, before you prepare any data
+
+```bash
+python scripts/smoke_test.py --weights weights/
+```
+
+Invents a handful of transcripts, builds their ORF track, and runs **both** checkpoints over them
+on CPU, asserting the profiles are normalised and that the predicted density lands in the ORF
+track's reading frame rather than at chance. Two minutes, no GPU, no data, no network.
+
+The sequences are random, so nothing it prints is a measurement -- held-out metrics are in
+`release/orf_v2_*/test_metrics.json`. What it establishes is that your install, the checkpoints
+and the feature layout agree. The same script runs on every push (`.github/workflows/smoke-test.yml`).
 
 ### 2. Prepare the RNA-seq
 
@@ -64,34 +103,73 @@ STAR --genomeDir star_index/ --readFilesIn t1.fq.gz [t2.fq.gz] --readFilesComman
 # d. verify the BAM, then convert to per-nucleotide coverage
 samtools quickcheck out/sample.Aligned.toTranscriptome.out.bam
 python scripts/rnaseq_coverage.py \
-       out/sample.Aligned.toTranscriptome.out.bam  coverage.hd5  SAMPLE_ID
+       --bam out/sample.Aligned.toTranscriptome.out.bam \
+       --out coverage.hd5 --sample SAMPLE_ID
 ```
 
 `scripts/xspecies/align_rna_xspecies.sbatch` runs a-d end to end as a SLURM array;
 `scripts/xspecies/build_species_refs.sbatch` builds the index and the RiboCode annotation.
 
-### 2b. Build the ORF-candidate track
+### 2b. Pack the coverage
+
+The model reads a *pack*: several ragged arrays sharing one transcript order, so a transcript's
+coverage, its ORF-track rows and its P-site target are all the same slice. Replicates of one
+condition are summed.
+
+```bash
+python scripts/build_pack.py \
+       --fasta    transcripts.fa \
+       --coverage coverage.hd5 \
+       --out      packed_mysample/
+```
+
+With no `--psites` this is an inference-only pack: there is no ribosome-profiling target, so
+`target_counts` is zeros and the per-transcript P-site totals are 0. That is the normal case --
+the whole point is not needing Ribo-seq -- and it is why the pack also gets an `expressed_tx.txt`
+listing the transcripts with coverage, which step 3 scores instead of thresholding on a signal
+that does not exist. Pass `--psites` only for an evaluation arm where real P-sites exist to
+score against.
+
+Transcripts whose length disagrees between the FASTA and the BAM header are dropped and counted,
+never coerced: a mismatch means two annotation releases, and coercing it shifts every profile.
+
+### 2c. Build the ORF-candidate track
+
+Five of the model's ten input channels. It is derived from sequence alone and packed in the same
+order as the coverage, so it takes the pack as well as the FASTA.
 
 ```bash
 python scripts/build_orf_track.py \
+       --pack  packed_mysample/ \
        --fasta transcripts.fa \
-       --out   orf_track_v2_nokozak.npy \
-       --mode atg --kozak none
+       --mode  ext --kozak none        # writes packed_mysample/orf_track_v2_nokozak.npy
 ```
+
+`--mode ext --kozak none` is what both released checkpoints were trained with; `--mode atg` is
+the older v1 track and will not match them.
 
 ### 3. Predict
 
 ```bash
-export RIBO_PACK_DIR=packed/          # tx_order, offsets, lengths, coverage
-export RIBO_ORF_TRACK=orf_track_v2_nokozak.npy
-export RIBO_ONEHOT_FASTA=transcripts.fa
+export RIBO_ONEHOT_FASTA=transcripts.fa                          # the sequence input
+export RIBO_ORF_TRACK=packed_mysample/orf_track_v2_nokozak.npy   # step 2c
 
 python scripts/dump_pred_profiles.py \
-    --run    weights/ \
-    --device cpu                      # use cuda for the mamba4 checkpoint
+    --run     weights/ --arch attn \
+    --pack    packed_mysample/ \
+    --tx_list packed_mysample/expressed_tx.txt \
+    --out     pred/ --device cpu
 ```
 
-Writes `pred_profiles.npz` with, per transcript, a `pred_flat` profile summing to 1 and a
+`--run` is a plain directory, used exactly as given. It may hold either naming convention --
+`attn_best.pt` + `attn_config.json` as published on Hugging Face, or `best.pt` + `args.json` as a
+training run writes them -- and `--checkpoint` / `--config` override the search. `--arch` picks
+one when both released checkpoints sit in the same directory, as they do after `snapshot_download`.
+
+`--arch mamba4` runs the primary checkpoint. Add `--device cuda` where a GPU exists; without one
+it falls back to CPU on its own.
+
+Writes `pred/pred_profiles.npz` with, per transcript, a `pred_flat` profile summing to 1 and a
 `pred_total` count.
 
 ### 4. Optional: tighten precision with the Poisson dial
@@ -120,7 +198,7 @@ in theta, so recall is the binding constraint.
 
 ```bash
 python scripts/ribocode_dropin.py \
-    --profiles pred_profiles.npz \
+    --profiles pred/pred_profiles.npz \
     --annot    ribocode_annot/ \
     --variant  pred_preddepth \
     --out      calls/ \
@@ -134,6 +212,11 @@ immunopeptidomics, where peptides are 8 to 11 aa, the floor is 7 instead.
 Two other variants exist for evaluation rather than deployment: `real` runs the caller on an
 observed profile, and `pred_obsdepth` uses the predicted shape scaled to an observed depth, which
 isolates whether the model places ribosomes correctly.
+
+Each variant reads a different subset of the density flags, and passing one a variant will not act
+on is now an error rather than a silent no-op. `--pred_scale` dials the *predicted* depth, so it
+means nothing under `pred_obsdepth`, whose depth is the observed total by definition -- that is
+what the variant is for. `--subsample` thins real counts, so it belongs to `real` alone.
 
 ### 6. Optional: call ORFs with a different caller
 
@@ -166,7 +249,7 @@ awk -v F=tx_ids.txt 'BEGIN{while((getline l < F)>0) k[l]=1}
     gencode.annotation.gtf > scored.gtf
 
 python scripts/orfcallers/ribotish_dropin.py \
-    --profiles pred_profiles.npz \
+    --profiles pred/pred_profiles.npz \
     --gtf      scored.gtf \
     --genome   genome.fa \
     --variant  pred_preddepth \
@@ -183,8 +266,9 @@ reimplemented, so both callers see identical arrays.
 same rule as RiboCode's `(gene_id, ORF_gstop)` collapsing.
 
 Run it under a python that can import `ribocode_dropin`, since that is where `build_density`
-lives. The script shells out to the `ribotish` binary, so the two do not need to share an
-environment:
+lives -- numpy is enough now, as RiboCode itself is imported lazily inside `main()`. The script
+shells out to the `ribotish` binary, which defaults to whatever is on `$PATH`, so the two do not
+need to share an environment:
 
 ```bash
 /path/to/ribocode-env/bin/python scripts/orfcallers/ribotish_dropin.py ... \
@@ -213,7 +297,7 @@ runs unmodified.
 # 1. a genome-coordinate Ribo-seq bam whose P-sites reproduce the predicted profile.
 #    One read length with one offset, so RiboTaper's P-site recovery is deterministic.
 python scripts/orfcallers/synth_ribo_bam.py \
-    --profiles pred_profiles.npz \
+    --profiles pred/pred_profiles.npz \
     --gtf      scored.gtf \
     --fai      genome.fa.fai \
     --variant  pred_preddepth \
@@ -309,12 +393,45 @@ Do not read cross-caller count differences as biology without checking this. On 
 hepatocyte data, with no model involved, three callers agree on only 914 canonical ORFs out of
 1,160 to 1,852, and on 5 dORFs out of 14 to 25.
 
+## Paths and environment
+
+Nothing here has a built-in data location. Every path comes from a flag or an environment
+variable, and the fallback is inside the clone (`scripts/paths.py`), so the tree runs wherever it
+is checked out.
+
+| variable | what it points at |
+|---|---|
+| `RIBO_DATA_DIR` | root for everything below (default `<repo>/data`) |
+| `RIBO_PACK_DIR` | the packed store, when not passing `--pack` |
+| `RIBO_ORF_TRACK` | the ORF-candidate track `.npy` from step 2c |
+| `RIBO_ONEHOT_FASTA` | the universe FASTA; the one-hot sequence input, and the length check |
+| `RIBO_PACK_SUFFIX` | select a pack family, e.g. `union` -> `packed_union[_<Tissue>]` |
+| `RIBO_MAMBA_IMPL` | `auto` (default), `cuda` (never fall back), `ref` (always fall back) |
+| `RIBO_TMPDIR` | scratch for the BAM projection (default the system temp dir) |
+| `RIBO_REPRESENTATIVE_TX` | highest-expressed-isoform include-list, for the posture-B check |
+| `RIBO_TRAIN_EXCLUDE_TX` | transcripts dropped from train and val, deliberately kept in test |
+
+Both released checkpoints use the one-hot sequence backend, so `RIBO_ONEHOT_FASTA` is required,
+not optional: it is where the four sequence channels come from.
+
+The SLURM scripts under `scripts/xspecies/` take their tool prefix from `$CONDA_PREFIX` (override
+with `RIBO_ENV`) and the repo from the submission directory (override with `RIBO_REPO`), and
+require `RIBO_SPECIES_REFS`, `RIBO_STAR_INDEXES` and `RIBO_SALMON_INDEXES` explicitly rather than
+defaulting to one filesystem. Create `logs/xspecies/` before submitting.
+
 ## Training
 
 Human tissue Ribo-seq (GEO **GSE182371**), leave-one-tissue-out with Hepatocytes held out,
 unique-mapper alignments only. `scripts/train.py` is the training entry point. The exact
 configuration and held-out metrics for each checkpoint ship with the weights as
 `<arch>_config.json` and `<arch>_test_metrics.json`.
+
+`release/orf_v2_*/test_metrics.json` carries a `spearman_median_INVALID_ordinal_ties` key. The
+name is the warning: the rank correlation behind it was computed with ordinal ranks and no tie
+averaging, which on profiles that are 74 to 95% zeros ranks position rather than signal and drives
+the value negative. It is kept, renamed, for provenance and must not be read as a correlation. The
+defect touched that one reported metric only -- it fed neither the loss nor checkpoint selection,
+so no model is affected. Pearson and periodicity in the same files are unaffected.
 
 ## Citation
 
@@ -323,4 +440,13 @@ Manuscript in preparation. Until then cite this repository and
 
 ## License
 
-Not yet specified.
+**Not yet specified.** No licence is granted for the code in this repository, so there is no
+permission to use, copy, modify or redistribute it. If you need one, open an issue.
+
+This is narrower than it may look from elsewhere: the model card and `LICENSE` at
+<https://huggingface.co/emalek/RiboSignal> say MIT, and that covers **the released weights and the
+copy of `model.py` published beside them**, not this repository. The container image no longer
+carries an `org.opencontainers.image.licenses` label, because it contains both and a single label
+cannot say two things.
+
+Training data are third-party public datasets under their own terms and are covered by neither.

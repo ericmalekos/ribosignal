@@ -71,24 +71,32 @@ ENV PYTHONNOUSERSITE=1
 # ---------------------------------------------------------------------------------------------
 # Bake the released weights in, so the image needs no runtime download and no network.
 #
-# emalek/RiboSignal is PUBLIC, so this fetches anonymously and needs no credentials. The HF_TOKEN
-# argument is kept for anyone forking with private weights; leave it empty otherwise.
+# emalek/RiboSignal is PUBLIC, so this fetches anonymously and needs no credentials. The token
+# path is kept for anyone forking with private weights.
+#
+# It arrives as a BUILD SECRET, not a build ARG. A build arg is recorded in the image metadata
+# and any puller can read it back with `docker history`, so the one case the argument exists to
+# serve -- a fork with private weights -- was the case that leaked the credential. A secret mount
+# is visible only to this RUN and never lands in a layer. Supply it with
+#   docker build --secret id=hf_token,env=HF_TOKEN ...
+# and it is simply absent, and the fetch anonymous, when nobody passes one.
 #
 # Keeping the repository public is what makes this image buildable on a GitHub-hosted runner at
 # all. This project already hit the opposite case with HydraRNA, whose Google-Drive-only weights
 # made its image unbuildable in CI, and mirroring to Hugging Face is what fixed it.
-ARG HF_TOKEN=""
 ARG HF_REPO="emalek/RiboSignal"
 ARG HF_REVISION="main"
 ENV RIBO_WEIGHTS=/opt/riboseq-model/weights
 
 RUN --mount=type=cache,target=/root/.cache/huggingface \
-    HF_TOKEN="$HF_TOKEN" HF_REPO="$HF_REPO" HF_REVISION="$HF_REVISION" \
+    --mount=type=secret,id=hf_token \
+    HF_REPO="$HF_REPO" HF_REVISION="$HF_REVISION" \
     /opt/conda/envs/rsm/bin/python -c "\
-import os; from huggingface_hub import snapshot_download; \
+import os, pathlib; from huggingface_hub import snapshot_download; \
+t = pathlib.Path('/run/secrets/hf_token'); \
 snapshot_download(os.environ['HF_REPO'], revision=os.environ['HF_REVISION'], \
                   local_dir=os.environ['RIBO_WEIGHTS'], \
-                  token=(os.environ.get('HF_TOKEN') or None), \
+                  token=((t.read_text().strip() or None) if t.is_file() else None), \
                   allow_patterns=['*.pt','*_config.json','*_test_metrics.json','model.py', \
                                   'LICENSE','SHA256SUMS'])" \
     && rm -rf "$RIBO_WEIGHTS/.cache"
@@ -99,8 +107,10 @@ import os, torch, pathlib; \
 w = pathlib.Path(os.environ['RIBO_WEIGHTS']); \
 missing = [n for n in ('attn_best.pt','mamba4_best.pt') if not (w/n).is_file()]; \
 assert not missing, f'weights missing from image: {missing}'; \
-[print(n, f'{sum(v.numel() for v in torch.load(w/n, map_location=\"cpu\").values()):,} params') \
+[print(n, f'{sum(v.numel() for v in torch.load(w/n, map_location=\"cpu\", weights_only=True).values()):,} params') \
  for n in ('attn_best.pt','mamba4_best.pt')]"
 
 LABEL org.opencontainers.image.source="https://github.com/ericmalekos/ribosignal"
-LABEL org.opencontainers.image.licenses="MIT"
+# No licenses= label: the repository states no licence (README, "License"). The MIT on the
+# Hugging Face model card covers the WEIGHTS, and this image contains both, so claiming MIT
+# here would assert a licence over the code that its owner has not granted.

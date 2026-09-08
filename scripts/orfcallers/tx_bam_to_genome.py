@@ -36,6 +36,9 @@ import tempfile
 from collections import defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import paths  # noqa: E402
+
 import pysam
 
 ATTR = re.compile(r'(\S+) "([^"]*)"')
@@ -163,10 +166,12 @@ def main() -> int:
     ap.add_argument("--keep-secondary", action="store_true",
                     help="keep 0x100 records; by default they are dropped BEFORE dedup, since "
                          "transcriptome secondaries are isoform copies, not extra genomic loci")
-    ap.add_argument("--tmpdir", default="/data/tmp/emalekos")
+    ap.add_argument("--tmpdir", default=str(paths.tmp_dir()),
+                    help="scratch for the name-sort (default $RIBO_TMPDIR, "
+                         "else the system temp dir)")
     ap.add_argument("--threads", type=int, default=4)
-    ap.add_argument("--samtools", default="/private/groups/carpenterlab/emalekos/conda_envs/"
-                                          "ribotaper/bin/samtools")
+    ap.add_argument("--samtools", default="samtools",
+                    help="samtools binary; the default resolves on $PATH")
     a = ap.parse_args()
 
     refs, lens = [], []

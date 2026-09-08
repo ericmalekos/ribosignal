@@ -100,7 +100,7 @@ print('py deps OK torch', torch.__version__, 'cuda', torch.version.cuda)"
     Pins python3.10 torch2.2.0+cu118 mamba_ssm1.2.0.post1 causal_conv1d1.2.0.post2
 
 %help
-    singularity exec --nv --no-home --cleanenv -B /private/groups <img> python3 scripts/train_loto.py ...
+    singularity exec --nv --no-home --cleanenv -B "$RIBO_DATA_DIR" <img> python3 scripts/train.py ...
     CPU mamba prediction: add --env RIBO_MAMBA_CPU=1 and drop --nv.
     ALWAYS pass --no-home --cleanenv: without them the host ~/.local site-packages shadow the
     image's own and produce version skew that looks like a corrupted install.

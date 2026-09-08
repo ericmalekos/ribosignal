@@ -26,12 +26,16 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paths  # noqa: E402
+
 NONCANON = {"uORF", "Overlap_uORF", "dORF", "Overlap_dORF", "novel", "internal"}
-TX2GENE = ("/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/"
-           "riboseq_signal_model/data/tx2biotype.tsv")
 
 
-def load_tx2gene(path=TX2GENE):
+def load_tx2gene(path=None):
+    path = Path(path) if path else paths.tx2biotype()
+    if not path.is_file():
+        sys.exit(paths.missing(path, "tx2biotype table", "RIBO_TX2BIOTYPE", "tx2gene"))
     t2g = {}
     with open(path) as fh:
         header = fh.readline().rstrip("\n").split("\t")
@@ -155,7 +159,7 @@ def compare(pred, real, label):
     return out
 
 
-def build_loader(profiles, key="genomic", tx2gene=TX2GENE, max_pval=0.05, min_len=90,
+def build_loader(profiles, key="genomic", tx2gene=None, max_pval=0.05, min_len=90,
                  min_enrichment=0.5):
     """Return (lc, keep_tx, keep_genes) for one dump's pred_profiles.npz.
 
@@ -224,7 +228,7 @@ def main():
                     help="drop PREDICTED calls whose mean predicted density over the ORF is below "
                          "this multiple of uniform (mean prob x L). Removes the diffuse 3'UTR leak "
                          "(spurious dORFs). Pred variants only; 0 = off. Default 0.5.")
-    ap.add_argument("--tx2gene", default=TX2GENE,
+    ap.add_argument("--tx2gene", default=None,
                     help="transcript_id -> gene_id map (tx2biotype.tsv schema) used by --key genomic. "
                          "Default is the human v49 table; pass the matching assembly's table for a "
                          "non-human held-out (e.g. data/mouse_tx2biotype.tsv for the mouse vM38 "

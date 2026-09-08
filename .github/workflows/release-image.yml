@@ -1,0 +1,20 @@
+name: Publish riboseq-model image (release tag)
+
+# A v* tag must always rebuild and publish the image, whatever files that push touched.
+#
+# This cannot live in publish-image.yml's `on.push` block: GitHub ANDs the ref filter with the
+# `paths` filter, so `tags: ['v*']` next to a `paths:` list means a release builds only if the
+# tagged push also modified containers/. That is the bug this file exists to remove. The build
+# itself is not duplicated -- publish-image.yml exposes `workflow_call` and is invoked here.
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    uses: ./.github/workflows/publish-image.yml
+    permissions:
+      contents: read
+      packages: write
+    secrets: inherit

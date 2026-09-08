@@ -40,7 +40,10 @@ import numpy as np
 
 NEW = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(NEW / "scripts"))
-from ribocode_dropin import build_density  # noqa: E402  same density code path as RiboCode
+from ribocode_dropin import (  # noqa: E402  same density code path as RiboCode
+    build_density,
+    validate_density_flags,
+)
 
 ATTR = re.compile(r'(\S+) "([^"]*)"')
 
@@ -81,14 +84,19 @@ def main() -> int:
                     help="ribotish --minaalen (RiboCode uses min_aa 5)")
     ap.add_argument("--fpth", type=float, default=0.05, help="ribotish frame p threshold")
     ap.add_argument("--numproc", type=int, default=4)
-    ap.add_argument("--ribotish", default="/private/groups/carpenterlab/emalekos/conda_envs/"
-                                          "ribotish/bin/ribotish")
+    ap.add_argument("--ribotish", default="ribotish",
+                    help="ribotish binary; the default resolves on $PATH. Ribo-TISH does not "
+                         "have to share this python env -- point at its own env's binary.")
     ap.add_argument("--longest", action="store_true",
                     help="ribotish --longest: one ORF per stop codon, the analogue of RiboCode's "
                          "*_collapsed.txt keying on (gene, ORF_gstop). Without it Ribo-TISH also "
                          "reports every in-frame downstream ATG as a separate Truncated ORF.")
     ap.add_argument("--profile_only", action="store_true", help="write the inprofile, do not run")
     a = ap.parse_args()
+    try:
+        validate_density_flags(a.variant, pred_scale=a.pred_scale, poisson=a.pred_poisson)
+    except ValueError as e:
+        ap.error(str(e))
 
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     tag = a.variant

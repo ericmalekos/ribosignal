@@ -17,9 +17,15 @@ Convolutions operate on (B, C, L); the dataset provides (B, L, C) so we transpos
 """
 from __future__ import annotations
 
+import os
+import sys
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # so mamba_ref resolves as a sibling
 
 
 class ResidualDilatedBlock(nn.Module):
@@ -43,6 +49,43 @@ class ResidualDilatedBlock(nn.Module):
         return F.gelu(x + h)
 
 
+_WARNED_NO_MAMBA_SSM = False
+
+
+def mamba_class():
+    """The Mamba implementation to build the mixer from.
+
+    `mamba_ssm` is the fast path and stays the default wherever it imports. It cannot be
+    installed without a CUDA toolchain, though (causal-conv1d's setup reads
+    torch.version.cuda; mamba-ssm requires triton, which has no macOS wheel), so on
+    everything else this falls back to scripts/mamba_ref.py -- upstream's own pure-PyTorch
+    reference path, same parameter names and shapes, so the released mamba4 checkpoint
+    loads and runs unchanged. Slower, but the alternative was that it did not run at all.
+
+    RIBO_MAMBA_IMPL forces the choice: "cuda" errors out rather than falling back (use it
+    in CI to prove the fast path is really installed), "ref" always takes the reference
+    path, "auto" (default) prefers mamba_ssm.
+    """
+    want = os.environ.get("RIBO_MAMBA_IMPL", "auto").lower()
+    if want not in ("auto", "cuda", "ref"):
+        raise ValueError(f"RIBO_MAMBA_IMPL={want!r}; expected auto, cuda or ref")
+    if want != "ref":
+        try:
+            from mamba_ssm import Mamba
+            return Mamba
+        except Exception as e:  # noqa: BLE001  -- ImportError, or a CUDA-less build erroring
+            if want == "cuda":
+                raise RuntimeError(
+                    f"RIBO_MAMBA_IMPL=cuda but mamba_ssm is unusable: {e!r}") from e
+            global _WARNED_NO_MAMBA_SSM
+            if not _WARNED_NO_MAMBA_SSM:   # once, not once per block
+                _WARNED_NO_MAMBA_SSM = True
+                print(f"mamba_ssm unavailable ({type(e).__name__}: {e}); using the pure-PyTorch "
+                      f"reference Mamba from scripts/mamba_ref.py", file=sys.stderr)
+    from mamba_ref import Mamba as RefMamba
+    return RefMamba
+
+
 class BiMambaBlock(nn.Module):
     """Pre-norm residual block with a BIDIRECTIONAL Mamba mixer (forward + reversed scan).
 
@@ -51,13 +94,14 @@ class BiMambaBlock(nn.Module):
     (exclusion-zone) context. This model has no simulator, so a causal scan alone would lose the
     downstream context that the bidirectional transformer provides; we run Mamba both directions
     and sum, matching the transformer's full-transcript receptive field at O(L) instead of
-    O(L^2). mamba_ssm is imported lazily so the default transformer path needs no CUDA Mamba build.
+    O(L^2). The Mamba class is resolved lazily so the default transformer path needs neither
+    mamba_ssm nor the reference fallback.
     """
 
     def __init__(self, d_model: int, d_state: int = 16, d_conv: int = 4,
                  expand: int = 2, dropout: float = 0.1):
         super().__init__()
-        from mamba_ssm import Mamba  # lazy: only imported when a mamba mixer is actually built
+        Mamba = mamba_class()
         self.norm = nn.LayerNorm(d_model)
         self.fwd = Mamba(d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand)
         self.bwd = Mamba(d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand)

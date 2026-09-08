@@ -23,7 +23,7 @@ Counting rules:
   - Depth semantics: each kept mate adds 1 to every transcript position it spans
     (reference_start .. reference_end, exclusive), like `samtools depth` per-mate.
 
-Usage: rnaseq_coverage.py <toTranscriptome.bam> <out_coverage.hd5> <SRR>
+Usage: rnaseq_coverage.py --bam <toTranscriptome.bam> --out <coverage.hd5> --sample <ID>
 
 Output hd5 (vlen schema, RiboCode-compatible so one reader serves inputs and target):
   transcript_ids  vlen-str    (STAR @SQ order; join to the P-site target by tx-id)
@@ -31,6 +31,7 @@ Output hd5 (vlen schema, RiboCode-compatible so one reader serves inputs and tar
   attrs: srr, libtype (ISR|ISF|U), strand_isr_frac, strand_sample_n,
          n_transcripts, records_seen, mapped_sense_counted
 """
+import argparse
 import os
 import sys
 
@@ -65,8 +66,30 @@ def detect_strand(bam_path):
     return libtype, frac, n_map
 
 
+def parse_args(argv=None):
+    ap = argparse.ArgumentParser(
+        description="Per-nucleotide RNA-seq coverage from a STAR toTranscriptome BAM. "
+                    "This is the first script in the pipeline: its output is the model's "
+                    "coverage input channel.",
+        epilog="example: rnaseq_coverage.py --bam out/sample.Aligned.toTranscriptome.out.bam "
+               "--out coverage.hd5 --sample SRR1234567")
+    ap.add_argument("--bam", required=True,
+                    help="STAR --quantMode TranscriptomeSAM output for ONE sample")
+    ap.add_argument("--out", required=True, help="output .hd5")
+    ap.add_argument("--sample", required=True,
+                    help="sample id, stored as the 'srr' attribute on the output")
+    ap.add_argument("--min-covered-tx", type=int,
+                    default=int(os.environ.get("RNASEQ_MIN_COVERED_TX", "5000")),
+                    help="fail rather than write an hd5 covering fewer transcripts than this "
+                         "(default %(default)s, or $RNASEQ_MIN_COVERED_TX). The guard exists "
+                         "because a corrupt or un-adapter-trimmed fastq produces a small, "
+                         "valid-looking file that then poisons the pack.")
+    return ap.parse_args(argv)
+
+
 def main():
-    bam_path, out_hd5, srr = sys.argv[1], sys.argv[2], sys.argv[3]
+    args = parse_args()
+    bam_path, out_hd5, srr = args.bam, args.out, args.sample
     libtype, frac, nsamp = detect_strand(bam_path)
     print(f"{srr}: strand auto-detect ISR-sense frac={frac:.3f} over {nsamp:,} sampled "
           f"-> libtype={libtype}", file=sys.stderr)
@@ -103,7 +126,7 @@ def main():
     # poisons the pack. covered_tx = # transcripts with any read; a healthy RNA-seq sample covers
     # tens of thousands (the corrupt+adapter Janich RNA gave ~1,530). Floor: $RNASEQ_MIN_COVERED_TX.
     covered = len(cov)
-    floor = int(os.environ.get("RNASEQ_MIN_COVERED_TX", "5000"))
+    floor = args.min_covered_tx
     if covered < floor:
         print(f"ERROR {srr}: only {covered:,}/{n:,} tx covered (records_seen={seen:,}, "
               f"sense_counted={counted:,}); below floor {floor:,}. Likely corrupt/adapter "

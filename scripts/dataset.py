@@ -17,25 +17,27 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-           "RNAZoo/experiments/riboseq_signal_model")
-PACK = Path(os.environ.get("RIBO_PACK_DIR", str(NEW / "data" / "packed")))
-TX_INDEX_RINALMO = NEW / "data" / "rinalmo_token_emb" / "tx_index.tsv"
-TX_INDEX_ORTHRUS = NEW / "data" / "orthrus4t_token_emb" / "tx_index.tsv"
-TX_INDEX_HYDRARNA = NEW / "data" / "hydrarna_token_emb" / "tx_index.tsv"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paths  # noqa: E402  -- every data location resolves through here, never a cluster path
+
+DATA = paths.data_dir()          # $RIBO_DATA_DIR, else <repo>/data -- see scripts/paths.py
+PACK = paths.pack_dir()          # $RIBO_PACK_DIR, else <data>/packed
+TX_INDEX_RINALMO = paths.emb_dir() / "rinalmo_token_emb" / "tx_index.tsv"
+TX_INDEX_ORTHRUS = paths.emb_dir() / "orthrus4t_token_emb" / "tx_index.tsv"
+TX_INDEX_HYDRARNA = paths.emb_dir() / "hydrarna_token_emb" / "tx_index.tsv"
 # One-hot control backend: no on-disk per-tx emb -- a (L,4) A/C/G/T one-hot computed from the
 # universe FASTA on the fly. It measures how much lift the FM embeddings provide over raw sequence
 # (same architecture + ORF track + coverage, only the emb input differs). ONEHOT_SENTINEL flags it.
 # RIBO_ONEHOT_FASTA overrides the universe FASTA so a cross-species held-out (e.g. mouse vM38) can
 # run the one-hot backend on its own sequence, with no FM embeddings.
-ONEHOT_UNIVERSE_FASTA = Path(os.environ.get(
-    "RIBO_ONEHOT_FASTA", str(NEW / "data" / "fibroblast_universe.fa")))
+ONEHOT_UNIVERSE_FASTA = paths.onehot_fasta()
 ONEHOT_SENTINEL = "__onehot__"
 # Embedding backends: which per-token index file(s) feed the model input. "concat" stacks
 # RiNALMo (1280-d) + Orthrus 4-track (512-d) along the feature axis (1792-d). All three
@@ -49,8 +51,8 @@ BACKENDS = {
     "onehot": [ONEHOT_SENTINEL],
 }
 TX_INDEX = TX_INDEX_RINALMO  # backward-compat default
-SPLIT = NEW / "data" / "splits" / "fibroblast_chrom_kfold.json"
-TX2BIOTYPE = NEW / "data" / "tx2biotype.tsv"
+SPLIT = paths.split_json()
+TX2BIOTYPE = paths.tx2biotype()
 # Mitochondrial protein-coding genes are translated by the mitoribosome: a different genetic
 # code, no 5'UTR (leaderless, so no uORFs), and none of the cytoplasmic 3-nt periodicity the
 # ORF-candidate track and the FM embeddings encode. They are not this model's target -- drop the
@@ -284,8 +286,8 @@ def tissue_pack_dir(tissue):
     suf = os.environ.get("RIBO_PACK_SUFFIX", "")
     if suf:
         base = f"packed_{suf}"
-        return NEW / "data" / (base if tissue == "Fibroblast" else f"{base}_{tissue}")
-    return PACK if tissue == "Fibroblast" else NEW / "data" / f"packed_{tissue}"
+        return DATA / (base if tissue == "Fibroblast" else f"{base}_{tissue}")
+    return PACK if tissue == "Fibroblast" else DATA / f"packed_{tissue}"
 
 
 # ---- External held-out datasets (cross-study / cross-species) --------------------------
@@ -293,15 +295,20 @@ def tissue_pack_dir(tissue):
 # scripts/heldout/build_heldout_pack.py. There is no train/val split: a Chothani-trained model
 # is applied and every scorable tx (>= min_signal pooled P-sites, chrM excluded) is a test tx.
 def heldout_pack_dir(name):
-    return NEW / "data" / f"packed_heldout_{name}"
+    return DATA / f"packed_heldout_{name}"
 
 
-def heldout_test_tx(name, min_signal=50):
-    """Scorable held-out tx (total_psites >= min_signal, chrM excluded), sorted."""
+def pack_test_tx(pack, min_signal=50):
+    """Scorable tx in any pack (total_psites >= min_signal, chrM excluded), sorted.
+
+    An inference-only pack built by build_pack.py without --psites has no P-site column
+    worth thresholding -- every total is 0 -- so this returns nothing and the caller is
+    expected to pass an explicit transcript list (the pack's expressed_tx.txt) instead.
+    """
     ex = excluded_tx()
     keep = representative_tx()  # posture-B include-set (None = all)
     out = []
-    with (heldout_pack_dir(name) / "pack_meta.tsv").open() as fh:
+    with (Path(pack) / "pack_meta.tsv").open() as fh:
         hdr = fh.readline().rstrip("\n").split("\t")
         c = {n: i for i, n in enumerate(hdr)}
         for line in fh:
@@ -310,6 +317,11 @@ def heldout_test_tx(name, min_signal=50):
                     and (keep is None or f[c["tx_id"]] in keep)):
                 out.append(f[c["tx_id"]])
     return sorted(out)
+
+
+def heldout_test_tx(name, min_signal=50):
+    """Scorable tx of the named held-out dataset (data/packed_heldout_<name>/)."""
+    return pack_test_tx(heldout_pack_dir(name), min_signal)
 
 
 def tissue_signal(tissue):

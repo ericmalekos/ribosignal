@@ -6,8 +6,13 @@ name: Publish riboseq-model image
 # Mirrors RNA-Zoo's publish-images.yml: ghcr.io/ericmalekos, GITHUB_TOKEN auth, sha-tag on branch
 # pushes and the git tag on v* releases, plus :latest.
 #
-# Only fires when the image definition or this workflow changes -- a CUDA base plus torch plus the
-# mamba wheels is a long build, and nothing else in the repo affects it.
+# On main, only fires when the image definition or this workflow changes -- a CUDA base plus torch
+# plus the mamba wheels is a long build, and nothing else in the repo affects it.
+#
+# The v* tag trigger lives in release-image.yml, which calls this workflow, and NOT in the push
+# block below. `branches`/`tags` and `paths` are ANDed, so a `tags: [v*]` entry here would build a
+# release only when that same push also happened to touch containers/ -- which is to say almost
+# never. Splitting the trigger is what makes a tag build unconditional.
 
 on:
   push:
@@ -16,8 +21,8 @@ on:
       - 'containers/Dockerfile.riboseq-model'
       - 'containers/riboseq-model.def'
       - '.github/workflows/publish-image.yml'
-    tags: ['v*']
   workflow_dispatch:
+  workflow_call:
 
 env:
   REGISTRY: ghcr.io
@@ -69,7 +74,9 @@ jobs:
           push: true
           tags: ${{ steps.tags.outputs.tags }}
           # The image bakes in the released weights from Hugging Face. emalek/RiboSignal is
-          # public, so this resolves to an empty value and the fetch is anonymous. The argument
-          # exists for forks that keep their weights private.
-          build-args: |
-            HF_TOKEN=${{ secrets.HF_TOKEN }}
+          # public, so this resolves to an empty value and the fetch is anonymous. It is passed
+          # as a build SECRET rather than a build arg: build args are written into the image
+          # metadata and `docker history` reads them straight back out, so a fork that set this
+          # to a real token -- the only reason the input exists -- would have published it.
+          secrets: |
+            hf_token=${{ secrets.HF_TOKEN }}

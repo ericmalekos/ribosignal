@@ -7,10 +7,10 @@ Evaluation is scale-invariant per-transcript: Pearson/Spearman between the predi
 position distribution and the observed P-site profile, plus 3-nt periodicity recovery,
 reported separately for protein_coding and lncRNA. Early stopping on val profile Pearson.
 
-Runs inside the CUDA SIF (torch + numpy only). Example:
+Runs inside the CUDA container (torch + numpy only). Example:
   singularity exec --nv --no-home --cleanenv --env PYTHONNOUSERSITE=1 \
-    -B /private/groups/carpenterlab/emalekos/RNAZoo_meta:/work $SIF \
-    python3 .../train.py --epochs 40 --out results/fold0_rinalmo
+    -B "$RIBO_DATA_DIR:$RIBO_DATA_DIR" "$SIF" \
+    python3 scripts/train.py --epochs 40 --out results/fold0_rinalmo
 """
 from __future__ import annotations
 

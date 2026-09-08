@@ -74,8 +74,12 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-NEW = Path("/private/groups/carpenterlab/emalekos/RNAZoo_meta/"
-           "RNAZoo/experiments/riboseq_signal_model")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paths  # noqa: E402
+
+DATA = paths.data_dir()
+# GTFs are inputs, not repo content: $RIBO_ANNOT_DIR, else <data>/annotations.
+ANNOT = paths._env_path("RIBO_ANNOT_DIR", DATA / "annotations")
 
 # ---------------------------------------------------------------------------
 # Drop sets, expressed in NORMALIZED (GENCODE) terms.
@@ -651,10 +655,10 @@ def selftest() -> int:
     """
     import tempfile
     cases = [
-        ("human_v49", NEW.parent.parent.parent / "annotations" / "gencode.v49.annotation.gtf",
-         NEW / "data" / "ncrna_tx_human_v49.txt", NEW / "data" / "tx_to_gene_human_v49.tsv"),
-        ("mouse_vM38", NEW.parent.parent.parent / "annotations" / "gencode.vM38.annotation.gtf",
-         NEW / "data" / "ncrna_tx_mouse_vM38.txt", NEW / "data" / "tx_to_gene_mouse_vM38.tsv"),
+        ("human_v49", ANNOT / "gencode.v49.annotation.gtf",
+         DATA / "ncrna_tx_human_v49.txt", DATA / "tx_to_gene_human_v49.tsv"),
+        ("mouse_vM38", ANNOT / "gencode.vM38.annotation.gtf",
+         DATA / "ncrna_tx_mouse_vM38.txt", DATA / "tx_to_gene_mouse_vM38.tsv"),
     ]
     rc = 0
     for label, gtf, want_nc, want_t2g in cases:
@@ -730,7 +734,7 @@ def main() -> int:
         drop = CORE_DROP if src == "gencode" else EXTENDED_DROP
     else:
         drop = CORE_DROP if args.drop_set == "core" else EXTENDED_DROP
-    out_dir = args.out_dir or (NEW / "data" / "annot" / args.species)
+    out_dir = args.out_dir or (DATA / "annot" / args.species)
 
     print(f"species={args.species} source={src} mito={mito} "
           f"drop_set={'core' if drop is CORE_DROP else 'extended'}", flush=True)

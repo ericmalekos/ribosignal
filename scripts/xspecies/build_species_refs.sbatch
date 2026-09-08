@@ -4,8 +4,10 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=96G
 #SBATCH --time=02:00:00
-#SBATCH --output=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/logs/xspecies/refs_%A_%a.out
-#SBATCH --error=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model/logs/xspecies/refs_%A_%a.err
+#SBATCH --output=logs/xspecies/refs_%A_%a.out
+#SBATCH --error=logs/xspecies/refs_%A_%a.err
+# Log paths are relative to the submission directory; mkdir -p logs/xspecies first, or
+# SLURM drops the job before it starts.
 #
 # Build every per-species reference artifact the cross-species pipeline needs.
 # One array task per species:
@@ -45,13 +47,19 @@
 # are byte-identical to the ones STAR, RiboCode and the tx2gene map use.
 set -euo pipefail
 
-NEW=/private/groups/carpenterlab/emalekos/RNAZoo_meta/RNAZoo/experiments/riboseq_signal_model
-REFS=/private/groups/carpenterlab/emalekos/genomes/xspecies_refs
-STARIDX=/private/groups/carpenterlab/emalekos/STAR_indexes
-SALIDX=/private/groups/carpenterlab/emalekos/Salmon_indexes
-ENV=/private/groups/carpenterlab/emalekos/conda_envs/riboseq
-GFFREAD=/private/groups/carpenterlab/emalekos/conda_envs/crisprware/bin/gffread
-RIBOCODE=/private/groups/carpenterlab/emalekos/conda_envs/ribocode/bin
+# ---- locations ---------------------------------------------------------------------
+# Nothing below is specific to one cluster. RIBO_REPO defaults to the directory sbatch
+# was launched from, which is the repo root if you follow the launch line above; the
+# tool prefix defaults to the conda environment that is active at submit time. Set
+# RIBO_ENV / RIBO_REPO explicitly when either assumption does not hold.
+REPO=${RIBO_REPO:-${SLURM_SUBMIT_DIR:-$PWD}}
+ENV=${RIBO_ENV:-${CONDA_PREFIX:?set RIBO_ENV=<prefix of the env holding STAR/salmon/samtools/cutadapt>}}
+DATA=${RIBO_DATA_DIR:-$REPO/data}
+REFS=${RIBO_SPECIES_REFS:?set RIBO_SPECIES_REFS=<dir holding <species>/genome.fna and genomic.gtf>}
+STARIDX=${RIBO_STAR_INDEXES:?set RIBO_STAR_INDEXES=<dir to write STAR indexes into>}
+SALIDX=${RIBO_SALMON_INDEXES:?set RIBO_SALMON_INDEXES=<dir to write salmon indexes into>}
+GFFREAD=${RIBO_GFFREAD:-gffread}
+RIBOCODE=${RIBO_RIBOCODE_BIN:-$ENV/bin}
 T=${SLURM_CPUS_PER_TASK:-16}
 
 # The per-species parameter table is scripts/xspecies/species.tsv, read here rather than
@@ -63,7 +71,7 @@ T=${SLURM_CPUS_PER_TASK:-16}
 #   0 yeast  1 celegans  2 fly  3 zebrafish  4 macaque  5 chimp  6 gorilla
 #   7 human_refseq  8 mouse_refseq
 # List them with:  awk -F'\t' '!/^#/ && NR>1{print NR-2, $1}' scripts/xspecies/species.tsv
-SPTSV=$NEW/scripts/xspecies/species.tsv
+SPTSV=$REPO/scripts/xspecies/species.tsv
 [ -s "$SPTSV" ] || { echo "missing $SPTSV" >&2; exit 2; }
 mapfile -t SPECS < <(awk -F'\t' '!/^#/ && $1!="species" && NF>1 {print $1"\t"$2"\t"$7"\t"$8}' "$SPTSV")
 
@@ -73,14 +81,14 @@ IFS=$'\t' read -r SP ANN OVERHANG SAN <<< "${SPECS[$IDX]}"
 
 GENOME="$REFS/$SP/genome.fna"
 RAWGTF="$REFS/$SP/genomic.gtf"
-ANNOTD="$NEW/data/annot/$SP"
+ANNOTD="$DATA/annot/$SP"
 NORMGTF="$ANNOTD/$SP.normalized.gtf"
 TXFA="$ANNOTD/transcripts.fa"
 SIDX="$STARIDX/star_index_${SP}_${ANN}"
 QIDX="$SALIDX/salmon_index_decoy_${SP}_${ANN}"
-RCANNOT="$NEW/data/ribocode_annot_$SP"
+RCANNOT="$DATA/ribocode_annot_$SP"
 
-SCR=/data/tmp/emalekos/xsp_refs_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}
+SCR=${RIBO_TMPDIR:-${TMPDIR:-/tmp}}/xsp_refs_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}
 mkdir -p "$SCR" "$ANNOTD"
 trap 'rm -rf "$SCR"' EXIT
 
@@ -94,7 +102,7 @@ if [ -s "$NORMGTF" ] && [ -s "$ANNOTD/ncrna_tx.txt" ]; then
   echo "[1/5] normalize: SKIP (exists, $(wc -l < "$ANNOTD/ncrna_tx.txt") ncRNA tx)"
 else
   echo "[1/5] normalize $(date +%H:%M:%S)"
-  "$ENV/bin/python" "$NEW/scripts/normalize_annotation.py" \
+  "$ENV/bin/python" "$REPO/scripts/normalize_annotation.py" \
     --species "$SP" --gtf "$RAWGTF" --genome "$GENOME" --write-gtf --out-dir "$ANNOTD"
 fi
 NNC=$(wc -l < "$ANNOTD/ncrna_tx.txt")
