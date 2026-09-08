@@ -173,8 +173,11 @@ def main() -> int:
                     gene_tx[g].add(t)
                     lines.append((g, t, line))
         whole = {g for g, ts in gene_tx.items() if ts <= keep_tx}
-        with Path(a.emit_gtf).open("w") as out:
-            n = sum(bool(out.write(ln)) for g, t, ln in lines if g in whole and t in keep_tx)
+        # NOT named `out`: that is the output DIRECTORY Path, used below as `out / f"{tag}.txt"`,
+        # and shadowing it with a file handle raised
+        # TypeError: unsupported operand type(s) for /: '_io.TextIOWrapper' and 'str'
+        with Path(a.emit_gtf).open("w") as gtf_fh:
+            n = sum(bool(gtf_fh.write(ln)) for g, t, ln in lines if g in whole and t in keep_tx)
         n_tx = len({t for g, t, _ in lines if g in whole and t in keep_tx})
         print(f"wrote {a.emit_gtf}: {len(whole):,} of {len(gene_tx):,} genes fully profiled, "
               f"{n_tx:,} transcripts, {n:,} lines", file=sys.stderr)
