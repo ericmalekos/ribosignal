@@ -77,12 +77,15 @@ deliverables/*.tar.gz
 # --- repository cleanup 2026-08-31 -------------------------------------------------
 # Working artifacts kept on disk but out of the public repository. Their full history
 # remains in git before commit `cleanup`; nothing was deleted from the filesystem.
-figures/
-poster_package/
-poster_incoming/
-logs/
-tutorial/
-deliverables/
+# These are all repo-ROOT working directories. The leading slash is not optional: unanchored
+# `tutorial/` matches a directory of that name at ANY depth, which silently swallowed the entire
+# Sphinx site at docs/source/tutorial/.
+/figures/
+/poster_package/
+/poster_incoming/
+/logs/
+/tutorial/
+/deliverables/
 manuscript/
 results.md
 methods.md
@@ -95,11 +98,11 @@ design_count_magnitude_transferability.md
 # poster drafts, plans and registries written for this project's own use. The public repo
 # carries the README and the in-context READMEs under env/, release/, tests/ and data/.
 # NOTE: files pushed before commit `docs-private` remain reachable in git history.
-# docs/ holds working notes that are not part of the published repo, but docs/source/ is the
-# Sphinx site and IS tracked.
-docs/
+# docs/ holds working notes that are not published, but docs/source/ is the Sphinx site and IS
+# tracked. This must be `docs/*` and not `docs/`: git cannot re-include a file whose PARENT
+# DIRECTORY is excluded, so `docs/` followed by `!docs/source/` silently ignores the whole site.
+docs/*
 !docs/source/
-!docs/source/**
 !docs/requirements.txt
 proteogenomics/**/*.md
 
