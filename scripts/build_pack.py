@@ -79,6 +79,13 @@ def main():
     ap.add_argument("--psites", nargs="*", default=[],
                     help="optional per-nt P-site hd5 (same schema), summed. Omit for inference.")
     ap.add_argument("--out", required=True, help="pack directory to write")
+    ap.add_argument("--max-length", type=int, default=10000,
+                    help="drop transcripts longer than this (default %(default)s). NOT cosmetic: "
+                         "the released checkpoints were trained on a universe capped at 10,000 nt, "
+                         "and the transformer's attention is O(L^2). chr22's longest transcript is "
+                         "37,852 nt, whose attention matrix is 5.3 GiB per head and 42.7 GiB "
+                         "across 8, so a single such transcript exhausts any GPU. Set 0 to "
+                         "disable, and expect an out-of-memory abort if you do.")
     ap.add_argument("--min-coverage", type=int, default=1,
                     help="a transcript joins expressed_tx.txt at this total coverage or more "
                          "(default %(default)s)")
@@ -89,6 +96,15 @@ def main():
 
     fa = read_fasta_lengths(args.fasta)
     print(f"FASTA {args.fasta}: {len(fa):,} transcripts", file=sys.stderr)
+
+    if args.max_length:
+        too_long = {t for t, n in fa.items() if n > args.max_length}
+        if too_long:
+            longest = max(fa[t] for t in too_long)
+            print(f"dropping {len(too_long):,} transcripts longer than {args.max_length:,} nt "
+                  f"(longest {longest:,}); the released checkpoints never saw one",
+                  file=sys.stderr)
+            fa = {t: n for t, n in fa.items() if t not in too_long}
 
     keep = set(fa)
     sources = [("coverage", p) for p in args.coverage] + [("psites", p) for p in args.psites]
