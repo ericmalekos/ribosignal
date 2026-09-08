@@ -1,7 +1,7 @@
 FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 LABEL org.opencontainers.image.title="riboseq-model"
-LABEL org.opencontainers.image.description="Single environment for the ENTIRE riboseq_signal_model chain: STAR/salmon/samtools/cutadapt, RiboCode, pack build, train, predict, eval, for BOTH transformer and mamba mixers."
+LABEL org.opencontainers.image.description="Single environment for the ENTIRE riboseq_signal_model chain: STAR/salmon/samtools/cutadapt/gffread, RiboCode + Ribo-TISH + ribotricer, pack build, train, predict, eval, for BOTH transformer and mamba mixers."
 
 # See containers/riboseq-model.def for the full rationale. Summary: the four environments this
 # replaces each had a disqualifying gap (no torch / no h5py / no mamba_ssm / no pysam), which caused
@@ -48,11 +48,22 @@ RUN mamba install -n rsm -y -c bioconda -c conda-forge \
         salmon=2.1.2 \
         samtools=1.23.1 \
         cutadapt=5.2 \
+        gffread=0.12.7 \
+        ribotricer=1.5.0 \
     && mamba clean -afy
 
 # RiboCode: imported directly by scripts/ribocode_dropin.py and the ORF-call chain. pip, not conda --
 # the conda build drags an older pysam that would downgrade the one pinned above.
 RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir --no-deps "ribocode==1.2.15"
+
+# Ribo-TISH: the second ORF caller the README documents. Pure python, and it needs no bam because
+# `predict --inprofile` takes a per-transcript P-site profile directly.
+#
+# RiboTaper is the one documented caller NOT in this image, on purpose: it pins python 2.7 so it
+# cannot share this env, its bundled R 3.4.1 needs a hand-installed libgfortran.so.3, and it is
+# GPL-3, which is a redistribution obligation this image should not carry. Install it separately
+# if you need it.
+RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir "ribotish==0.2.8"
 
 # fail the BUILD, not a job three hours in
 RUN /opt/conda/envs/rsm/bin/python -c "\
@@ -61,12 +72,13 @@ import mamba_ssm, causal_conv1d, RiboCode; \
 from mamba_ssm.ops.selective_scan_interface import selective_scan_ref, mamba_inner_ref; \
 from causal_conv1d.causal_conv1d_interface import causal_conv1d_ref; \
 print('py deps OK', torch.__version__, torch.version.cuda, numpy.__version__)" && \
-    for t in STAR salmon samtools cutadapt; do \
+    for t in STAR salmon samtools cutadapt gffread ribotish ribotricer; do \
         /opt/conda/envs/rsm/bin/$t --version >/dev/null 2>&1 || { echo "MISSING $t" >&2; exit 1; }; \
     done && echo "tools OK"
 
 ENV PATH="/opt/conda/envs/rsm/bin:$PATH"
 ENV PYTHONNOUSERSITE=1
+
 
 # ---------------------------------------------------------------------------------------------
 # Bake the released weights in, so the image needs no runtime download and no network.
@@ -114,3 +126,9 @@ LABEL org.opencontainers.image.source="https://github.com/ericmalekos/ribosignal
 # No licenses= label: the repository states no licence (README, "License"). The MIT on the
 # Hugging Face model card covers the WEIGHTS, and this image contains both, so claiming MIT
 # here would assert a licence over the code that its owner has not granted.
+
+# Ship the pipeline itself, so the image runs without bind-mounting a checkout. LAST on purpose:
+# editing a script must not invalidate the torch, mamba-wheel or weight-download layers above.
+COPY scripts/ /opt/riboseq-model/scripts/
+ENV RIBO_SCRIPTS=/opt/riboseq-model/scripts
+ENV PYTHONPATH=/opt/riboseq-model/scripts

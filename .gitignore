@@ -95,7 +95,12 @@ design_count_magnitude_transferability.md
 # poster drafts, plans and registries written for this project's own use. The public repo
 # carries the README and the in-context READMEs under env/, release/, tests/ and data/.
 # NOTE: files pushed before commit `docs-private` remain reachable in git history.
+# docs/ holds working notes that are not part of the published repo, but docs/source/ is the
+# Sphinx site and IS tracked.
 docs/
+!docs/source/
+!docs/source/**
+!docs/requirements.txt
 proteogenomics/**/*.md
 
 # Kept on disk, not published: covered by the manuscript, or internal.
