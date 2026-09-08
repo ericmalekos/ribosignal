@@ -210,13 +210,15 @@ say "10. Ribo-TISH, as a second caller"
 # Ribo-TISH only skips its bam path when the profile covers every transcript of a gene, so
 # the GTF must be restricted to exactly the scored transcripts.
 if command -v ribotish >/dev/null; then
-  cut -f1 pack/demo/pack_meta.tsv | tail -n +2 > calls/tx_ids.txt
-  awk -v FL=calls/tx_ids.txt 'BEGIN{while((getline l < FL)>0) k[l]=1}
-       !/^#/ { if (match($0,/transcript_id "[^"]+"/)) {
-         t=substr($0,RSTART+15,RLENGTH-16); if (t in k) print } }' "$GTF" > calls/scored.gtf
+  # --emit-gtf makes ribotish_dropin.py restrict the annotation ITSELF, to exactly the
+  # transcripts it profiled and only genes all of whose transcripts survived. Filtering on
+  # pack_meta.tsv instead was wrong: the pack holds every transcript (11,615 on chr22) while the
+  # prediction covers only those with signal (6,615), so 1,337 of 1,747 genes kept an unprofiled
+  # transcript, Ribo-TISH's `load` flag went True and it tried to open the bam.
   for ARCH in attn mamba4; do
     [ -s "calls/ribotish_$ARCH/pred_preddepth.txt" ] || $PY "$REPO/scripts/orfcallers/ribotish_dropin.py" \
-        --profiles "pred/$ARCH/pred_profiles.npz" --gtf calls/scored.gtf --genome "$FA" \
+        --profiles "pred/$ARCH/pred_profiles.npz" --gtf "$GTF" --genome "$FA" \
+        --emit-gtf "calls/scored_$ARCH.gtf" \
         --variant pred_preddepth --out "calls/ribotish_$ARCH" \
         --longest --minaalen 5 --fpth 0.05 --numproc "$THREADS"
   done

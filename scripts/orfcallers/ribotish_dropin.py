@@ -87,6 +87,13 @@ def main() -> int:
     ap.add_argument("--ribotish", default="ribotish",
                     help="ribotish binary; the default resolves on $PATH. Ribo-TISH does not "
                          "have to share this python env -- point at its own env's binary.")
+    ap.add_argument("--emit-gtf", default=None,
+                    help="write a GTF restricted to exactly the transcripts profiled here, and "
+                         "use it instead of --gtf. Ribo-TISH only skips its bam path when the "
+                         "profile covers EVERY transcript of a gene, so a GTF filtered on any "
+                         "other list (the pack, say) leaves genes with unprofiled transcripts and "
+                         "Ribo-TISH tries to open the bam. Filtering here removes that class of "
+                         "error, because this is the only place that knows what was written.")
     ap.add_argument("--longest", action="store_true",
                     help="ribotish --longest: one ORF per stop codon, the analogue of RiboCode's "
                          "*_collapsed.txt keying on (gene, ORF_gstop). Without it Ribo-TISH also "
@@ -115,6 +122,7 @@ def main() -> int:
     print(f"GTF carries {len(gi):,} transcripts; npz carries {len(ids):,}", file=sys.stderr)
 
     n_written = n_absent = n_lenmismatch = n_empty = 0
+    written = []
     inprof = out / f"{tag}_inprofile.txt"
     with inprof.open("w") as fh:
         fh.write("Gid\tTid\tSymbol\tTISProf\tRiboProf\n")
@@ -135,6 +143,7 @@ def main() -> int:
                 n_empty += 1
             body = ", ".join(f"{int(i)}:{int(dens[i])}" for i in nz)
             fh.write(f"{gid}\t{t}\t{sym}\t{{}}\t{{{body}}}\n")
+            written.append(t)
             n_written += 1
     print(f"wrote {inprof}  tx={n_written:,}  absent_from_gtf={n_absent:,}  "
           f"length_mismatch={n_lenmismatch:,}  all_zero={n_empty:,}", file=sys.stderr)
@@ -144,13 +153,44 @@ def main() -> int:
     if a.profile_only:
         return 0
 
+    gtf_used = a.gtf
+    if a.emit_gtf:
+        # Keep only transcripts that were actually profiled, and only genes ALL of whose
+        # transcripts survived that filter. A gene with even one unprofiled transcript must go,
+        # or Ribo-TISH will read a bam for it.
+        keep_tx = set(written)
+        gene_tx, lines = defaultdict(set), []
+        with Path(a.gtf).open() as fh:
+            for line in fh:
+                if line.startswith("#"):
+                    continue
+                f = line.rstrip("\n").split("\t")
+                if len(f) < 9:
+                    continue
+                at = dict(ATTR.findall(f[8]))
+                g, t = at.get("gene_id"), at.get("transcript_id")
+                if g and t:
+                    gene_tx[g].add(t)
+                    lines.append((g, t, line))
+        whole = {g for g, ts in gene_tx.items() if ts <= keep_tx}
+        with Path(a.emit_gtf).open("w") as out:
+            n = sum(bool(out.write(ln)) for g, t, ln in lines if g in whole and t in keep_tx)
+        n_tx = len({t for g, t, _ in lines if g in whole and t in keep_tx})
+        print(f"wrote {a.emit_gtf}: {len(whole):,} of {len(gene_tx):,} genes fully profiled, "
+              f"{n_tx:,} transcripts, {n:,} lines", file=sys.stderr)
+        if not whole:
+            print("FATAL: no gene is fully covered by the profile; Ribo-TISH would read a bam "
+                  "for every one of them.", file=sys.stderr)
+            return 2
+        gtf_used = a.emit_gtf
+
     # predict.py:82-84 hard-exits unless -t or -b is non-empty, even though --inprofile
     # supplies everything. The path is never opened: multiRiboGene is inside `if load:`
     # (predict.py:385-388) and load is False once the profile covers every transcript of the
     # gene, and find_offset only probes for a sibling .para.py. A DELIBERATELY NONEXISTENT path
     # is used rather than an empty BAM: if `load` ever became True this crashes loudly instead
     # of silently scoring every transcript at zero counts.
-    cmd = [a.ribotish, "predict", "-g", str(a.gtf), "-f", str(a.genome),
+    cmd = [a.ribotish, "predict", "-g", str(gtf_used), "-f", str(a.genome),
            "-b", "/nonexistent/inprofile_only__no_bam_should_be_read.bam",
            "--inprofile", str(inprof), "-o", str(out / f"{tag}.txt"),
            "--minaalen", str(a.minaalen), "--fpth", str(a.fpth),

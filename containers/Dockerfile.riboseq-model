@@ -52,8 +52,23 @@ RUN mamba install -n rsm -y -c bioconda -c conda-forge \
         ribotricer=1.5.0 \
     && mamba clean -afy
 
-# RiboCode: imported directly by scripts/ribocode_dropin.py and the ORF-call chain. pip, not conda --
-# the conda build drags an older pysam that would downgrade the one pinned above.
+# RiboCode's own dependencies, installed EXPLICITLY because ribocode itself goes in with
+# --no-deps (the conda build drags an older pysam that would downgrade the pin above).
+#
+# pyfasta MUST come from bioconda, never pip. The PyPI sdist is python-2 only: its __init__ does
+# `from fasta import Fasta`, an implicit relative import, so `import pyfasta` raises
+# ModuleNotFoundError on any python 3. This was found by running the demo end to end -- the image
+# built clean, every earlier stage passed, and step 9 died on `prepare_transcripts`.
+#
+# minepy needs pkg_resources at build time, so it also comes from conda rather than pip.
+RUN mamba install -n rsm -y -c bioconda -c conda-forge \
+        pyfasta=0.5.2 \
+        minepy \
+        statsmodels \
+        htseq \
+        biopython \
+    && mamba clean -afy
+
 RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir --no-deps "ribocode==1.2.15"
 
 # Ribo-TISH: the second ORF caller the README documents. Pure python, and it needs no bam because
@@ -69,10 +84,11 @@ RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir "ribotish==0.2.8"
 RUN /opt/conda/envs/rsm/bin/python -c "\
 import torch, numpy, scipy, pandas, h5py, pysam, sklearn, matplotlib, einops; \
 import mamba_ssm, causal_conv1d, RiboCode; \
+import pyfasta, statsmodels, HTSeq, minepy; \
 from mamba_ssm.ops.selective_scan_interface import selective_scan_ref, mamba_inner_ref; \
 from causal_conv1d.causal_conv1d_interface import causal_conv1d_ref; \
 print('py deps OK', torch.__version__, torch.version.cuda, numpy.__version__)" && \
-    for t in STAR salmon samtools cutadapt gffread ribotish ribotricer; do \
+    for t in STAR salmon samtools cutadapt gffread ribotish ribotricer prepare_transcripts; do \
         /opt/conda/envs/rsm/bin/$t --version >/dev/null 2>&1 || { echo "MISSING $t" >&2; exit 1; }; \
     done && echo "tools OK"
 
