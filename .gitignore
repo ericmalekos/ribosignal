@@ -103,5 +103,9 @@ results/
 env/
 proteogenomics/
 release/README.md
-# tests/ imports packlib and pgx, neither of which is published
-tests/
+# tests/ imports packlib and pgx, neither of which is published -- except the ORF-caller
+# regression tests, which are stdlib-only and run in CI. Excluding the CONTENTS rather than
+# the directory is what makes the negation possible; git cannot re-include a file whose
+# parent directory is itself excluded.
+tests/*
+!tests/test_orfcallers.py

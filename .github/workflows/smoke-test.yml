@@ -40,6 +40,9 @@ jobs:
           pip install --index-url https://download.pytorch.org/whl/cpu torch
           pip install "numpy<2" huggingface_hub
 
+      - name: ORF-caller regression tests
+        run: python tests/test_orfcallers.py     # stdlib only; no bam, no genome
+
       - name: mamba_ref self-test
         run: python scripts/mamba_ref.py
 

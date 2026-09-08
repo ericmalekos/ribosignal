@@ -365,11 +365,21 @@ samtools sort -o genome.sorted.bam genome.bam && samtools index genome.sorted.ba
 **It deduplicates isoform expansion, which is the whole reason it is not a one-liner.**
 `--quantMode TranscriptomeSAM` writes one genomic alignment once per compatible isoform, so a
 genomically unique read routinely carries `NH:i:17`. Projecting every record would write that read
-seventeen times at one locus. Secondary records are dropped before projection, alignments are
+seventeen times at one locus. Every alignment is tested against the GTF and projected,
 deduplicated per read name on the projected coordinate, and **NH is recomputed** as the number of
-distinct genome loci, which is the genomic multimapping the transcriptome NH never measured. On
-five Hepatocyte runs: 3.54 billion records in, 105.4 million genome records out, 0 cDNA-length
-mismatches, 0 unprojectable.
+distinct genome loci, which is the genomic multimapping the transcriptome NH never measured. MAPQ
+follows: 255 for a single genomic locus, matching STAR's unique value so the read clears the
+`samtools view -q 50` filter RiboTaper applies, and deliberately low otherwise.
+
+Secondaries are **not** dropped first, and dropping them was a real bug. STAR picks the primary
+arbitrarily among isoform copies, so a read whose primary happened to land on a transcript outside
+the restricted GTF was discarded whole, even with a secondary on a universe transcript at the same
+locus. On five Hepatocyte runs that lost 89,034,820 primaries -- 45.8% of them -- against
+105,420,469 records written, biased against genes with many non-universe isoforms. `--primary-only`
+restores the old behaviour if you need to reproduce a pre-fix run; do not use it otherwise.
+
+The 3.54 billion in / 105.4 million out figures, and the identity checks below, were measured
+under that old primary-only path and are the floor, not the current output.
 
 Input must be name-grouped. STAR's raw output is; anything coordinate-sorted is not, so
 `--name-sort` re-sorts first. Verified against the reference: 93.1% of projected reads match the

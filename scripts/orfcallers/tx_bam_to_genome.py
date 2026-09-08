@@ -39,8 +39,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import paths  # noqa: E402
 
-import pysam
-
 ATTR = re.compile(r'(\S+) "([^"]*)"')
 COMP = str.maketrans("ACGTNacgtn", "TGCANtgcan")
 CONSUME_TX = {0, 2, 7, 8}       # M D = X
@@ -156,6 +154,7 @@ def build_cigar(read_cigar, blocks, strand, t_pos):
 
 
 def main() -> int:
+    import pysam
     ap = argparse.ArgumentParser()
     ap.add_argument("--in-bam", required=True, help="transcriptome bam (name-grouped)")
     ap.add_argument("--gtf", required=True)
@@ -163,9 +162,16 @@ def main() -> int:
     ap.add_argument("--out", required=True, help="genome bam (unsorted; sort and index after)")
     ap.add_argument("--name-sort", action="store_true",
                     help="the input is coordinate-sorted; re-sort by name into a temp file first")
-    ap.add_argument("--keep-secondary", action="store_true",
-                    help="keep 0x100 records; by default they are dropped BEFORE dedup, since "
-                         "transcriptome secondaries are isoform copies, not extra genomic loci")
+    ap.add_argument("--primary-only", action="store_true",
+                    help="consider ONLY the 0x100-clear record per read. Off by default and "
+                         "normally wrong: STAR picks the primary arbitrarily among isoform "
+                         "copies, so when it lands on a transcript outside --gtf the whole read "
+                         "is lost even though a secondary sits on a universe transcript at the "
+                         "same locus. On real data that discarded 45.8 percent of primaries, and "
+                         "a controlled test put 78.6 percent of the discards back inside the "
+                         "universe via a secondary. Secondaries are projected too and then "
+                         "deduplicated on the projected coordinate, which is what collapses "
+                         "isoform expansion.")
     ap.add_argument("--tmpdir", default=str(paths.tmp_dir()),
                     help="scratch for the name-sort (default $RIBO_TMPDIR, "
                          "else the system temp dir)")
@@ -214,6 +220,11 @@ def main() -> int:
         n_dedup += len(recs) - nh
         for r in uniq.values():
             r.set_tag("NH", nh)
+            # 255 is STAR's unique-alignment value, so a uniquely-projected read clears the
+            # `samtools view -q 50` filter RiboTaper applies. Multi-locus reads get deliberately
+            # LOW values so that same filter removes them: a transcriptome bam cannot distinguish
+            # genomic multimapping, so anything landing at two or more genomic loci here is not
+            # trustworthy as a unique alignment.
             r.mapping_quality = 255 if nh == 1 else (3 if nh == 2 else 1)
             out.write(r)
             n_out += 1
@@ -223,9 +234,12 @@ def main() -> int:
         n_in += 1
         if rd.is_unmapped:
             continue
-        if rd.is_secondary and not a.keep_secondary:
+        if rd.is_secondary and a.primary_only:
             n_sec += 1
             continue
+        # Membership is tested PER ALIGNMENT and secondaries are NOT dropped first. Dropping them
+        # first loses every read whose arbitrary primary sits on a non-universe isoform; the
+        # dedup below collapses the isoform copies regardless.
         e = ex.get(inb.get_reference_name(rd.reference_id))
         if e is None:
             n_notx += 1
@@ -270,7 +284,7 @@ def main() -> int:
     if tmp:
         Path(tmp).unlink(missing_ok=True)
 
-    print(f"in={n_in:,}  secondary_dropped={n_sec:,}  tx_not_in_gtf={n_notx:,}  "
+    print(f"in={n_in:,}  secondary_skipped={n_sec:,}  aln_not_in_gtf={n_notx:,}  "
           f"cdna_length_mismatch={lenmismatch:,}  unprojectable={n_unmap:,}", file=sys.stderr)
     print(f"collapsed {n_dedup:,} isoform-duplicate alignments; wrote {n_out:,} genome records",
           file=sys.stderr)

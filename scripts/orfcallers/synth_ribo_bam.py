@@ -32,7 +32,10 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
-import pysam
+
+# pysam is imported inside main(), not at module scope, so the pure coordinate routines
+# (tx_to_genome_blocks, cigar_from_blocks, project, build_cigar) stay importable in an
+# interpreter without pysam. tests/test_orfcallers.py depends on that.
 
 ATTR = re.compile(r'(\S+) "([^"]*)"')
 
@@ -95,6 +98,22 @@ def tx_to_genome_blocks(blocks, strand, t_start, t_len):
     return [tuple(x) for x in merged]
 
 
+def psite_window_start(i, read_len, offset, strand):
+    """Transcript start of the read whose P-site lands on transcript position `i`.
+
+    The P-site offset is measured from the read's 5' END on BOTH strands, so this is i - offset
+    regardless of strand. RiboTaper agrees: for '-' it sets the genome start to
+    leftmost + (read_len - offset - 1), and the genome-right end IS the 5' end of a minus-strand
+    read (libexec/P_sites_RNA_sites_calc.bash).
+
+    `strand` is accepted and unused on purpose. An earlier version branched on it and used
+    i - (read_len - 1 - offset) for '-', which put 36,198 of 77,682 emitted reads on the wrong
+    genome base while producing a completely valid bam.
+    """
+    del strand
+    return i - offset
+
+
 def cigar_from_blocks(bl):
     c = []
     for i, (s, e) in enumerate(bl):
@@ -105,6 +124,7 @@ def cigar_from_blocks(bl):
 
 
 def main() -> int:
+    import pysam
     ap = argparse.ArgumentParser()
     ap.add_argument("--profiles", required=True)
     ap.add_argument("--gtf", required=True)
@@ -184,7 +204,7 @@ def main() -> int:
                 # base O in from the genome-RIGHT end, and the genome-right end is the 5' end of
                 # a minus-strand read. An earlier version used i - (R-1-O) here and the
                 # --selfcheck caught it: 36,198 of 77,682 reads landed on the wrong base.
-                ts = i - O
+                ts = psite_window_start(i, R, O, strand)
                 if ts < 0 or ts + R > L:
                     n_skip_edge += 1
                     continue
