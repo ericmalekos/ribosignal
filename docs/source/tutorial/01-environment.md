@@ -3,11 +3,19 @@
 Everything runs inside one container image, which carries the aligners, the callers, the Python
 stack and both released checkpoints. Nothing is downloaded at run time.
 
+There are two tags. `:cpu` is a plain Ubuntu base with CPU torch and no `mamba_ssm`; `:gpu` is a
+CUDA base with the prebuilt Mamba kernels. Both run both checkpoints, because mamba4 falls back to
+a pure-PyTorch reference that matches the CUDA kernel to 1.19e-07. Take `:cpu` unless you have a
+GPU: it is the smaller image and its mamba4 output is the same.
+
 ```bash
-docker pull ghcr.io/ericmalekos/riboseq-model:latest
+docker pull ghcr.io/ericmalekos/riboseq-model:cpu     # or :gpu
 mkdir -p ~/ribosignal_demo && cd ~/ribosignal_demo
-docker run --rm -it -v "$PWD:$PWD" -w "$PWD" ghcr.io/ericmalekos/riboseq-model:latest bash
+docker run --rm -it -v "$PWD:$PWD" -w "$PWD" ghcr.io/ericmalekos/riboseq-model:cpu bash
 ```
+
+Choosing between the checkpoints depends on the device, and the ordering flips: on a GPU mamba4 is
+the faster of the two, and on CPU it is 6.3x slower than attn.
 
 Check the tools are present. The build already asserts this, so a failure here means a bad pull.
 

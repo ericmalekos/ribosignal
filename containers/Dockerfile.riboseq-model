@@ -1,4 +1,26 @@
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+# TWO IMAGES FROM ONE FILE, so the pins cannot drift apart:
+#   gpu (default) CUDA base, torch cu118, the prebuilt mamba_ssm CUDA kernels
+#   cpu           plain ubuntu, torch cpu, no mamba_ssm; mamba4 runs through the pure-PyTorch
+#                 reference in scripts/mamba_ref.py, verified to match the CUDA kernel to
+#                 1.19e-07 max abs diff
+#
+#   docker build -f containers/Dockerfile.riboseq-model -t riboseq-model:gpu .
+#   docker build -f containers/Dockerfile.riboseq-model -t riboseq-model:cpu \
+#          --build-arg BASE=ubuntu:22.04 \
+#          --build-arg TORCH_INDEX=https://download.pytorch.org/whl/cpu \
+#          --build-arg WITH_CUDA_MAMBA=0 .
+#
+# Measured on chr22, 11,575 transcripts: attn 60 s and mamba4 35 s on an A100, against attn
+# 30 min and mamba4 5.6 h on 16 CPU threads. mamba4 is FASTER than attn on GPU and 11x slower on
+# CPU, so the architecture worth choosing flips with the device.
+ARG BASE=nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+FROM ${BASE}
+# Re-declared AFTER the FROM on purpose: an ARG before FROM is only in scope for the FROM line,
+# so without this the build silently uses the defaults and the cpu image would get cu118 torch.
+ARG TORCH_INDEX=https://download.pytorch.org/whl/cu118
+ARG WITH_CUDA_MAMBA=1
+ARG TORCH_VERSION=2.2.0
+ENV RIBO_DEVICE_BUILD="${WITH_CUDA_MAMBA}"
 
 LABEL org.opencontainers.image.title="riboseq-model"
 LABEL org.opencontainers.image.description="Single environment for the ENTIRE riboseq_signal_model chain: STAR/salmon/samtools/cutadapt/gffread, RiboCode + Ribo-TISH + ribotricer, pack build, train, predict, eval, for BOTH transformer and mamba mixers."
@@ -23,12 +45,15 @@ RUN mamba create -n rsm -c conda-forge -y python=3.10 "numpy<2" "setuptools<70" 
 
 # torch FIRST -- the mamba wheels are built against this exact version
 RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir \
-        torch==2.2.0 --index-url https://download.pytorch.org/whl/cu118
+        "torch==${TORCH_VERSION}" --index-url "${TORCH_INDEX}"
 
-# PREBUILT mamba kernels (never from source: source builds are the usual "undefined symbol" cause)
-RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir \
+# PREBUILT mamba kernels (never from source: source builds are the usual "undefined symbol" cause).
+# CUDA-only wheels, so the cpu image skips them and falls back to scripts/mamba_ref.py.
+RUN if [ "$WITH_CUDA_MAMBA" = "1" ]; then \
+      /opt/conda/envs/rsm/bin/pip install --no-cache-dir \
         "https://github.com/Dao-AILab/causal-conv1d/releases/download/v1.2.0.post2/causal_conv1d-1.2.0.post2+cu118torch2.2cxx11abiFALSE-cp310-cp310-linux_x86_64.whl" \
-        "https://github.com/state-spaces/mamba/releases/download/v1.2.0.post1/mamba_ssm-1.2.0.post1+cu118torch2.2cxx11abiFALSE-cp310-cp310-linux_x86_64.whl"
+        "https://github.com/state-spaces/mamba/releases/download/v1.2.0.post1/mamba_ssm-1.2.0.post1+cu118torch2.2cxx11abiFALSE-cp310-cp310-linux_x86_64.whl"; \
+    else echo "cpu build: skipping mamba_ssm; mamba4 uses the pure-PyTorch reference"; fi
 
 # transformers<4.45 and huggingface_hub<0.25 are NOT optional. `import mamba_ssm` executes
 # mamba_ssm/__init__.py -> MambaLMHeadModel -> utils.generation, which does
@@ -83,14 +108,20 @@ RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir "ribotish==0.2.8"
 # fail the BUILD, not a job three hours in
 RUN /opt/conda/envs/rsm/bin/python -c "\
 import torch, numpy, scipy, pandas, h5py, pysam, sklearn, matplotlib, einops; \
-import mamba_ssm, causal_conv1d, RiboCode; \
+import RiboCode; \
 import pyfasta, statsmodels, HTSeq, minepy; \
-from mamba_ssm.ops.selective_scan_interface import selective_scan_ref, mamba_inner_ref; \
-from causal_conv1d.causal_conv1d_interface import causal_conv1d_ref; \
+
 print('py deps OK', torch.__version__, torch.version.cuda, numpy.__version__)" && \
     for t in STAR salmon samtools cutadapt gffread ribotish ribotricer prepare_transcripts; do \
         /opt/conda/envs/rsm/bin/$t --version >/dev/null 2>&1 || { echo "MISSING $t" >&2; exit 1; }; \
-    done && echo "tools OK"
+    done && echo "tools OK" && \
+    if [ "$WITH_CUDA_MAMBA" = "1" ]; then \
+      /opt/conda/envs/rsm/bin/python -c "\
+import mamba_ssm, causal_conv1d; \
+from mamba_ssm.ops.selective_scan_interface import selective_scan_ref, mamba_inner_ref; \
+from causal_conv1d.causal_conv1d_interface import causal_conv1d_ref; \
+print('mamba CUDA kernels OK')"; \
+    fi
 
 ENV PATH="/opt/conda/envs/rsm/bin:$PATH"
 ENV PYTHONNOUSERSITE=1
@@ -148,3 +179,17 @@ LABEL org.opencontainers.image.source="https://github.com/ericmalekos/ribosignal
 COPY scripts/ /opt/riboseq-model/scripts/
 ENV RIBO_SCRIPTS=/opt/riboseq-model/scripts
 ENV PYTHONPATH=/opt/riboseq-model/scripts
+# Make them callable by bare name. The Nextflow modules invoke `build_pack.py` and friends
+# directly, and a checkout copied into an image arrives without the executable bit.
+RUN chmod -R a+rX /opt/riboseq-model/scripts && \
+    find /opt/riboseq-model/scripts -name '*.py' -exec chmod a+x {} + && \
+    find /opt/riboseq-model/scripts -name '*.sh' -exec chmod a+x {} +
+ENV PATH="/opt/riboseq-model/scripts:/opt/riboseq-model/scripts/demo:/opt/riboseq-model/scripts/orfcallers:$PATH"
+# Every executable the Nextflow modules call by bare name must resolve, or the failure lands
+# mid-run in a task directory instead of at build time.
+RUN for t in STAR samtools cutadapt gffread prepare_transcripts ribotish \
+             measure_adapter.py rnaseq_coverage.py ribo_psites.py build_pack.py \
+             build_orf_track.py dump_pred_profiles.py ribocode_dropin.py \
+             ribotish_dropin.py score_demo.py; do \
+      command -v "$t" >/dev/null || { echo "MISSING ON PATH: $t" >&2; exit 1; }; \
+    done && echo "pipeline entry points OK"

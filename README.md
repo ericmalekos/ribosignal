@@ -39,12 +39,36 @@ once:
 | 5 (call ORFs) | RiboCode 1.2.15 |
 | 6a-6d (other callers) | Ribo-TISH / RiboTaper / ribotricer, each in its own environment |
 
-CPU is enough throughout, including for mamba4. `containers/Dockerfile.riboseq-model` builds one
-image with all of it plus CUDA, and bakes in the weights:
+CPU is enough throughout, including for mamba4. `containers/Dockerfile.riboseq-model` builds two
+images from the same file, so their pins cannot drift apart, and bakes the weights into both:
+
+| tag | base | torch | `mamba_ssm` |
+|---|---|---|---|
+| `:cpu` | `ubuntu:22.04` | CPU | absent; mamba4 uses `scripts/mamba_ref.py` |
+| `:gpu` | `nvidia/cuda:11.8.0` | cu118 | prebuilt CUDA kernels |
 
 ```bash
-docker run --rm -it ghcr.io/ericmalekos/riboseq-model:latest ls $RIBO_WEIGHTS
+docker run --rm -it ghcr.io/ericmalekos/riboseq-model:cpu ls $RIBO_WEIGHTS
+
+# build either from the one file
+docker build -f containers/Dockerfile.riboseq-model -t riboseq-model:gpu .
+docker build -f containers/Dockerfile.riboseq-model -t riboseq-model:cpu \
+  --build-arg BASE=ubuntu:22.04 \
+  --build-arg TORCH_INDEX=https://download.pytorch.org/whl/cpu \
+  --build-arg WITH_CUDA_MAMBA=0 .
 ```
+
+## Nextflow
+
+The whole thing also runs as a Nextflow pipeline, which is the easier route for anything larger
+than a chromosome. It mirrors `scripts/demo/run_demo.sh` step for step.
+
+```bash
+nextflow run . -profile test,docker,cpu        # chr22, fetches its own reference and data
+nextflow run . --help                          # every parameter
+```
+
+Profiles: `docker`, `singularity`, `local` (no container), `cpu`, `gpu`, `slurm`, `test`.
 
 ## Minimal example: predict a profile
 

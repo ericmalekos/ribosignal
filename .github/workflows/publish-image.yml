@@ -1,7 +1,13 @@
 name: Publish riboseq-model image
 
-# Builds the ONE project image that runs the whole riboseq_signal_model chain for BOTH mixers,
+# Builds the project images that run the whole riboseq_signal_model chain for BOTH mixers,
 # replacing the borrowed rnazoo model images (see containers/riboseq-model.def for why).
+#
+# TWO images from ONE Dockerfile, via build args, so their pins cannot drift apart:
+#   :gpu  CUDA base, cu118 torch, the prebuilt mamba_ssm CUDA kernels
+#   :cpu  ubuntu base, cpu torch, no mamba_ssm; mamba4 runs the pure-PyTorch reference,
+#         which matches the CUDA kernel to 1.19e-07 max abs diff
+# :latest tracks :gpu, which is what it has always been.
 #
 # Mirrors RNA-Zoo's publish-images.yml: ghcr.io/ericmalekos, GITHUB_TOKEN auth, sha-tag on branch
 # pushes and the git tag on v* releases, plus :latest.
@@ -32,6 +38,18 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: gpu
+            base: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+            torch_index: https://download.pytorch.org/whl/cu118
+            with_cuda_mamba: "1"
+          - variant: cpu
+            base: ubuntu:22.04
+            torch_index: https://download.pytorch.org/whl/cpu
+            with_cuda_mamba: "0"
     permissions:
       contents: read
       packages: write
@@ -59,20 +77,28 @@ jobs:
           else
             VERSION="sha-${GITHUB_SHA::7}"
           fi
+          IMG="${{ env.IMAGE_PREFIX }}/${{ env.IMAGE_NAME }}"
           {
             echo "tags<<EOF"
-            echo "${{ env.IMAGE_PREFIX }}/${{ env.IMAGE_NAME }}:${VERSION}"
-            echo "${{ env.IMAGE_PREFIX }}/${{ env.IMAGE_NAME }}:latest"
+            echo "${IMG}:${VERSION}-${{ matrix.variant }}"
+            echo "${IMG}:${{ matrix.variant }}"
+            # :latest is the gpu image, unchanged from before the split. An `&&` here would
+            # make the block exit 1 on the cpu variant and fail that leg of the matrix.
+            if [ "${{ matrix.variant }}" = gpu ]; then echo "${IMG}:latest"; fi
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
+      - name: Build and push (${{ matrix.variant }})
         uses: docker/build-push-action@v6
         with:
           context: .
           file: containers/Dockerfile.riboseq-model
           push: true
           tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            BASE=${{ matrix.base }}
+            TORCH_INDEX=${{ matrix.torch_index }}
+            WITH_CUDA_MAMBA=${{ matrix.with_cuda_mamba }}
           # The image bakes in the released weights from Hugging Face. emalek/RiboSignal is
           # public, so this resolves to an empty value and the fetch is anonymous. It is passed
           # as a build SECRET rather than a build arg: build args are written into the image

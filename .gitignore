@@ -117,3 +117,10 @@ release/README.md
 # parent directory is itself excluded.
 tests/*
 !tests/test_orfcallers.py
+
+# ---- Nextflow run artifacts ----
+# Anchored, same reason as /tutorial/ above: an unanchored `work/` would match a directory of
+# that name at any depth. `.nextflow.log` is already covered by *.log, the rotations are not.
+/work/
+/.nextflow/
+.nextflow.log.*

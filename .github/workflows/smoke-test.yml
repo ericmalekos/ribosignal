@@ -18,6 +18,36 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Compiling the pipeline catches what a reviewer will not: Nextflow 26 rejects top-level
+  # statements, and Groovy parses `(int)(x/10)` as a call to `int`. Both got through review and
+  # died in a scheduled job minutes in. Seconds here, no containers, no data.
+  nextflow-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Nextflow
+        run: |
+          curl -sSL https://get.nextflow.io | bash
+          sudo mv nextflow /usr/local/bin/
+          nextflow -version
+      - name: Compile the pipeline
+        run: nextflow run . --help
+      - name: Every module compiles and declares its container-side entry points
+        run: |
+          # The modules call scripts by bare name. If one is renamed and a module is not
+          # updated, the failure otherwise lands mid-run in a task work directory.
+          miss=0
+          for t in measure_adapter.py rnaseq_coverage.py ribo_psites.py build_pack.py \
+                   build_orf_track.py dump_pred_profiles.py ribocode_dropin.py \
+                   ribotish_dropin.py score_demo.py; do
+            find scripts -maxdepth 2 -name "$t" | grep -q . || { echo "MISSING: $t"; miss=1; }
+          done
+          exit $miss
+
   smoke:
     runs-on: ubuntu-latest
     steps:
