@@ -8,6 +8,9 @@ container path assumes Singularity.
 export RIBO_IMAGE=/path/to/riboseq-model.sif   # singularity build from ghcr.io/ericmalekos/riboseq-model
 export RIBO_WORK=/path/to/workdir              # the demo working directory
 export RIBO_REF=$RIBO_WORK/ref                 # annotation, genome, STAR index
+export RNA_SRR=SRR15513269                     # RNA-seq accession
+export RIBO_SRR=SRR15513208                    # Ribo-seq accession
+export RIBO_ADAPTER=""                         # from measure_adapter.py; "" means already trimmed
 sbatch --partition=<yours> --account=<yours> examples/slurm/01_align.sbatch
 ```
 

@@ -30,6 +30,11 @@ set -euo pipefail
 REPO=${RIBO_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 WORK=${WORK:-$PWD/ribosignal_demo}
 THREADS=${THREADS:-16}
+# THREADS must reach torch too, not only STAR/cutadapt/RiboCode. torch otherwise takes every
+# core it can see: on a 160-core box the prediction step ran 84 threads while this said 16,
+# which makes the reported CPU time unreproducible. Set before any python starts.
+export OMP_NUM_THREADS=$THREADS MKL_NUM_THREADS=$THREADS \
+       OPENBLAS_NUM_THREADS=$THREADS NUMEXPR_NUM_THREADS=$THREADS
 # chr22 is the fast path: 1,747 genes / 11,615 transcripts, index ~400 MB, ~1 GB RAM.
 # CHROM=all uses the whole primary assembly and needs ~32 GB RAM for genomeGenerate.
 CHROM=${CHROM:-chr22}
@@ -180,11 +185,14 @@ fi
 say "8. predict, both checkpoints"
 # On a GPU box set RIBO_MAMBA_IMPL=cuda to REFUSE the pure-PyTorch fallback, so a missing
 # mamba_ssm is an error instead of a silent 100x slowdown.
+DEV=$([ -n "${CUDA_VISIBLE_DEVICES:-}" ] && echo cuda || echo cpu)
 for ARCH in attn mamba4; do
   [ -s "pred/$ARCH/pred_profiles.npz" ] && continue
+  T0=$SECONDS
   $PY "$REPO/scripts/dump_pred_profiles.py" --run weights/ --arch "$ARCH" \
-      --pack pack/demo --out "pred/$ARCH" \
-      --device "$([ -n "${CUDA_VISIBLE_DEVICES:-}" ] && echo cuda || echo cpu)"
+      --pack pack/demo --out "pred/$ARCH" --device "$DEV"
+  printf '%s\t%s\t%s\t%s\n' "$ARCH" "$DEV" "$THREADS" "$((SECONDS-T0))" >> "$L/predict_seconds.tsv"
+  tail -1 "$L/predict_seconds.tsv"
 done
 
 # =========================================================================================

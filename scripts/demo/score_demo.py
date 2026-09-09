@@ -5,9 +5,13 @@ calls made on it match the calls made on real Ribo-seq?
 Two questions, kept separate because they fail differently:
 
   profile agreement   per-transcript Pearson between predicted and observed P-sites.
-                      This is the model's own metric and is directly comparable to
-                      release/orf_v2_*/test_metrics.json, which reports 0.6595 (attn) and
-                      0.6799 (mamba4) as 3-seed medians over 70,883 held-out transcripts.
+                      Same quantity as the model's own metric in
+                      release/orf_v2_*/test_metrics.json (0.6595 attn / 0.6799 mamba4 as
+                      3-seed medians over 70,883 held-out transcripts) -- but the demo
+                      scores a single RNA-seq run and a single Ribo-seq run on one
+                      chromosome, and lands far below that. See the note the report
+                      prints. The periodicity line is a DIFFERENT quantity from
+                      test_metrics.json's period_*; do not compare them.
   ORF-call overlap    precision / recall / F1 of the calls RiboCode makes on the PREDICTED
                       density against the calls it makes on the OBSERVED density, same
                       caller and same parameters, so the only difference is the input.
@@ -69,12 +73,18 @@ def periodicity(v):
 
 
 def profile_scores(npz_path, min_signal=50):
-    z = np.load(npz_path, allow_pickle=False)
-    off = np.concatenate([[0], np.cumsum(z["lengths"])])
+    # np.load on an .npz returns a LAZY zip handle: every z["pred_flat"] access decompresses
+    # the whole array again. Indexing it inside the loop turned a seconds-long scoring step
+    # into minutes. Materialise the three arrays once.
+    with np.load(npz_path, allow_pickle=False) as z:
+        lengths = np.asarray(z["lengths"])
+        pred = np.asarray(z["pred_flat"], dtype=np.float64)
+        obs = np.asarray(z["obs_flat"], dtype=np.float64)
+    off = np.concatenate([[0], np.cumsum(lengths)])
     pr, sp, pp, po, n = [], [], [], [], 0
-    for j in range(len(z["lengths"])):
-        p = z["pred_flat"][off[j]:off[j + 1]].astype(np.float64)
-        o = z["obs_flat"][off[j]:off[j + 1]].astype(np.float64)
+    for j in range(len(lengths)):
+        p = pred[off[j]:off[j + 1]]
+        o = obs[off[j]:off[j + 1]]
         if o.sum() < min_signal:
             continue
         n += 1
@@ -146,9 +156,22 @@ def main():
               f"spearman(tie-corrected) {s['spearman_median_tie_corrected']:+.4f}")
         print(f"           periodicity  pred {s['period_pred_median']:.4f}  "
               f"obs {s['period_obs_median']:.4f}   (1/3 = none)")
-    print("\n  release/orf_v2_*/test_metrics.json, for reference, reports pearson_median")
-    print("  0.6585 (attn) / 0.6851 (mamba4) on 70,883 held-out transcripts, seed 0.")
-    print("  These are a different, much smaller transcript set: not a reproduction of it.")
+    print("\n  release/orf_v2_*/test_metrics.json reports pearson_median 0.6585 (attn) /")
+    print("  0.6851 (mamba4) on 70,883 held-out transcripts, seed 0. That IS the same")
+    print("  quantity as the pearson above: pred_flat is softmax(logits), the vector the")
+    print("  training metric uses, and Pearson is scale-invariant. So the gap is real.")
+    print("  It is NOT explained by transcript count, and only partly by depth: binning")
+    print("  this run by observed counts gives 0.07 at 50-100 rising to 0.33 at 2k-5k and")
+    print("  then plateauing near 0.27 in the deepest bin, nowhere near 0.66 (rank")
+    print("  correlation of depth against per-transcript pearson, 0.36). The demo differs")
+    print("  from the release eval in three ways not yet separated: ONE RNA-seq run vs the")
+    print("  pooled Hepatocytes pack, ONE Ribo-seq run, and RNA aligned at mm10 where the")
+    print("  checkpoints were trained on mm1 coverage. Treat the demo number as a working")
+    print("  end-to-end check, not as a reproduction of the released metric.")
+    print("\n  The periodicity above is NOT comparable to test_metrics.json's period_*:")
+    print("  this reports the max-frame FRACTION (floor 1/3), training reports an")
+    print("  AUTOCORRELATION CONTRAST (frame lags 3/6/9/12 minus off-frame), which is why")
+    print("  the released period_obs_median of 0.1457 sits below 1/3.")
 
     print("\n" + "=" * 78)
     print("ORF CALLS  (RiboCode on predicted density vs on OBSERVED density)")

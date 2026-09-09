@@ -22,9 +22,17 @@ S STAR --genomeDir "$RIBO_REF/star_index" --readFilesIn rna/t1.fq.gz rna/t2.fq.g
   --readFilesCommand zcat --runThreadN "$T" --outSAMtype None --quantMode TranscriptomeSAM \
   --outFilterMultimapNmax 10 --outSAMattributes NH HI AS nM --outFileNamePrefix "rna/$RNA_SRR."
 
-# Ribo: unique only, length-selected, EndToEnd so the P-site is not shifted by soft-clipping
-S cutadapt -a "${RIBO_ADAPTER:?measure it first, see the adapters page}" -m 20 -M 40 \
-  --discard-untrimmed -j "$T" -o ribo/t.fq.gz "fastq/${RIBO_SRR}.fastq.gz"
+# Ribo: unique only, length-selected, EndToEnd so the P-site is not shifted by soft-clipping.
+# RIBO_ADAPTER is set from the measurement, and EMPTY is a legitimate answer: an already-trimmed
+# library given -a --discard-untrimmed loses everything that lacks an adapter it never had.
+# Export it as "" deliberately; leaving it unset is what the guard below catches.
+[ "${RIBO_ADAPTER+set}" = set ] || { echo "ABORT: export RIBO_ADAPTER (\"\" if none); see the adapters page" >&2; exit 1; }
+if [ -n "$RIBO_ADAPTER" ]; then
+  S cutadapt -a "$RIBO_ADAPTER" -m 20 -M 40 --discard-untrimmed -j "$T" \
+    -o ribo/t.fq.gz "fastq/${RIBO_SRR}.fastq.gz"
+else
+  S cutadapt --trim-n -m 20 -M 40 -j "$T" -o ribo/t.fq.gz "fastq/${RIBO_SRR}.fastq.gz"
+fi
 S STAR --genomeDir "$RIBO_REF/star_index" --readFilesIn ribo/t.fq.gz --readFilesCommand zcat \
   --runThreadN "$T" --outSAMtype None --quantMode TranscriptomeSAM \
   --outFilterMultimapNmax 1 --alignEndsType EndToEnd \
