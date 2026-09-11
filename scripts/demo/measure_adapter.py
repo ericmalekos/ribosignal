@@ -25,6 +25,12 @@ import sys
 KNOWN = {
     "Illumina TruSeq / universal": "AGATCGGAAGAGC",
     "Illumina small RNA 3'":       "TGGAATTCTCGGGTGCCAAGG",
+    # The OLD small-RNA linker, standard in Ingolia-era Ribo-seq and still common in datasets
+    # from ~2015-2020. It was missing here, and on GSE143393 that produced a confident
+    # "no adapter detected -- the library is already trimmed" while 91.4% of reads carried it.
+    # Only the unbiased k-mer listing caught it. Trusting the verdict would have sent reads to
+    # STAR with the linker attached, which is the 0%-unique-mapping failure.
+    "Illumina small RNA 3' (old linker)": "CTGTAGGCACCATCAAT",
     "Nextera":                     "CTGTCTCTTATACACATCT",
     "NEBNext small RNA":           "AGATCGGAAGAGCACACGTCT",
     "polyA":                       "AAAAAAAAAAAA",
