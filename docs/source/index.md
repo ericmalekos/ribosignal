@@ -19,7 +19,6 @@ tutorial/06-pack
 tutorial/07-predict
 tutorial/08-call-orfs
 tutorial/09-score
-tutorial/10-traps
 tutorial/11-cluster
 tutorial/12-nextflow
 ```
