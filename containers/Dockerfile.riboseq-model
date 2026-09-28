@@ -10,9 +10,9 @@
 #          --build-arg TORCH_INDEX=https://download.pytorch.org/whl/cpu \
 #          --build-arg WITH_CUDA_MAMBA=0 .
 #
-# Measured on chr22, 11,575 transcripts: attn 60 s and mamba4 35 s on an A100, against attn
-# 30 min and mamba4 5.6 h on 16 CPU threads. mamba4 is FASTER than attn on GPU and 11x slower on
-# CPU, so the architecture worth choosing flips with the device.
+# Measured on chr22, 6,583 scored transcripts: attn 60 s and mamba4 35 s on an A100, against
+# attn 30 min and mamba4 3 h 10 min on 16 CPU threads. mamba4 is FASTER than attn on GPU and
+# 6.3x slower on CPU, so the architecture worth choosing flips with the device.
 ARG BASE=nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 FROM ${BASE}
 # Re-declared AFTER the FROM on purpose: an ARG before FROM is only in scope for the FROM line,
@@ -31,8 +31,10 @@ LABEL org.opencontainers.image.description="Single environment for the ENTIRE ri
 # mamba wheels below, whose ABI tag matches that exact combination.
 
 ENV DEBIAN_FRONTEND=noninteractive
+# curl is not optional: the pipeline's FETCH_REFERENCE and scripts/demo/run_demo.sh download
+# with it, and images built without this line had no curl.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git wget ca-certificates build-essential \
+        git wget curl ca-certificates build-essential \
         zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev libssl-dev && \
     rm -rf /var/lib/apt/lists/*
 
@@ -96,7 +98,7 @@ RUN mamba install -n rsm -y -c bioconda -c conda-forge \
 
 RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir --no-deps "ribocode==1.2.15"
 
-# Ribo-TISH: the second ORF caller the README documents. Pure python, and it needs no bam because
+# Ribo-TISH: the second ORF caller the tutorial documents. Pure python, and it needs no bam because
 # `predict --inprofile` takes a per-transcript P-site profile directly.
 #
 # RiboTaper is the one documented caller NOT in this image, on purpose: it pins python 2.7 so it
@@ -104,6 +106,16 @@ RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir --no-deps "ribocode==1.2.
 # GPL-3, which is a redistribution obligation this image should not carry. Install it separately
 # if you need it.
 RUN /opt/conda/envs/rsm/bin/pip install --no-cache-dir "ribotish==0.2.8"
+
+# Load the env's libstdc++, never the system one. Conda-forge packages in this env (matplotlib-base,
+# which ribotricer pulls in, replaces the pip matplotlib above) are built against the env's newer
+# libstdc++, but pip's CPU torch wheel resolves libstdc++ from the system (Ubuntu 22.04, too old),
+# and once one copy is loaded every later extension gets that copy. The next conda extension then
+# dies with "CXXABI_1.3.15 not found": that is what kept the :cpu image from ever building.
+# libstdc++ is backward compatible, so preloading the newer one is safe for everything else. The
+# :gpu image already loads the env's copy without this (checked on an A100 with the Mamba
+# kernels), so there it changes nothing.
+ENV LD_PRELOAD=/opt/conda/envs/rsm/lib/libstdc++.so.6
 
 # fail the BUILD, not a job three hours in
 RUN /opt/conda/envs/rsm/bin/python -c "\
@@ -187,9 +199,8 @@ RUN chmod -R a+rX /opt/riboseq-model/scripts && \
 ENV PATH="/opt/riboseq-model/scripts:/opt/riboseq-model/scripts/demo:/opt/riboseq-model/scripts/orfcallers:$PATH"
 # Every executable the Nextflow modules call by bare name must resolve, or the failure lands
 # mid-run in a task directory instead of at build time.
-RUN for t in STAR samtools cutadapt gffread prepare_transcripts ribotish \
-             measure_adapter.py rnaseq_coverage.py ribo_psites.py build_pack.py \
-             build_orf_track.py dump_pred_profiles.py ribocode_dropin.py \
-             ribotish_dropin.py score_demo.py; do \
+RUN for t in STAR samtools cutadapt gffread prepare_transcripts ribotish curl \
+             rnaseq_coverage.py build_pack.py build_orf_track.py dump_pred_profiles.py \
+             ribocode_dropin.py ribotish_dropin.py; do \
       command -v "$t" >/dev/null || { echo "MISSING ON PATH: $t" >&2; exit 1; }; \
     done && echo "pipeline entry points OK"

@@ -35,7 +35,7 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
     set -eux
     export DEBIAN_FRONTEND=noninteractive
     apt-get update && apt-get install -y --no-install-recommends \
-        git wget ca-certificates build-essential \
+        git wget curl ca-certificates build-essential \
         zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev libssl-dev \
         && rm -rf /var/lib/apt/lists/*
 
