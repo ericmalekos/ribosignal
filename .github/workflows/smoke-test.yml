@@ -41,9 +41,8 @@ jobs:
           # The modules call scripts by bare name. If one is renamed and a module is not
           # updated, the failure otherwise lands mid-run in a task work directory.
           miss=0
-          for t in measure_adapter.py rnaseq_coverage.py ribo_psites.py build_pack.py \
-                   build_orf_track.py dump_pred_profiles.py ribocode_dropin.py \
-                   ribotish_dropin.py score_demo.py; do
+          for t in rnaseq_coverage.py build_pack.py build_orf_track.py \
+                   dump_pred_profiles.py ribocode_dropin.py ribotish_dropin.py; do
             find scripts -maxdepth 2 -name "$t" | grep -q . || { echo "MISSING: $t"; miss=1; }
           done
           exit $miss

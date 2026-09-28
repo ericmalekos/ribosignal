@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Sequence-derived, annotation-free ORF-candidate track for the Fibroblast universe.
+"""Sequence-derived, annotation-free ORF-candidate track for a pack's transcripts.
 
-Per nucleotide, channels computed from the mature mRNA sequence ALONE (no GTF/CDS), so they
+Per nucleotide, channels computed from the transcript sequence ALONE (no GTF/CDS), so they
 are defined identically for protein_coding CDS, 5'UTR uORFs, 3'UTR dORFs, and lncRNA ORFs.
 The model gets the candidate ORF landscape everywhere and must still learn which candidates
-are actually translated from the FM embedding + Ribo-seq signal. This is the goal-aligned
+are actually translated from the sequence and the RNA-seq coverage. This is the goal-aligned
 alternative to an annotated-CDS track, which would mark only the canonical ORF and blind the
 model to the non-canonical translation this project targets.
 
@@ -106,7 +106,7 @@ def _pwm_multiplier(b, pwm_data, L):
 
 
 def orf_track(seq, mode, kozak="none", pwm_data=None):
-    """(L, 5) ORF-candidate channels from a mature-mRNA sequence."""
+    """(L, 5) ORF-candidate channels from a transcript sequence."""
     s = seq.upper().replace("U", "T")
     L = len(s)
     dt = np.int8 if mode == "atg" else np.float16

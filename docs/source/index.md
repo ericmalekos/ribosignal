@@ -1,10 +1,13 @@
 # RiboSignal
 
-Predicts a per-nucleotide ribosome P-site profile for a transcript from its mature mRNA sequence
-and matched RNA-seq coverage. No ribosome-profiling experiment is needed at inference.
+Predicts a per-nucleotide ribosome P-site profile for a transcript from its sequence and matched
+RNA-seq coverage. It takes any transcript, coding or non-coding, up to 10,000 nt, the longest the
+checkpoints were trained on. No ribosome-profiling experiment is needed at inference.
 
 The tutorial below runs the whole pipeline on public data, on chromosome 22, and ends with a
-number: predicted ORF calls scored against real Ribo-seq from the same donor.
+number: predicted ORF calls scored against real Ribo-seq from the same donor. The Ribo-seq is there
+to score the prediction. The Nextflow pipeline takes RNA-seq alone, and the pack and predict
+pages show how to run the scripts without Ribo-seq.
 
 ```{toctree}
 :maxdepth: 1

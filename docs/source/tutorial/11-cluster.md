@@ -14,8 +14,8 @@ variables with no cluster-specific defaults, so set them before submitting.
 export RIBO_REF=/path/to/reference
 export RIBO_WORK=/path/to/workdir
 export RIBO_IMAGE=/path/to/riboseq-model.sif
-sbatch examples/slurm/02_predict.sbatch
+sbatch --partition=<yours> --account=<yours> examples/slurm/02_predict.sbatch
 ```
 
-Two things to change first: the `--partition` and `--account` lines, which are site-specific, and
-the container path, since these use Singularity rather than Docker.
+The scripts carry no `--partition` or `--account` line, since both are site-specific; pass them on
+the `sbatch` command line as above. They run the image through Singularity, not Docker.

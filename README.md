@@ -3,8 +3,9 @@
   <img src="assets/ribosignal-wordmark.svg" alt="RiboSignal" width="440">
 </picture>
 
-Predicts a **per-nucleotide ribosome P-site profile** for a transcript from its mature mRNA
-sequence and matched RNA-seq coverage. No ribosome-profiling experiment is needed at inference.
+Predicts a **per-nucleotide ribosome P-site profile** for a transcript from its sequence and
+matched RNA-seq coverage. It takes any transcript, coding or non-coding, up to 10,000 nt, the
+longest the checkpoints were trained on. No ribosome-profiling experiment is needed at inference.
 
 The predicted profile can be fed to an ORF caller in place of real Ribo-seq, which is what it is
 for: calling translated ORFs, including upstream and non-canonical ones, in samples where no
@@ -14,9 +15,9 @@ Ribo-seq exists.
 
 Full tutorial, from a clean environment to scored ORF calls on chromosome 22, at
 **<https://ribosignal.readthedocs.io>**. It covers fetching and filtering the annotation, the
-sequencing data, adapter measurement, alignment, the pack, prediction, ORF calling with four
-callers, scoring, the known traps, running on a cluster, and the Nextflow pipeline. Everything
-below is the short version; the docs are the reference.
+sequencing data, adapter measurement, alignment, the pack, prediction, ORF calling with RiboCode
+and Ribo-TISH, scoring, running on a cluster, and the Nextflow pipeline. Everything below is the
+short version; the docs are the reference.
 
 ## Weights
 
@@ -43,32 +44,42 @@ docker pull ghcr.io/ericmalekos/riboseq-model:cpu   # or :gpu
 ```
 
 The [documentation](https://ribosignal.readthedocs.io) walks the whole chr22 run: it fetches the
-GENCODE reference and the two public accessions, then aligns, packs, predicts, calls and scores.
-With your own data the pipeline is one command,
+GENCODE reference and the two public accessions, then aligns, packs, predicts, calls ORFs, and
+scores the calls against the matched Ribo-seq. The pipeline takes RNA-seq only and is one
+command,
 
 ```bash
 nextflow run . -profile docker,cpu \
-  --rna_fastq 'fastq/*_{1,2}.fastq.gz' --ribo_fastq 'fastq/ribo.fastq.gz' \
-  --gtf ref/annotation.gtf --fasta ref/genome.fa
+  --rna_fastq 'fastq/*_{1,2}.fastq.gz' --gtf ref/annotation.gtf --fasta ref/genome.fa
 ```
 
-and `nextflow run . --help` lists every parameter. The `test` profile reruns the tutorial's chr22
-case once its two FASTQs are in `./fastq/`; the pipeline auto-fetches the reference but not the
-reads.
+and `nextflow run . --help` lists the main parameters (`nextflow.config` has the rest). RNA-seq
+must be paired-end, and `--fasta` uncompressed with a `samtools faidx` index beside it. It
+predicts every transcript with RNA-seq coverage and calls ORFs on the prediction; no Ribo-seq is
+read.
+
+The `test` profile runs the tutorial's chr22 sample once its RNA-seq FASTQs are in `./fastq/`;
+the pipeline auto-fetches the reference but not the reads.
 
 ## Training
 
-Human tissue Ribo-seq (GEO **GSE182371**), leave-one-tissue-out with Hepatocytes held out,
-unique-mapper alignments only. `scripts/train.py` is the entry point. The exact configuration and
-held-out metrics for each checkpoint ship with the weights as `<arch>_config.json` and
+Human tissue data from Chothani et al.: Ribo-seq from GEO **GSE182371** and RNA-seq from
+**GSE182372** (SuperSeries GSE182377). Both released checkpoints hold out Hepatocytes and train on
+seven tissues (Fibroblast, VSMC, ES, Fat, HA_EC, HCAEC, HUVEC), with unique-mapper alignments for
+both assays. The training universe is 84,472 transcripts, protein-coding (74,704) and lncRNA
+(9,768); other biotypes can be run but were not seen in training. The checkpoints were trained
+with `scripts/train_loto.py`, which is not yet in this repository; `scripts/train.py` is the
+earlier chromosome-split trainer and cannot reproduce them. The exact configuration and held-out
+metrics for each checkpoint ship with the weights as `<arch>_config.json` and
 `<arch>_test_metrics.json`.
 
 `release/orf_v2_*/test_metrics.json` carries a `spearman_median_INVALID_ordinal_ties` key. The
 name is the warning: that rank correlation was computed with ordinal ranks and no tie averaging,
-which on profiles that are 74 to 95% zeros ranks position rather than signal and drives the value
-negative. It is kept, renamed, for provenance and must not be read as a correlation. The defect
-touched that one reported metric only; it fed neither the loss nor checkpoint selection, so no
-model is affected. Pearson and periodicity in the same files are unaffected.
+which on profiles that are 74 to 95% zeros ranks position rather than signal and pulls the value
+to about zero or below (-0.030 attn, +0.004 mamba4). It is kept, renamed, for provenance and
+must not be read as a correlation. The defect touched that one reported metric only; it fed
+neither the loss nor checkpoint selection, so no model is affected. Pearson and periodicity in the
+same files are unaffected.
 
 ## Citation
 

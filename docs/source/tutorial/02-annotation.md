@@ -5,9 +5,9 @@ whole tutorial stays on chr22: about 1,750 genes and 11,600 transcripts, roughly
 
 ```bash
 mkdir -p ref && cd ref
-curl -sSL -o gencode.gtf.gz \
+wget -q -O gencode.gtf.gz \
   https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_49/gencode.v49.annotation.gtf.gz
-curl -sSL -o genome.fa.gz \
+wget -q -O genome.fa.gz \
   https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_49/GRCh38.primary_assembly.genome.fa.gz
 
 gunzip -c genome.fa.gz | awk '/^>/{p=($1==">chr22")} p' > chr22.fa

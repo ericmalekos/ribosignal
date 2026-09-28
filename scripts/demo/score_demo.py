@@ -5,9 +5,10 @@ calls made on it match the calls made on real Ribo-seq?
 Two questions, kept separate because they fail differently:
 
   profile agreement   per-transcript Pearson between predicted and observed P-sites.
-                      Same quantity as the model's own metric in
-                      release/orf_v2_*/test_metrics.json (0.6595 attn / 0.6799 mamba4 as
-                      3-seed medians over 70,883 held-out transcripts) -- but the demo
+                      Same quantity as pearson_median in
+                      release/orf_v2_*/test_metrics.json (0.6585 attn / 0.6851 mamba4 for
+                      the released seed-0 checkpoints, 3-seed means 0.6595 / 0.6799, over
+                      70,883 held-out transcripts) -- but the demo
                       scores a single RNA-seq run and a single Ribo-seq run on one
                       chromosome, and lands far below that. See the note the report
                       prints. The periodicity line is a DIFFERENT quantity from

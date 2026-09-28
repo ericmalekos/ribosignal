@@ -13,7 +13,8 @@ name: Publish riboseq-model image
 # pushes and the git tag on v* releases, plus :latest.
 #
 # On main, only fires when the image definition or this workflow changes -- a CUDA base plus torch
-# plus the mamba wheels is a long build, and nothing else in the repo affects it.
+# plus the mamba wheels is a long build. The image also COPYs scripts/, so a script change alone
+# does NOT refresh the scripts inside the published image; rebuild by hand (workflow_dispatch).
 #
 # The v* tag trigger lives in release-image.yml, which calls this workflow, and NOT in the push
 # block below. `branches`/`tags` and `paths` are ANDed, so a `tags: [v*]` entry here would build a

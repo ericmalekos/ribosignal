@@ -21,9 +21,9 @@
 #   SRR15513208   Ribo-seq, single, 182,236,906 reads         -> the ground truth
 #
 # MEASURED, not assumed: SRR15513269 is ALREADY adapter-trimmed (TruSeq in 4 reads per
-# 400,000; lengths ragged 74-76). It gets no -a. SRR15513208 has NOT been measured -- the
-# download did not finish -- so step 3 measures it and step 5 acts on the answer. Do not
-# skip that.
+# 400,000; lengths ragged 74-76). It gets no -a. SRR15513208 measured as already trimmed
+# too (35 nt reads, TruSeq in 0.11%), but step 3 measures it on every run and step 5 acts
+# on the answer. Do not skip that.
 # ---------------------------------------------------------------------------------------
 set -euo pipefail
 
@@ -49,10 +49,9 @@ die() { printf '\nFAILED: %s\n' "$*" >&2; exit 1; }
 
 # =========================================================================================
 say "0. tools"
-# The project's own image has STAR/samtools/cutadapt/RiboCode/torch/mamba_ssm at the exact
-# pinned versions AND the weights baked in, so prefer it where Docker exists:
+# The project's own image has every tool this script uses at the exact pinned versions AND
+# the weights baked in, so prefer it where Docker exists:
 #   docker run --rm -it -v "$WORK:$WORK" -w "$WORK" ghcr.io/ericmalekos/riboseq-model:latest
-# It has no gffread and no ribotish; install those alongside.
 for t in STAR samtools cutadapt gffread; do command -v $t >/dev/null || die "$t not on PATH"; done
 $PY -c "import torch, numpy, pysam, h5py" || die "need torch numpy pysam h5py"
 STAR --version; samtools --version | head -1; cutadapt --version
@@ -114,8 +113,7 @@ echo "  ribo adapter -> ${RIBO_ADAPTER:-<none detected>}"
 # =========================================================================================
 say "4. RNA-seq -> coverage"
 # -m 20 only. NOT --maximum-length and NOT --discard-untrimmed: both are right for
-# footprints and wrong for RNA (the latter kept 16.4% of reads on a library where the
-# correct call kept 99.0%).
+# footprints and wrong for RNA (on one RNA-seq library the latter kept 16.4% of reads).
 if [ ! -s rna/t1.fq.gz ]; then
   cutadapt --trim-n -m 20 -j "$THREADS" -o rna/t1.fq.gz -p rna/t2.fq.gz \
     "$F/SRR15513269_1.fastq.gz" "$F/SRR15513269_2.fastq.gz" > "$L/cutadapt_rna.log" 2>&1

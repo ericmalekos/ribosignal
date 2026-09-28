@@ -23,6 +23,18 @@ python $RIBO_SCRIPTS/dump_pred_profiles.py --run $RIBO_WEIGHTS --arch mamba4 \
 On a GPU box set `RIBO_MAMBA_IMPL=cuda` so a missing `mamba_ssm` is an error rather than a silent
 fall back to the reference path, which is far slower.
 
+By default the script predicts only transcripts with at least 50 observed P-sites
+(`--min_signal`), which is the set the score page evaluates: 6,583 on chr22. That selection comes
+from the Ribo-seq. For a pack built without `--psites`, pass the expressed transcripts instead:
+
+```bash
+python $RIBO_SCRIPTS/dump_pred_profiles.py --run $RIBO_WEIGHTS --arch attn \
+       --pack pack/demo --tx_list pack/demo/expressed_tx.txt --out pred/attn --device cpu
+```
+
+Only the `pred_preddepth` calls on the next page apply to such a run; `real` needs observed
+P-sites.
+
 ## How long it takes
 
 Measured on this chr22 pack, 6,583 scored transcripts. CPU is 16 threads on one compute node; GPU

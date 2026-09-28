@@ -3,10 +3,12 @@
 The two assays use opposite settings, and the differences matter more than they look.
 
 RNA-seq keeps multimappers up to 10 and must **not** get `--maximum-length` or
-`--discard-untrimmed`, both of which are correct for footprints and wrong here.
+`--discard-untrimmed`, both of which are correct for footprints and wrong here. The checkpoints
+were trained on unique-mapper RNA coverage, so this is one of the differences from the release
+evaluation that the score page lists.
 
 ```bash
-mkdir -p rna logs
+mkdir -p rna pack logs
 cutadapt --trim-n -m 20 -j 16 -o rna/t1.fq.gz -p rna/t2.fq.gz \
   fastq/SRR15513269_1.fastq.gz fastq/SRR15513269_2.fastq.gz > logs/cutadapt_rna.log 2>&1
 
@@ -30,7 +32,7 @@ trimmed (reads are 35 nt, 0.11% carry TruSeq), so it takes the `else` branch: `-
 applies either way, because footprints are length-selected and RNA fragments are not.
 
 ```bash
-mkdir -p ribo pack
+mkdir -p ribo
 if [ -n "${RIBO_ADAPTER:-}" ]; then
   cutadapt -a "$RIBO_ADAPTER" -m 20 -M 40 --discard-untrimmed -j 16 \
     -o ribo/t.fq.gz fastq/SRR15513208.fastq.gz > logs/cutadapt_ribo.log 2>&1
@@ -52,5 +54,5 @@ python $RIBO_SCRIPTS/ribo_psites.py --bam ribo/SRR15513208.Aligned.toTranscripto
 For this run cutadapt keeps 175,536,463 of 182,236,906 reads (96.3%). A pass that keeps a
 few percent means `-a` was applied to a library that did not need it.
 
-The frame-0 fraction printed by the last command is the whole QC: 1/3 is noise, a real library
-reaches 0.5 to 0.7.
+The frame-0 fraction printed by the last command is the whole QC: 1/3 is noise, and
+`ribo_psites.py` refuses to write below 0.4. This library gives 0.726.

@@ -28,10 +28,6 @@ process PREDICT {
 
     output:
     tuple val(arch), path("${arch}/pred_profiles.npz"), emit: profiles
-    // The directory too, not just the file: score_demo.py looks for
-    // pred/<arch>/pred_profiles.npz, so staging the bare npz would both lose the arch and
-    // collide on the second architecture.
-    path "${arch}",                                     emit: dir
     path "${arch}_seconds.tsv",                         emit: timing
 
     script:
@@ -44,8 +40,10 @@ process PREDICT {
     export OPENBLAS_NUM_THREADS=${task.cpus} NUMEXPR_NUM_THREADS=${task.cpus}
 
     T0=\$SECONDS
+    # --tx_list: with no Ribo-seq there is no observed-P-site floor to select transcripts, so
+    # predict every transcript build_pack.py found expressed.
     dump_pred_profiles.py --run ${weights}/ --arch ${arch} --pack ${pack} \\
-        --out ${arch} --device ${device}
+        --tx_list ${pack}/expressed_tx.txt --out ${arch} --device ${device}
     printf '%s\\t%s\\t%s\\t%s\\n' "${arch}" "${device}" "${task.cpus}" "\$((SECONDS-T0))" \\
         > ${arch}_seconds.tsv
     cat ${arch}_seconds.tsv

@@ -3,12 +3,14 @@
 RiboCode needs its own prepared annotation once.
 
 ```bash
+mkdir -p calls
 prepare_transcripts -g ref/chr22.gtf -f ref/chr22.fa -o calls/annot
 ```
 
 Three arms per architecture. `real` runs the caller on the observed P-sites and is the reference
-the others are judged against; `pred_preddepth` is the fully de novo call using no Ribo-seq at all;
-the Poisson arm trades recall for precision.
+the others are judged against; `pred_preddepth` calls from the predicted shape and the predicted
+depth, so no observed P-site enters the call (the transcripts it runs on are the ones chosen on the
+predict page); the Poisson arm trades recall for precision.
 
 ```bash
 for ARCH in attn mamba4; do
@@ -24,18 +26,17 @@ done
 ```
 
 Ribo-TISH is a second caller on the same profiles, which separates a model failure from a caller
-failure. Its GTF must be restricted to exactly the scored transcripts, because it only skips its
-BAM path when the profile covers every transcript of a gene.
+failure. Its GTF must be restricted to the predicted transcripts, keeping only genes whose every
+transcript was predicted, because Ribo-TISH skips its BAM path only when the profile covers a
+whole gene. `--emit-gtf` makes the wrapper write that GTF itself. Building it from
+`pack_meta.tsv` instead is wrong: the pack holds every transcript, the prediction only the scored
+ones, and Ribo-TISH then goes looking for a BAM that is not there.
 
 ```bash
-cut -f1 pack/demo/pack_meta.tsv | tail -n +2 > calls/tx_ids.txt
-awk -v FL=calls/tx_ids.txt 'BEGIN{while((getline l < FL)>0) k[l]=1}
-     !/^#/ { if (match($0,/transcript_id "[^"]+"/)) {
-       t=substr($0,RSTART+15,RLENGTH-16); if (t in k) print } }' ref/chr22.gtf > calls/scored.gtf
-
 for ARCH in attn mamba4; do
   python $RIBO_SCRIPTS/orfcallers/ribotish_dropin.py \
-         --profiles pred/$ARCH/pred_profiles.npz --gtf calls/scored.gtf --genome ref/chr22.fa \
+         --profiles pred/$ARCH/pred_profiles.npz --gtf ref/chr22.gtf --genome ref/chr22.fa \
+         --emit-gtf calls/scored_$ARCH.gtf \
          --variant pred_preddepth --out calls/ribotish_$ARCH \
          --longest --minaalen 5 --fpth 0.05 --numproc 16
 done

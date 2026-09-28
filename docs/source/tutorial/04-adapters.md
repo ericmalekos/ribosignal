@@ -4,6 +4,7 @@ Adapters are measured, never assumed. `SRR15513269` is already adapter-trimmed, 
 would trim sequence that is not there, and `--discard-untrimmed` would destroy the library.
 
 ```bash
+mkdir -p logs
 python $RIBO_SCRIPTS/demo/measure_adapter.py fastq/SRR15513269_1.fastq.gz | tee logs/adapter_rna.txt
 python $RIBO_SCRIPTS/demo/measure_adapter.py fastq/SRR15513208.fastq.gz   | tee logs/adapter_ribo.txt
 ```

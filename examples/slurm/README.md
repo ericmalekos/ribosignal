@@ -1,8 +1,8 @@
 # Example SLURM scripts
 
 Adapt these, do not run them as-is. They take every path from an environment variable and have no
-site-specific defaults, but the `--partition` and `--account` lines are placeholders and the
-container path assumes Singularity.
+site-specific defaults: they carry no `--partition` or `--account` line, so pass both to `sbatch`
+as below, and they run the image through Singularity.
 
 ```bash
 export RIBO_IMAGE=/path/to/riboseq-model.sif   # singularity build from ghcr.io/ericmalekos/riboseq-model

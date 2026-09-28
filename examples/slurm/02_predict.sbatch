@@ -7,9 +7,9 @@
 #SBATCH --output=%x_%j.out
 #SBATCH --error=%x_%j.err
 set -euo pipefail
-# Predict the per-nucleotide profile. attn runs on CPU; mamba4 needs the GPU because mamba_ssm
-# has no CPU kernel. RIBO_MAMBA_IMPL=cuda makes a missing mamba_ssm an error rather than a
-# silent ~100x slower pure-PyTorch fallback.
+# Predict the per-nucleotide profile on the GPU. Both architectures also run on CPU (mamba4
+# through the pure-PyTorch reference, 6.3x slower than attn there). RIBO_MAMBA_IMPL=cuda makes
+# a missing mamba_ssm an error rather than a silent switch to that far slower reference path.
 : "${RIBO_IMAGE:?}"; : "${RIBO_WORK:?}"
 ARCH=${ARCH:-mamba4}
 singularity exec --nv --cleanenv -B "$RIBO_WORK" \

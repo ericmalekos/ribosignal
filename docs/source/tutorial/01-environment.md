@@ -1,7 +1,8 @@
 # Install and check the environment
 
 Everything runs inside one container image, which carries the aligners, the callers, the Python
-stack and both released checkpoints. Nothing is downloaded at run time.
+stack and both released checkpoints, so prediction needs no network access. The reference and the
+reads are downloaded on the next two pages.
 
 There are two tags. `:cpu` is a plain Ubuntu base with CPU torch and no `mamba_ssm`; `:gpu` is a
 CUDA base with the prebuilt Mamba kernels. Both run both checkpoints, because mamba4 falls back to

@@ -14,8 +14,8 @@ Fetch from ENA directly, which needs no SRA toolkit.
 ```bash
 mkdir -p fastq && cd fastq
 for f in SRR15513269_1 SRR15513269_2; do
-  curl -sSL -O "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR155/069/SRR15513269/$f.fastq.gz"
+  wget -q "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR155/069/SRR15513269/$f.fastq.gz"
 done
-curl -sSL -O "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR155/008/SRR15513208/SRR15513208.fastq.gz"
+wget -q "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR155/008/SRR15513208/SRR15513208.fastq.gz"
 ls -la && cd ..
 ```

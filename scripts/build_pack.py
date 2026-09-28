@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Pool per-sample coverage into the packed store the model reads.
 
-The chain README section 2 describes stops one step short: `rnaseq_coverage.py` writes a
-per-sample hd5, `dump_pred_profiles.py` reads a PACK, and nothing published here turned one
-into the other. This does.
+`rnaseq_coverage.py` writes a per-sample hd5 and `dump_pred_profiles.py` reads a PACK; this
+turns one into the other.
 
 A pack is six ragged arrays sharing one transcript order, so a transcript's coverage, its
 P-site target and its ORF-track rows are all the same slice `offsets[r]:offsets[r+1]`. See

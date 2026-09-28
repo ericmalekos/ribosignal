@@ -190,8 +190,9 @@ def main():
                     help="held-out scorable floor: min pooled P-sites for a test tx")
     ap.add_argument("--tx_list", default=None,
                     help="explicit tx list to score (for predict-only coverage packs with no Ribo-seq "
-                         "target, e.g. proteogenomics A549: score the RNA-seq-expressed tx, not the "
-                         "Ribo-seq-scorable ones). Only used with --heldout.")
+                         "target: pass the pack's expressed_tx.txt to score the RNA-seq-expressed "
+                         "tx, not the Ribo-seq-scorable ones). Used with --pack, --heldout, and a "
+                         "LOTO run, where it restricts the test set.")
     ap.add_argument("--fasta", default=None,
                     help="FASTA the predicted transcripts are verified against (default "
                          "$RIBO_ONEHOT_FASTA, the same universe the one-hot backend reads)")

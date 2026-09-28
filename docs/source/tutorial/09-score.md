@@ -11,7 +11,9 @@ python $RIBO_SCRIPTS/demo/score_demo.py --pred-dir pred --calls-dir calls \
 
 ## What this run produces
 
-chr22, 6,583 scored transcripts, Hepatocytes_1 (the tissue held out of training).
+chr22, 6,583 scored transcripts (those with at least 50 observed P-sites), Hepatocytes_1 (the
+tissue held out of training). The Ribo-seq chose those transcripts, which a run without Ribo-seq
+cannot do; the last section gives the numbers for that case.
 
 | architecture | arm | overall P | R | F1 | annotated F1 | novel P | novel R |
 |---|---|--:|--:|--:|--:|--:|--:|
@@ -25,7 +27,7 @@ chromosome with 729 reference calls that is not a basis for preferring one over 
 
 Read three things. **Annotated-CDS F1** should be high; this is the class the annotation makes
 trustworthy, and 0.980 is what a working run looks like. **Non-canonical classes are the hard
-case**, and the uncalibrated arm over-calls them: `dORF` precision is 0.222, about four false
+case**, and the uncalibrated arm over-calls them: `dORF` precision is 0.222, about 3.5 false
 calls per true one. **The Poisson arm is the dial**, and comparing the two rows shows what it
 buys: novel precision 0.576 to 0.800, for novel recall 0.779 down to 0.508. Report both arms.
 Quoting either alone gives a number better than the method is.
@@ -56,3 +58,19 @@ not as a reproduction of the released metric.
 quantities: this page reports the max-frame fraction, floored at 1/3, while training reports an
 autocorrelation contrast (frame lags 3/6/9/12 minus off-frame lags). That is why the released
 `period_obs_median` of 0.1457 sits below 1/3, which no fraction can.
+
+## Without Ribo-seq to choose the transcripts
+
+The Nextflow pipeline takes RNA-seq only, so it predicts every transcript with RNA-seq coverage:
+8,523 on chr22 rather than 6,583. Scored against the same real calls, `attn`:
+
+| arm | calls | overall P | R | novel P | novel R |
+|---|--:|--:|--:|--:|--:|
+| `pred_preddepth` | 1,391 | 0.455 | 0.868 | 0.239 | 0.734 |
+| `+ poisson 0.05` | 695 | 0.737 | 0.702 | 0.482 | 0.492 |
+
+Precision falls, most of all for novel ORFs. 567 of the 1,391 calls sit on transcripts with too few
+P-sites for a real call to exist, so this reference cannot confirm them; some may be translated
+ORFs the Ribo-seq is too shallow to see. On this sample, keeping only transcripts with a mean RNA
+depth of at least 2 selects 6,584 transcripts and gives 0.658 (novel 0.451) and 0.835 (novel
+0.617) for the two arms.
