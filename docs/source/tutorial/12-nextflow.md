@@ -22,11 +22,13 @@ nextflow run . -profile docker,gpu \
 
 - RNA-seq must be paired-end. For single-end RNA-seq, align it yourself and pass `--rna_bam`.
 - `--fasta` must be uncompressed, with a `samtools faidx` index beside it.
-- Every transcript with RNA-seq coverage is predicted: `--min_coverage`, default 1, is the total
-  per-nucleotide coverage a transcript needs. On chr22 that is 8,523 of 11,575 transcripts,
-  against the 6,583 the score page evaluates, and `attn` predicts them in about 32 min on 16 CPU
-  threads. `mamba4` is 6.3x slower on CPU, so a whole-genome run belongs on a GPU, or on `attn`.
-  Predicting every expressed transcript costs precision; the score page gives the numbers.
+- It predicts every isoform of the genes at 5 TPM or more. salmon quantifies the same alignment,
+  and `--min_tpm` sets the cutoff; `--tpm_level transcript` applies it to each isoform's own TPM
+  instead. The default comes from a sweep on the tutorial sample, on the score page. TPM is
+  normalised over the reference, so on the chr22 `test` profile it runs about 47 times higher
+  than genome-wide and the cutoff admits more transcripts than it would on a whole genome.
+- On 16 CPU threads `attn` predicts about 8,500 chr22 transcripts in 32 min, and `mamba4` is
+  6.3x slower on CPU, so a whole-genome run belongs on a GPU, or on `attn`.
 
 If you already have a STAR transcriptome BAM, pass it instead and the pipeline skips the
 alignment and the STAR index.
@@ -60,7 +62,8 @@ nextflow run . -profile slurm,singularity,gpu \
 | parameter | default | note |
 |---|---|---|
 | `--arch` | `attn,mamba4` | on GPU mamba4 is the faster of the two; on CPU it is 6.3x slower |
-| `--min_coverage` | `1` | total RNA coverage a transcript needs to be predicted |
+| `--min_tpm` | `5` | salmon TPM cutoff for the transcripts to predict |
+| `--tpm_level` | `gene` | `gene`: every isoform of a gene at the cutoff; `transcript`: each isoform's own TPM |
 | `--chrom` | `chr22` | only when the pipeline fetches the reference; `all` for the primary assembly, which needs about 32 GB to index |
 | `--max_tx_length` | `10000` | the released checkpoints never saw a longer transcript |
 | `--pred_scale` | `0.05` | the Poisson dial on the second calling arm |
@@ -76,6 +79,7 @@ results/
   align/         transcriptome BAM and STAR log
   logs/          cutadapt log
   coverage/      coverage.hd5, per-nucleotide RNA-seq coverage
+  expression/    salmon quant.sf, and predicted_tx.txt, the transcripts passing the TPM cutoff
   pack/          tx_order.txt, offsets, lengths, coverage, expressed_tx.txt, ORF track
   weights/       the checkpoints, when fetched from Hugging Face
   pred/          <arch>/pred_profiles.npz and the per-arch timing

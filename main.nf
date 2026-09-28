@@ -32,8 +32,9 @@ def helpMessage() {
       --arch          attn, mamba4, or both (default '${params.arch}').
                       On GPU mamba4 is faster than attn; on CPU it is 6.3x slower.
       --device        cpu or cuda. The cpu and gpu profiles set this.
-      --min_coverage  predict transcripts whose total RNA coverage reaches this
-                      (default ${params.min_coverage}).
+      --min_tpm       predict every isoform of genes at or above this salmon TPM
+                      (default ${params.min_tpm}; --tpm_level transcript uses each
+                      isoform's own TPM instead).
       --chrom         chr22 (default) or all, when the reference is fetched. 'all' needs
                       ~32 GB to index.
       --max_tx_length ${params.max_tx_length}. The checkpoints never saw a longer transcript.

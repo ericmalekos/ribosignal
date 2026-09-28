@@ -199,7 +199,7 @@ RUN chmod -R a+rX /opt/riboseq-model/scripts && \
 ENV PATH="/opt/riboseq-model/scripts:/opt/riboseq-model/scripts/demo:/opt/riboseq-model/scripts/orfcallers:$PATH"
 # Every executable the Nextflow modules call by bare name must resolve, or the failure lands
 # mid-run in a task directory instead of at build time.
-RUN for t in STAR samtools cutadapt gffread prepare_transcripts ribotish curl \
+RUN for t in STAR samtools cutadapt gffread salmon prepare_transcripts ribotish curl \
              rnaseq_coverage.py build_pack.py build_orf_track.py dump_pred_profiles.py \
              ribocode_dropin.py ribotish_dropin.py; do \
       command -v "$t" >/dev/null || { echo "MISSING ON PATH: $t" >&2; exit 1; }; \

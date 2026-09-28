@@ -1,6 +1,6 @@
 include { FETCH_REFERENCE; TRANSCRIPT_FASTA; STAR_INDEX } from '../modules/local/reference'
 include { TRIM_RNA; ALIGN_RNA } from '../modules/local/align'
-include { RNA_COVERAGE; BUILD_PACK; ORF_TRACK } from '../modules/local/pack'
+include { RNA_COVERAGE; SALMON_QUANT; BUILD_PACK; ORF_TRACK } from '../modules/local/pack'
 include { FETCH_WEIGHTS; PREDICT } from '../modules/local/predict'
 include { RIBOCODE_ANNOT; RIBOCODE_CALL; RIBOTISH_CALL } from '../modules/local/orfcall'
 
@@ -47,8 +47,13 @@ workflow RIBOSIGNAL {
     ch_floor = ch_tx.map { fa -> Math.max(100, fa.countFasta().intdiv(10)) }
 
     ch_cov   = RNA_COVERAGE(ch_rna_bam, ch_floor.first())
-    ch_pack  = BUILD_PACK(ch_tx.first(), ch_cov, params.max_tx_length, params.min_coverage)
+    ch_pack  = BUILD_PACK(ch_tx.first(), ch_cov, params.max_tx_length)
     ch_track = ORF_TRACK(ch_pack, ch_tx.first())
+
+    // Which transcripts to predict: salmon TPM on the same BAM, at gene or transcript level.
+    if (!(params.tpm_level in ['gene', 'transcript'])) error "--tpm_level must be gene or transcript"
+    ch_sel   = SALMON_QUANT(ch_rna_bam, ch_tx.first(), ch_ref.first(),
+                            params.min_tpm, params.tpm_level)
 
     // ---- predict ---------------------------------------------------------------------
     // Both branches are VALUE channels, so every architecture reads the same weights.
@@ -61,7 +66,7 @@ workflow RIBOSIGNAL {
     // first architecture consumes the pack, track and FASTA and the second never runs -- and
     // with --arch attn alone the pipeline looks correct.
     ch_pred = PREDICT(ch_arch, ch_pack.first(), ch_track.first(), ch_tx.first(),
-                      ch_weights, params.device)
+                      ch_weights, ch_sel.tx_list.first(), params.device)
 
     // ---- call ------------------------------------------------------------------------
     ch_annot = RIBOCODE_ANNOT(ch_ref)

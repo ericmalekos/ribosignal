@@ -24,6 +24,7 @@ process PREDICT {
     path track
     path tx_fasta
     path weights
+    path tx_list
     val device
 
     output:
@@ -40,10 +41,10 @@ process PREDICT {
     export OPENBLAS_NUM_THREADS=${task.cpus} NUMEXPR_NUM_THREADS=${task.cpus}
 
     T0=\$SECONDS
-    # --tx_list: with no Ribo-seq there is no observed-P-site floor to select transcripts, so
-    # predict every transcript build_pack.py found expressed.
+    # --tx_list: the transcripts at or above the TPM cutoff (SALMON_QUANT). Without it the
+    # script falls back to an observed-P-site floor, which a pack with no Ribo-seq never meets.
     dump_pred_profiles.py --run ${weights}/ --arch ${arch} --pack ${pack} \\
-        --tx_list ${pack}/expressed_tx.txt --out ${arch} --device ${device}
+        --tx_list ${tx_list} --out ${arch} --device ${device}
     printf '%s\\t%s\\t%s\\t%s\\n' "${arch}" "${device}" "${task.cpus}" "\$((SECONDS-T0))" \\
         > ${arch}_seconds.tsv
     cat ${arch}_seconds.tsv

@@ -55,8 +55,8 @@ nextflow run . -profile docker,cpu \
 
 and `nextflow run . --help` lists the main parameters (`nextflow.config` has the rest). RNA-seq
 must be paired-end, and `--fasta` uncompressed with a `samtools faidx` index beside it. It
-predicts every transcript with RNA-seq coverage and calls ORFs on the prediction; no Ribo-seq is
-read.
+predicts every isoform of the genes at 5 TPM or more (`--min_tpm`, from salmon on the same
+alignment) and calls ORFs on the prediction; no Ribo-seq is read.
 
 The `test` profile runs the tutorial's chr22 sample once its RNA-seq FASTQs are in `./fastq/`;
 the pipeline auto-fetches the reference but not the reads.
