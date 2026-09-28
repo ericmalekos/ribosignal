@@ -68,10 +68,10 @@ Human tissue data from Chothani et al.: Ribo-seq from GEO **GSE182371** and RNA-
 seven tissues (Fibroblast, VSMC, ES, Fat, HA_EC, HCAEC, HUVEC), with unique-mapper alignments for
 both assays. The training universe is 84,472 transcripts, protein-coding (74,704) and lncRNA
 (9,768); other biotypes can be run but were not seen in training. The checkpoints were trained
-with `scripts/train_loto.py`, which is not yet in this repository; `scripts/train.py` is the
-earlier chromosome-split trainer and cannot reproduce them. The exact configuration and held-out
-metrics for each checkpoint ship with the weights as `<arch>_config.json` and
-`<arch>_test_metrics.json`.
+with `scripts/train_loto.py`, whose docstring gives the exact command; it needs the per-tissue
+training packs, which are not distributed. `scripts/train.py` is the earlier chromosome-split
+trainer and cannot reproduce them. The exact configuration and held-out metrics for each
+checkpoint ship with the weights as `<arch>_config.json` and `<arch>_test_metrics.json`.
 
 `release/orf_v2_*/test_metrics.json` carries a `spearman_median_INVALID_ordinal_ties` key. The
 name is the warning: that rank correlation was computed with ordinal ranks and no tie averaging,
